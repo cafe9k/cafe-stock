@@ -28,7 +28,14 @@ const generateHistoricalData = () => {
   return data;
 };
 
-export default function StockDetail({ params }: { params: { id: string } }) {
+type StockDetailProps = {
+  params: Promise<{ id: string }>;
+  searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
+};
+
+export default async function StockDetail({ params: paramsPromise, searchParams: searchParamsPromise }: StockDetailProps) {
+  const params = await paramsPromise;
+  const searchParams = searchParamsPromise ? await searchParamsPromise : undefined;
   const [stock, setStock] = useState<any>(null);
   const [loaded, setLoaded] = useState(false);
   const [historicalData] = useState(generateHistoricalData());
