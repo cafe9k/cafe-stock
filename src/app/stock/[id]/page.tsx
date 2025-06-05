@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 
 // 模拟股票数据 - 实际应用中应该从API获取
 const stocksData = [
@@ -28,14 +28,11 @@ const generateHistoricalData = () => {
   return data;
 };
 
-type StockDetailProps = {
-  params: Promise<{ id: string }>;
-  searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
-};
+// type StockDetailProps removed as params are now fetched by useParams hook
 
-export default async function StockDetail({ params: paramsPromise, searchParams: searchParamsPromise }: StockDetailProps) {
-  const params = await paramsPromise;
-  const searchParams = searchParamsPromise ? await searchParamsPromise : undefined;
+export default function StockDetail() { // params and searchParams removed from props
+  const routeParams = useParams(); // Use useParams hook
+  const id = routeParams.id as string; // Extract id from routeParams
   const [stock, setStock] = useState<any>(null);
   const [loaded, setLoaded] = useState(false);
   const [historicalData] = useState(generateHistoricalData());
@@ -43,10 +40,10 @@ export default async function StockDetail({ params: paramsPromise, searchParams:
 
   useEffect(() => {
     // 在实际应用中，这里应该从API获取股票详情
-    const stockDetail = stocksData.find(s => s.id === params.id);
+    const stockDetail = stocksData.find(s => s.id === id); // Use id from useParams
     setStock(stockDetail);
     setLoaded(true);
-  }, [params.id]);
+  }, [id]); // Depend on id from useParams
 
   const handleBack = () => {
     router.back();
