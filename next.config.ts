@@ -2,9 +2,9 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: 'standalone', // 为容器化部署优化
-  experimental: {
-    optimizeCss: true,
-  },
+  // experimental: {
+  //   optimizeCss: true, // 暂时禁用，避免 critters 依赖问题
+  // },
   compress: true,
   poweredByHeader: false,
   generateEtags: false,
