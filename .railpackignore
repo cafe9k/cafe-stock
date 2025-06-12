@@ -1,0 +1,14 @@
+.git
+.next
+node_modules
+*.log
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+tests/
+*.test.ts
+*.test.tsx
+.DS_Store
+coverage/
+.nyc_output/
