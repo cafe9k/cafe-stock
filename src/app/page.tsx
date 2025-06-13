@@ -40,7 +40,7 @@ export default function Home() {
     try {
       const requestData = {
         api_name: "trade_cal",
-        token: "834c0133bb912100b3cdacaeb7b5741523839fd9f8932d9e24c0aa1d", 
+        // Token is now handled by the backend API route
         params: {
           exchange: "",
           start_date: "20250501",
@@ -174,7 +174,7 @@ export default function Home() {
           <pre className="bg-gray-100 p-3 rounded text-xs overflow-x-auto">
 {JSON.stringify({
   "api_name": "trade_cal",
-  "token": "your_token_here",
+  // Token is now handled by the backend API route
   "params": {
     "exchange": "",
     "start_date": "20240901",
@@ -185,7 +185,7 @@ export default function Home() {
 }, null, 2)}
           </pre>
           <p className="text-orange-600">
-            <strong>注意:</strong> 请将代码中的 "your_token_here" 替换为您的实际Tushare API token
+            <strong>注意:</strong> Tushare API token 现在由后端处理。请确保在服务器环境变量中设置了 `TUSHARE_TOKEN`。
           </p>
         </div>
       </div>
