@@ -264,3 +264,28 @@ tbody tr:hover {
     padding: 20px;
     color: #666;
 }
+
+.status-badge {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.status-badge.active {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.status-badge.inactive {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+.low-stock {
+    background-color: #fff3cd !important;
+}
+
+.low-stock:hover {
+    background-color: #ffe69c !important;
+}

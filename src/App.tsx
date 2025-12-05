@@ -1,25 +1,28 @@
 import { useState, useEffect } from 'react'
 import './App.css'
-import { supabase, StockItem } from './lib/supabaseClient'
+import { supabase, Product, Category } from './lib/supabaseClient'
 
 function App() {
     const [isConnected, setIsConnected] = useState<boolean | null>(null)
-    const [stockItems, setStockItems] = useState<StockItem[]>([])
+    const [products, setProducts] = useState<Product[]>([])
+    const [categories, setCategories] = useState<Category[]>([])
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
 
     const [formData, setFormData] = useState({
         name: '',
-        quantity: '',
-        unit: '',
-        category: ''
+        current_stock: '',
+        unit: '件',
+        category_id: '',
+        min_stock: '0',
+        unit_price: '0'
     })
 
     const testConnection = async () => {
         setLoading(true)
         setError(null)
         try {
-            const { error } = await supabase.from('stock_items').select('count')
+            const { error } = await supabase.from('products').select('count')
             if (error) {
                 setIsConnected(false)
                 setError(`连接失败: ${error.message}`)
@@ -34,19 +37,36 @@ function App() {
         }
     }
 
-    const fetchStockItems = async () => {
+    const fetchCategories = async () => {
+        try {
+            const { data, error } = await supabase
+                .from('categories')
+                .select('*')
+                .order('name')
+
+            if (error) {
+                console.error('获取分类失败:', error)
+            } else {
+                setCategories(data || [])
+            }
+        } catch (err) {
+            console.error('获取分类时发生错误:', err)
+        }
+    }
+
+    const fetchProducts = async () => {
         setLoading(true)
         setError(null)
         try {
             const { data, error } = await supabase
-                .from('stock_items')
+                .from('products')
                 .select('*')
                 .order('created_at', { ascending: false })
 
             if (error) {
                 setError(`获取数据失败: ${error.message}`)
             } else {
-                setStockItems(data || [])
+                setProducts(data || [])
             }
         } catch (err) {
             setError('获取数据时发生错误')
@@ -62,13 +82,16 @@ function App() {
 
         try {
             const { error } = await supabase
-                .from('stock_items')
+                .from('products')
                 .insert([
                     {
                         name: formData.name,
-                        quantity: parseInt(formData.quantity),
+                        current_stock: parseFloat(formData.current_stock),
                         unit: formData.unit,
-                        category: formData.category
+                        category_id: formData.category_id || null,
+                        min_stock: parseFloat(formData.min_stock),
+                        unit_price: parseFloat(formData.unit_price),
+                        status: 'active'
                     }
                 ])
 
@@ -77,11 +100,13 @@ function App() {
             } else {
                 setFormData({
                     name: '',
-                    quantity: '',
-                    unit: '',
-                    category: ''
+                    current_stock: '',
+                    unit: '件',
+                    category_id: '',
+                    min_stock: '0',
+                    unit_price: '0'
                 })
-                fetchStockItems()
+                fetchProducts()
             }
         } catch (err) {
             setError('添加数据时发生错误')
@@ -90,22 +115,22 @@ function App() {
         }
     }
 
-    const handleDelete = async (id: number) => {
-        if (!confirm('确定要删除这个库存项吗?')) return
+    const handleDelete = async (id: string) => {
+        if (!confirm('确定要删除这个产品吗?')) return
 
         setLoading(true)
         setError(null)
 
         try {
             const { error } = await supabase
-                .from('stock_items')
+                .from('products')
                 .delete()
                 .eq('id', id)
 
             if (error) {
                 setError(`删除失败: ${error.message}`)
             } else {
-                fetchStockItems()
+                fetchProducts()
             }
         } catch (err) {
             setError('删除数据时发生错误')
@@ -116,7 +141,8 @@ function App() {
 
     useEffect(() => {
         testConnection()
-        fetchStockItems()
+        fetchCategories()
+        fetchProducts()
     }, [])
 
     return (
@@ -152,25 +178,26 @@ function App() {
                 )}
 
                 <div className="form-section">
-                    <h2>添加库存项</h2>
+                    <h2>添加产品</h2>
                     <form onSubmit={handleSubmit}>
                         <div className="form-grid">
                             <div className="form-group">
-                                <label>名称</label>
+                                <label>产品名称</label>
                                 <input
                                     type="text"
                                     value={formData.name}
                                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                    placeholder="例如: 咖啡豆"
+                                    placeholder="例如: 埃塞俄比亚咖啡豆"
                                     required
                                 />
                             </div>
                             <div className="form-group">
-                                <label>数量</label>
+                                <label>当前库存</label>
                                 <input
                                     type="number"
-                                    value={formData.quantity}
-                                    onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
+                                    step="0.01"
+                                    value={formData.current_stock}
+                                    onChange={(e) => setFormData({ ...formData, current_stock: e.target.value })}
                                     placeholder="例如: 100"
                                     required
                                 />
@@ -186,28 +213,48 @@ function App() {
                                 />
                             </div>
                             <div className="form-group">
-                                <label>类别</label>
+                                <label>分类</label>
                                 <select
-                                    value={formData.category}
-                                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                                    required
+                                    value={formData.category_id}
+                                    onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
                                 >
-                                    <option value="">选择类别</option>
-                                    <option value="原料">原料</option>
-                                    <option value="包材">包材</option>
-                                    <option value="器具">器具</option>
-                                    <option value="其他">其他</option>
+                                    <option value="">选择分类</option>
+                                    {categories.map((cat) => (
+                                        <option key={cat.id} value={cat.id}>
+                                            {cat.name}
+                                        </option>
+                                    ))}
                                 </select>
+                            </div>
+                            <div className="form-group">
+                                <label>最低库存</label>
+                                <input
+                                    type="number"
+                                    step="0.01"
+                                    value={formData.min_stock}
+                                    onChange={(e) => setFormData({ ...formData, min_stock: e.target.value })}
+                                    placeholder="例如: 10"
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label>单价</label>
+                                <input
+                                    type="number"
+                                    step="0.01"
+                                    value={formData.unit_price}
+                                    onChange={(e) => setFormData({ ...formData, unit_price: e.target.value })}
+                                    placeholder="例如: 150.00"
+                                />
                             </div>
                         </div>
                         <div className="button-group">
                             <button type="submit" className="btn btn-primary" disabled={loading || !isConnected}>
-                                {loading ? '添加中...' : '添加库存'}
+                                {loading ? '添加中...' : '添加产品'}
                             </button>
                             <button 
                                 type="button" 
                                 className="btn btn-secondary" 
-                                onClick={fetchStockItems}
+                                onClick={fetchProducts}
                                 disabled={loading || !isConnected}
                             >
                                 刷新数据
@@ -217,49 +264,58 @@ function App() {
                 </div>
 
                 <div className="data-section">
-                    <h2>库存列表</h2>
+                    <h2>产品列表</h2>
                     {loading ? (
                         <div className="loading">加载中...</div>
-                    ) : stockItems.length === 0 ? (
+                    ) : products.length === 0 ? (
                         <div className="empty-state">
-                            暂无库存数据,请添加库存项
+                            暂无产品数据，请添加产品
                         </div>
                     ) : (
                         <div className="table-container">
                             <table>
                                 <thead>
                                     <tr>
-                                        <th>ID</th>
-                                        <th>名称</th>
-                                        <th>数量</th>
+                                        <th>产品名称</th>
+                                        <th>当前库存</th>
+                                        <th>最低库存</th>
                                         <th>单位</th>
-                                        <th>类别</th>
+                                        <th>单价</th>
+                                        <th>状态</th>
                                         <th>创建时间</th>
                                         <th>操作</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {stockItems.map((item) => (
-                                        <tr key={item.id}>
-                                            <td>{item.id}</td>
-                                            <td>{item.name}</td>
-                                            <td>{item.quantity}</td>
-                                            <td>{item.unit}</td>
-                                            <td>{item.category}</td>
-                                            <td>{new Date(item.created_at).toLocaleString('zh-CN')}</td>
-                                            <td>
-                                                <div className="action-buttons">
-                                                    <button
-                                                        className="btn btn-danger btn-small"
-                                                        onClick={() => handleDelete(item.id)}
-                                                        disabled={loading}
-                                                    >
-                                                        删除
-                                                    </button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))}
+                                    {products.map((product) => {
+                                        const isLowStock = product.current_stock <= product.min_stock
+                                        return (
+                                            <tr key={product.id} className={isLowStock ? 'low-stock' : ''}>
+                                                <td>{product.name}</td>
+                                                <td>{product.current_stock}</td>
+                                                <td>{product.min_stock}</td>
+                                                <td>{product.unit}</td>
+                                                <td>¥{product.unit_price}</td>
+                                                <td>
+                                                    <span className={`status-badge ${product.status}`}>
+                                                        {product.status === 'active' ? '启用' : '停用'}
+                                                    </span>
+                                                </td>
+                                                <td>{new Date(product.created_at).toLocaleString('zh-CN')}</td>
+                                                <td>
+                                                    <div className="action-buttons">
+                                                        <button
+                                                            className="btn btn-danger btn-small"
+                                                            onClick={() => handleDelete(product.id)}
+                                                            disabled={loading}
+                                                        >
+                                                            删除
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        )
+                                    })}
                                 </tbody>
                             </table>
                         </div>

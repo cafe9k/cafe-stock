@@ -5,6 +5,6 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 3000,
-    open: true
+    open: false  // 不自动打开系统浏览器,使用 Cursor 内置浏览器
   }
 })
