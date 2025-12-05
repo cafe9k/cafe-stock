@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
 import './App.css'
 import { supabase, Product, Category } from './lib/supabaseClient'
+import StockList from './components/StockList'
 
 function App() {
+    const [activeTab, setActiveTab] = useState<'inventory' | 'stocks'>('inventory')
     const [isConnected, setIsConnected] = useState<boolean | null>(null)
     const [products, setProducts] = useState<Product[]>([])
     const [categories, setCategories] = useState<Category[]>([])
@@ -150,35 +152,52 @@ function App() {
             <div className="container">
                 <div className="header">
                     <h1>☕ 咖啡店库存管理系统</h1>
-                    <p>连接到 Supabase 数据库</p>
+                    <p>连接到 Supabase 数据库 | 集成 Tushare 金融数据</p>
                 </div>
 
-                <div className={`connection-status ${
-                    loading ? 'loading' : 
-                    isConnected === true ? 'connected' : 
-                    isConnected === false ? 'disconnected' : 'loading'
-                }`}>
-                    <div className={`status-indicator ${
-                        loading ? 'loading' : 
-                        isConnected === true ? 'connected' : 
-                        isConnected === false ? 'disconnected' : 'loading'
-                    }`}></div>
-                    <span>
-                        {loading ? '正在连接...' : 
-                         isConnected === true ? '✓ 数据库已连接' : 
-                         isConnected === false ? '✗ 数据库连接失败' : 
-                         '检查连接中...'}
-                    </span>
+                <div className="tabs">
+                    <button 
+                        className={`tab ${activeTab === 'inventory' ? 'active' : ''}`}
+                        onClick={() => setActiveTab('inventory')}
+                    >
+                        📦 库存管理
+                    </button>
+                    <button 
+                        className={`tab ${activeTab === 'stocks' ? 'active' : ''}`}
+                        onClick={() => setActiveTab('stocks')}
+                    >
+                        📈 股票数据
+                    </button>
                 </div>
 
-                {error && (
-                    <div className="error-message">
-                        {error}
-                    </div>
-                )}
+                {activeTab === 'inventory' && (
+                    <>
+                        <div className={`connection-status ${
+                            loading ? 'loading' : 
+                            isConnected === true ? 'connected' : 
+                            isConnected === false ? 'disconnected' : 'loading'
+                        }`}>
+                            <div className={`status-indicator ${
+                                loading ? 'loading' : 
+                                isConnected === true ? 'connected' : 
+                                isConnected === false ? 'disconnected' : 'loading'
+                            }`}></div>
+                            <span>
+                                {loading ? '正在连接...' : 
+                                 isConnected === true ? '✓ 数据库已连接' : 
+                                 isConnected === false ? '✗ 数据库连接失败' : 
+                                 '检查连接中...'}
+                            </span>
+                        </div>
 
-                <div className="form-section">
-                    <h2>添加产品</h2>
+                        {error && (
+                            <div className="error-message">
+                                {error}
+                            </div>
+                        )}
+
+                        <div className="form-section">
+                            <h2>添加产品</h2>
                     <form onSubmit={handleSubmit}>
                         <div className="form-grid">
                             <div className="form-group">
@@ -259,12 +278,12 @@ function App() {
                             >
                                 刷新数据
                             </button>
-                        </div>
-                    </form>
-                </div>
+                            </div>
+                        </form>
+                    </div>
 
-                <div className="data-section">
-                    <h2>产品列表</h2>
+                    <div className="data-section">
+                        <h2>产品列表</h2>
                     {loading ? (
                         <div className="loading">加载中...</div>
                     ) : products.length === 0 ? (
@@ -317,10 +336,16 @@ function App() {
                                         )
                                     })}
                                 </tbody>
-                            </table>
-                        </div>
-                    )}
-                </div>
+                                </table>
+                            </div>
+                        )}
+                    </div>
+                </>
+                )}
+
+                {activeTab === 'stocks' && (
+                    <StockList />
+                )}
             </div>
         </div>
     )

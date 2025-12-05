@@ -16,6 +16,7 @@
 - ✅ **现代化 UI** - 渐变背景、动画效果、流畅交互
 - ✅ **TypeScript** - 完整的类型安全
 - ✅ **实时更新** - 操作后自动刷新数据
+- ✅ **Tushare 集成** - 支持调用 Tushare Pro 金融数据接口
 
 ## 🎯 项目截图
 
@@ -136,13 +137,19 @@ npm run dev
 cafe-stock/
 ├── src/
 │   ├── config/
-│   │   └── supabase.ts          # Supabase 配置
+│   │   ├── supabase.ts          # Supabase 配置
+│   │   └── tushare.ts           # Tushare 配置
 │   ├── lib/
-│   │   └── supabaseClient.ts    # Supabase 客户端和类型定义
+│   │   ├── supabaseClient.ts    # Supabase 客户端和类型定义
+│   │   ├── tushareClient.ts     # Tushare HTTP 客户端
+│   │   └── tushareQuickTest.ts  # Tushare 快速测试
 │   ├── App.tsx                  # 主应用组件
 │   ├── App.css                  # 应用样式
 │   ├── main.tsx                 # 应用入口
 │   └── vite-env.d.ts            # Vite 类型定义
+├── docs/
+│   ├── TUSHARE_API.md           # Tushare API 使用文档
+│   └── TUSHARE_RULES.md         # Tushare 接口调用规则
 ├── index.html                   # HTML 模板
 ├── package.json                 # 项目配置
 ├── tsconfig.json                # TypeScript 配置
@@ -355,12 +362,41 @@ MIT License - 详见 [LICENSE](LICENSE) 文件
 
 开发者: [Your Name]
 
+## 📊 Tushare 数据接口
+
+本项目集成了 Tushare Pro 金融数据接口，可用于获取股票、基金、期货等金融数据。
+
+### 快速使用
+
+```typescript
+import { tushareClient } from '@/lib/tushareClient'
+
+// 获取股票列表
+const stocks = await tushareClient.query('stock_basic', {
+    list_status: 'L'
+}, ['ts_code', 'name', 'area', 'industry'])
+
+// 获取日线行情
+const daily = await tushareClient.query('daily', {
+    ts_code: '000001.SZ',
+    start_date: '20231201',
+    end_date: '20231231'
+}, ['trade_date', 'open', 'high', 'low', 'close', 'vol'])
+```
+
+### 相关文档
+
+- [Tushare API 使用文档](docs/TUSHARE_API.md)
+- [Tushare 接口调用规则](docs/TUSHARE_RULES.md)
+- [Tushare Pro 官方文档](https://tushare.pro/document/2?doc_id=14)
+
 ## 🙏 致谢
 
 - [React](https://react.dev/)
 - [Supabase](https://supabase.com/)
 - [Vite](https://vitejs.dev/)
 - [TypeScript](https://www.typescriptlang.org/)
+- [Tushare Pro](https://tushare.pro/)
 
 ---
 
