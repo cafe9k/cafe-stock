@@ -1,9 +1,12 @@
 /**
  * Tushare Pro HTTP 客户端
  * 文档: https://tushare.pro/document/1?doc_id=130
+ * 
+ * 通过 Supabase Edge Function 代理请求，解决 CORS 问题
  */
 
-import { TUSHARE_TOKEN, TUSHARE_API_URL } from '../config/tushare'
+import { TUSHARE_TOKEN } from '../config/tushare'
+import { SUPABASE_FUNCTIONS_URL } from '../config/supabase'
 
 /**
  * Tushare API 请求参数接口
@@ -49,8 +52,8 @@ class TushareClient {
     
     constructor(token?: string, apiUrl?: string) {
         this.token = token || TUSHARE_TOKEN
-        // 在浏览器环境使用代理，避免 CORS 问题
-        this.apiUrl = apiUrl || (typeof window !== 'undefined' ? '/api/tushare' : TUSHARE_API_URL)
+        // 使用 Supabase Edge Function 代理，解决 CORS 问题
+        this.apiUrl = apiUrl || `${SUPABASE_FUNCTIONS_URL}/tushare-proxy`
         
         if (!this.token) {
             console.warn('Tushare token 未配置，请在 .env 文件中设置 VITE_TUSHARE_TOKEN')

@@ -1,22 +1,23 @@
-# ☕ Cafe Stock - 咖啡店库存管理系统
+# 📈 A股股票数据查询系统
 
-一个基于 React + TypeScript + Supabase 的现代化库存管理系统,具有实时数据同步和优雅的用户界面。
+一个基于 React + TypeScript + Supabase Edge Functions + Tushare Pro 的现代化股票数据查询系统。
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![React](https://img.shields.io/badge/React-18.2-blue.svg)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.2-blue.svg)
 ![Supabase](https://img.shields.io/badge/Supabase-2.39-green.svg)
+![Tushare](https://img.shields.io/badge/Tushare-Pro-orange.svg)
 
 ## ✨ 功能特性
 
-- ✅ **实时数据库连接** - 自动检测并显示 Supabase 连接状态
-- ✅ **库存管理** - 添加、查看、删除库存项
-- ✅ **分类管理** - 支持原料、包材、器具等多种分类
+- ✅ **股票数据查询** - 实时查询 5400+ A股股票基本信息
+- ✅ **多维度筛选** - 支持按地域、行业、股票代码/名称筛选
+- ✅ **Supabase Edge Functions** - 通过边缘函数代理 API 请求，完美解决 CORS 问题
+- ✅ **Tushare Pro 集成** - 接入专业的金融数据接口
 - ✅ **响应式设计** - 适配各种屏幕尺寸
 - ✅ **现代化 UI** - 渐变背景、动画效果、流畅交互
 - ✅ **TypeScript** - 完整的类型安全
-- ✅ **实时更新** - 操作后自动刷新数据
-- ✅ **Tushare 集成** - 支持调用 Tushare Pro 金融数据接口
+- ✅ **全球加速** - 基于 Deno Deploy 的边缘函数，全球多节点部署
 
 ## 🎯 项目截图
 
@@ -364,7 +365,14 @@ MIT License - 详见 [LICENSE](LICENSE) 文件
 
 ## 📊 Tushare 数据接口
 
-本项目集成了 Tushare Pro 金融数据接口，可用于获取股票、基金、期货等金融数据。
+本项目集成了 Tushare Pro 金融数据接口，通过 Supabase Edge Functions 代理请求，确保安全性。
+
+### 架构特点
+
+- 🔐 **安全第一**：Token 存储在 Supabase Secrets 中，不暴露给前端
+- 🌍 **全球加速**：基于 Deno Deploy，在全球多个节点部署
+- 🚀 **自动扩展**：无需管理服务器，自动处理流量高峰
+- ✅ **解决 CORS**：通过边缘函数代理，完美解决跨域问题
 
 ### 快速使用
 
@@ -384,8 +392,20 @@ const daily = await tushareClient.query('daily', {
 }, ['trade_date', 'open', 'high', 'low', 'close', 'vol'])
 ```
 
+### 部署边缘函数
+
+```bash
+# 1. 配置 Secrets
+./scripts/setup-secrets.sh
+
+# 2. 部署边缘函数
+./scripts/deploy-edge-function.sh
+```
+
 ### 相关文档
 
+- [安全配置指南](docs/SECURITY.md) ⭐ **必读**
+- [Supabase Edge Functions 部署](docs/SUPABASE_EDGE_FUNCTIONS.md)
 - [Tushare API 使用文档](docs/TUSHARE_API.md)
 - [Tushare 接口调用规则](docs/TUSHARE_RULES.md)
 - [Tushare Pro 官方文档](https://tushare.pro/document/2?doc_id=14)

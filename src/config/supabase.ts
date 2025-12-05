@@ -15,3 +15,6 @@ export const SUPABASE_URL =
 export const SUPABASE_ANON_KEY = 
     (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_ANON_KEY) || 
     DEFAULT_SUPABASE_ANON_KEY
+
+// Supabase Edge Functions URL
+export const SUPABASE_FUNCTIONS_URL = `${SUPABASE_URL}/functions/v1`
