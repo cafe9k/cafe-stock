@@ -33,7 +33,7 @@ export default function DashboardPage() {
 
     // 数据 hooks
     const { groups, createGroup, updateGroup, deleteGroup } = useWatchGroups()
-    const { stocks, addStock, deleteStock, isStockWatched, fetchStocks } = useWatchStocks()
+    const { stocks, addStock, deleteStock, updateStock, isStockWatched, fetchStocks } = useWatchStocks()
     const { loading: quotesLoading, lastUpdate, error: quotesError, fetchQuotes, getQuote } = useStockQuotes()
     
     // 消息系统 hook
@@ -361,6 +361,7 @@ export default function DashboardPage() {
                     stock={selectedStock}
                     quote={getQuote(selectedStock.ts_code)}
                     onClose={() => setSelectedStock(null)}
+                    onUpdateStock={updateStock}
                 />
             )}
             

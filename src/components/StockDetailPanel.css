@@ -103,7 +103,7 @@
     display: flex;
     align-items: baseline;
     gap: 16px;
-    margin-bottom: 16px;
+    margin-bottom: 12px;
 }
 
 .current-price {
@@ -124,6 +124,28 @@
 .pct-change {
     font-weight: 600;
     font-size: 16px;
+}
+
+/* 成本价和盈亏显示 */
+.cost-profit-bar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 8px 12px;
+    background: rgba(22, 27, 34, 0.6);
+    border-radius: 8px;
+    margin-bottom: 16px;
+    font-size: 13px;
+}
+
+.cost-label,
+.target-label {
+    color: #8b949e;
+}
+
+.profit-value {
+    font-weight: 600;
+    font-family: 'JetBrains Mono', monospace;
 }
 
 /* 当日行情网格 */
@@ -204,13 +226,68 @@
     font-family: 'JetBrains Mono', monospace;
 }
 
+/* Tab 导航 */
+.detail-tabs {
+    display: flex;
+    border-bottom: 1px solid rgba(48, 54, 61, 0.3);
+    padding: 0 24px;
+    background: rgba(22, 27, 34, 0.3);
+}
+
+.tab-btn {
+    flex: 1;
+    padding: 12px 8px;
+    border: none;
+    background: transparent;
+    color: #8b949e;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+    border-bottom: 2px solid transparent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+}
+
+.tab-btn:hover {
+    color: #c9d1d9;
+}
+
+.tab-btn.active {
+    color: #58a6ff;
+    border-bottom-color: #58a6ff;
+}
+
+.tab-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    border-radius: 8px;
+    background: #f85149;
+    color: #ffffff;
+    font-size: 10px;
+    font-weight: 600;
+}
+
+/* Tab 内容 */
+.detail-tab-content {
+    min-height: 200px;
+}
+
 /* K线图区域 */
 .kline-section {
     padding: 20px 24px;
-    border-bottom: 1px solid rgba(48, 54, 61, 0.3);
 }
 
-.kline-section h3 {
+.kline-section h3,
+.history-section h3,
+.alerts-timeline-section h3,
+.settings-section h3,
+.tech-signals-section h3 {
     margin: 0 0 16px 0;
     font-size: 14px;
     font-weight: 600;
@@ -218,7 +295,8 @@
 }
 
 .kline-loading,
-.kline-error {
+.kline-error,
+.alerts-loading {
     height: 100px;
     display: flex;
     align-items: center;
@@ -282,21 +360,92 @@
     font-family: 'JetBrains Mono', monospace;
 }
 
+/* 技术指标信号 */
+.tech-signals-section {
+    padding: 0 24px 20px;
+}
+
+.tech-signals-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.tech-signal-item {
+    background: rgba(22, 27, 34, 0.6);
+    border: 1px solid rgba(48, 54, 61, 0.4);
+    border-radius: 8px;
+    padding: 12px;
+}
+
+.tech-signal-item.signal-buy {
+    border-left: 3px solid #f85149;
+}
+
+.tech-signal-item.signal-sell {
+    border-left: 3px solid #3fb950;
+}
+
+.tech-signal-item.signal-neutral {
+    border-left: 3px solid #8b949e;
+}
+
+.signal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+}
+
+.signal-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: #c9d1d9;
+}
+
+.signal-badge {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 4px;
+}
+
+.signal-badge.buy {
+    background: rgba(248, 81, 73, 0.2);
+    color: #f85149;
+}
+
+.signal-badge.sell {
+    background: rgba(63, 185, 80, 0.2);
+    color: #3fb950;
+}
+
+.signal-badge.neutral {
+    background: rgba(139, 148, 158, 0.2);
+    color: #8b949e;
+}
+
+.signal-value {
+    font-size: 12px;
+    font-family: 'JetBrains Mono', monospace;
+    color: #8b949e;
+    margin-bottom: 4px;
+}
+
+.signal-desc {
+    font-size: 12px;
+    color: #6e7681;
+}
+
 /* 历史数据表格 */
 .history-section {
     padding: 20px 24px;
-    border-bottom: 1px solid rgba(48, 54, 61, 0.3);
-}
-
-.history-section h3 {
-    margin: 0 0 12px 0;
-    font-size: 14px;
-    font-weight: 600;
-    color: #8b949e;
 }
 
 .history-table-wrapper {
     overflow-x: auto;
+    max-height: 400px;
+    overflow-y: auto;
 }
 
 .history-table {
@@ -320,6 +469,9 @@
     color: #6e7681;
     font-weight: 500;
     border-bottom: 1px solid rgba(48, 54, 61, 0.4);
+    position: sticky;
+    top: 0;
+    background: #1a2332;
 }
 
 .history-table td {
@@ -336,23 +488,209 @@
     background: rgba(177, 186, 196, 0.04);
 }
 
-/* 备注区域 */
-.notes-section {
+/* 消息时间线 */
+.alerts-timeline-section {
     padding: 20px 24px;
 }
 
-.notes-section h3 {
-    margin: 0 0 8px 0;
+.alerts-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    color: #6e7681;
+}
+
+.alerts-empty .empty-icon {
+    font-size: 40px;
+    margin-bottom: 12px;
+    opacity: 0.6;
+}
+
+.alerts-empty p {
+    margin: 0;
     font-size: 14px;
+}
+
+.alerts-timeline {
+    display: flex;
+    flex-direction: column;
+    position: relative;
+}
+
+.timeline-item {
+    display: flex;
+    gap: 12px;
+    position: relative;
+    padding-bottom: 16px;
+}
+
+.timeline-item:last-child {
+    padding-bottom: 0;
+}
+
+.timeline-dot {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: rgba(22, 27, 34, 0.8);
+    border: 2px solid rgba(48, 54, 61, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    z-index: 1;
+}
+
+.timeline-item.priority-1 .timeline-dot {
+    border-color: rgba(248, 81, 73, 0.5);
+}
+
+.timeline-item.priority-2 .timeline-dot {
+    border-color: rgba(210, 153, 34, 0.5);
+}
+
+.dot-icon {
+    font-size: 14px;
+}
+
+.timeline-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.timeline-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 4px;
+}
+
+.timeline-type {
+    font-size: 11px;
     font-weight: 600;
+    color: #8b949e;
+    text-transform: uppercase;
+}
+
+.timeline-date {
+    font-size: 11px;
+    color: #6e7681;
+}
+
+.timeline-title {
+    font-size: 13px;
+    color: #c9d1d9;
+    line-height: 1.4;
+}
+
+.timeline-line {
+    position: absolute;
+    left: 15px;
+    top: 34px;
+    bottom: 0;
+    width: 2px;
+    background: rgba(48, 54, 61, 0.4);
+}
+
+/* 设置区域 */
+.settings-section {
+    padding: 20px 24px;
+}
+
+.settings-group {
+    margin-bottom: 24px;
+}
+
+.settings-group:last-of-type {
+    margin-bottom: 16px;
+}
+
+.settings-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.setting-item {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.setting-item label {
+    font-size: 12px;
     color: #8b949e;
 }
 
-.notes-section p {
-    margin: 0;
+.setting-item input {
+    padding: 10px 12px;
+    border: 1px solid rgba(48, 54, 61, 0.6);
+    border-radius: 6px;
+    background: rgba(22, 27, 34, 0.8);
+    color: #e6edf3;
     font-size: 14px;
-    color: #c9d1d9;
-    line-height: 1.6;
+    font-family: 'JetBrains Mono', monospace;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.setting-item input:focus {
+    border-color: #58a6ff;
+}
+
+.setting-item input::placeholder {
+    color: #484f58;
+}
+
+.notes-editor textarea {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid rgba(48, 54, 61, 0.6);
+    border-radius: 6px;
+    background: rgba(22, 27, 34, 0.8);
+    color: #e6edf3;
+    font-size: 14px;
+    line-height: 1.5;
+    resize: vertical;
+    outline: none;
+    transition: border-color 0.2s;
+    font-family: inherit;
+}
+
+.notes-editor textarea:focus {
+    border-color: #58a6ff;
+}
+
+.notes-editor textarea::placeholder {
+    color: #484f58;
+}
+
+.settings-actions {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.btn-save {
+    padding: 10px 24px;
+    border: none;
+    border-radius: 6px;
+    background: linear-gradient(135deg, #238636 0%, #2ea043 100%);
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-save:hover:not(:disabled) {
+    background: linear-gradient(135deg, #2ea043 0%, #3fb950 100%);
+}
+
+.btn-save:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
 }
 
 /* 响应式 */
@@ -408,26 +746,44 @@
     .detail-metrics,
     .kline-section,
     .history-section,
-    .notes-section {
+    .alerts-timeline-section,
+    .settings-section,
+    .tech-signals-section {
         padding: 16px 20px;
+    }
+
+    .detail-tabs {
+        padding: 0 16px;
+    }
+
+    .tab-btn {
+        font-size: 12px;
+        padding: 10px 4px;
+    }
+
+    .settings-row {
+        grid-template-columns: 1fr;
     }
 }
 
 /* 滚动条样式 */
-.detail-panel::-webkit-scrollbar {
+.detail-panel::-webkit-scrollbar,
+.history-table-wrapper::-webkit-scrollbar {
     width: 6px;
 }
 
-.detail-panel::-webkit-scrollbar-track {
+.detail-panel::-webkit-scrollbar-track,
+.history-table-wrapper::-webkit-scrollbar-track {
     background: transparent;
 }
 
-.detail-panel::-webkit-scrollbar-thumb {
+.detail-panel::-webkit-scrollbar-thumb,
+.history-table-wrapper::-webkit-scrollbar-thumb {
     background: rgba(139, 148, 158, 0.3);
     border-radius: 3px;
 }
 
-.detail-panel::-webkit-scrollbar-thumb:hover {
+.detail-panel::-webkit-scrollbar-thumb:hover,
+.history-table-wrapper::-webkit-scrollbar-thumb:hover {
     background: rgba(139, 148, 158, 0.5);
 }
-

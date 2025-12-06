@@ -1,18 +1,30 @@
 /**
  * 股票详情面板组件
  * 点击股票卡片后展开显示更多信息
+ * 
+ * 功能：
+ * - K线图展示
+ * - 近30日行情数据表格
+ * - 相关消息时间线
+ * - 用户备注编辑
+ * - 目标价/成本价设置
+ * - 技术指标信号
  */
 
-import { useState, useEffect } from 'react'
-import type { WatchStock } from '../types/database'
+import { useState, useEffect, useCallback } from 'react'
+import type { WatchStock, StockAlert, AlertType } from '../types/database'
 import type { StockQuote } from '../hooks/useStockQuotes'
 import { tushareClient } from '../lib/tushareClient'
+import { supabase } from '../lib/supabaseClient'
+import { useAuth } from '../contexts/AuthContext'
+import { ALERT_CONFIG } from '../hooks/useStockAlerts'
 import './StockDetailPanel.css'
 
 interface StockDetailPanelProps {
     stock: WatchStock
     quote?: StockQuote
     onClose: () => void
+    onUpdateStock?: (id: string, updates: Partial<Pick<WatchStock, 'notes' | 'target_price' | 'cost_price'>>) => Promise<boolean>
 }
 
 // 历史日线数据
@@ -30,10 +42,32 @@ interface HistoryQuote {
     amount: number
 }
 
-export default function StockDetailPanel({ stock, quote, onClose }: StockDetailPanelProps) {
+// 技术指标信号
+interface TechSignal {
+    name: string
+    value: string
+    signal: 'buy' | 'sell' | 'neutral'
+    description: string
+}
+
+// Tab 类型
+type TabType = 'chart' | 'history' | 'alerts' | 'settings'
+
+export default function StockDetailPanel({ stock, quote, onClose, onUpdateStock }: StockDetailPanelProps) {
+    const { user } = useAuth()
+    const [activeTab, setActiveTab] = useState<TabType>('chart')
     const [historyData, setHistoryData] = useState<HistoryQuote[]>([])
+    const [alerts, setAlerts] = useState<StockAlert[]>([])
     const [loading, setLoading] = useState(false)
+    const [alertsLoading, setAlertsLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
+    
+    // 编辑状态
+    const [isEditingNotes, setIsEditingNotes] = useState(false)
+    const [notesValue, setNotesValue] = useState(stock.notes || '')
+    const [targetPrice, setTargetPrice] = useState(stock.target_price?.toString() || '')
+    const [costPrice, setCostPrice] = useState(stock.cost_price?.toString() || '')
+    const [saving, setSaving] = useState(false)
 
     // ESC 键关闭
     useEffect(() => {
@@ -87,6 +121,12 @@ export default function StockDetailPanel({ stock, quote, onClose }: StockDetailP
         return `${dateStr.slice(4, 6)}-${dateStr.slice(6, 8)}`
     }
 
+    // 格式化消息日期
+    const formatAlertDate = (dateStr: string) => {
+        const date = new Date(dateStr)
+        return `${date.getMonth() + 1}月${date.getDate()}日`
+    }
+
     // 获取历史数据
     useEffect(() => {
         const fetchHistory = async () => {
@@ -126,6 +166,33 @@ export default function StockDetailPanel({ stock, quote, onClose }: StockDetailP
         fetchHistory()
     }, [stock.ts_code])
 
+    // 获取相关消息
+    useEffect(() => {
+        const fetchAlerts = async () => {
+            if (!user) return
+            
+            setAlertsLoading(true)
+            try {
+                const { data, error: fetchError } = await supabase
+                    .from('stock_alerts')
+                    .select('*')
+                    .eq('user_id', user.id)
+                    .eq('ts_code', stock.ts_code)
+                    .order('alert_date', { ascending: false })
+                    .limit(20)
+                
+                if (fetchError) throw fetchError
+                setAlerts(data || [])
+            } catch (err) {
+                console.error('获取消息失败:', err)
+            } finally {
+                setAlertsLoading(false)
+            }
+        }
+
+        fetchAlerts()
+    }, [user, stock.ts_code])
+
     // 计算涨跌颜色
     const getChangeClass = (pctChg: number) => {
         if (pctChg > 0) return 'up'
@@ -150,6 +217,100 @@ export default function StockDetailPanel({ stock, quote, onClose }: StockDetailP
         if (priceRange.max === priceRange.min) return 50
         return 100 - ((price - priceRange.min) / (priceRange.max - priceRange.min)) * 100
     }
+
+    // 计算技术指标信号
+    const techSignals: TechSignal[] = []
+    
+    if (klineData.length >= 10) {
+        // 计算 MA5 和 MA10
+        const closes = klineData.map(d => d.close)
+        const ma5 = closes.slice(-5).reduce((a, b) => a + b, 0) / 5
+        const ma10 = closes.slice(-10).reduce((a, b) => a + b, 0) / 10
+        const currentPrice = closes[closes.length - 1]
+        
+        // MA 金叉/死叉信号
+        const maSignal: TechSignal = {
+            name: 'MA均线',
+            value: `MA5: ${ma5.toFixed(2)} / MA10: ${ma10.toFixed(2)}`,
+            signal: ma5 > ma10 ? 'buy' : ma5 < ma10 ? 'sell' : 'neutral',
+            description: ma5 > ma10 ? '短期均线在长期均线上方，多头趋势' : 
+                         ma5 < ma10 ? '短期均线在长期均线下方，空头趋势' : '均线交叉'
+        }
+        techSignals.push(maSignal)
+        
+        // 价格相对位置
+        const pricePosition = ((currentPrice - priceRange.min) / (priceRange.max - priceRange.min) * 100).toFixed(0)
+        const positionSignal: TechSignal = {
+            name: '价格位置',
+            value: `${pricePosition}%`,
+            signal: Number(pricePosition) > 70 ? 'sell' : Number(pricePosition) < 30 ? 'buy' : 'neutral',
+            description: `当前价格处于近30日价格区间的 ${pricePosition}% 位置`
+        }
+        techSignals.push(positionSignal)
+        
+        // 成交量信号
+        if (klineData.length >= 5) {
+            const recentVols = klineData.slice(-5).map(d => d.vol)
+            const avgVol = recentVols.reduce((a, b) => a + b, 0) / 5
+            const todayVol = recentVols[recentVols.length - 1]
+            const volRatio = todayVol / avgVol
+            
+            const volSignal: TechSignal = {
+                name: '成交量',
+                value: `${(volRatio * 100).toFixed(0)}%`,
+                signal: volRatio > 1.5 ? (priceChange > 0 ? 'buy' : 'sell') : 'neutral',
+                description: volRatio > 1.5 ? '放量' + (priceChange > 0 ? '上涨，买入信号' : '下跌，卖出信号') :
+                             volRatio < 0.7 ? '缩量，观望' : '成交量正常'
+            }
+            techSignals.push(volSignal)
+        }
+    }
+
+    // 保存设置
+    const handleSaveSettings = useCallback(async () => {
+        if (!onUpdateStock) return
+        
+        setSaving(true)
+        try {
+            const updates: Partial<Pick<WatchStock, 'notes' | 'target_price' | 'cost_price'>> = {}
+            
+            if (notesValue !== (stock.notes || '')) {
+                updates.notes = notesValue || null
+            }
+            
+            const newTargetPrice = targetPrice ? parseFloat(targetPrice) : null
+            if (newTargetPrice !== stock.target_price) {
+                updates.target_price = newTargetPrice
+            }
+            
+            const newCostPrice = costPrice ? parseFloat(costPrice) : null
+            if (newCostPrice !== stock.cost_price) {
+                updates.cost_price = newCostPrice
+            }
+            
+            if (Object.keys(updates).length > 0) {
+                await onUpdateStock(stock.id, updates)
+            }
+            
+            setIsEditingNotes(false)
+        } catch (err) {
+            console.error('保存设置失败:', err)
+        } finally {
+            setSaving(false)
+        }
+    }, [onUpdateStock, stock, notesValue, targetPrice, costPrice])
+
+    // 计算盈亏
+    const calculateProfit = () => {
+        if (!quote?.close || !stock.cost_price) return null
+        const profit = ((quote.close - stock.cost_price) / stock.cost_price * 100)
+        return {
+            value: profit,
+            class: profit >= 0 ? 'up' : 'down'
+        }
+    }
+
+    const profit = calculateProfit()
 
     return (
         <div className="detail-panel-overlay" onClick={onClose}>
@@ -178,6 +339,21 @@ export default function StockDetailPanel({ stock, quote, onClose }: StockDetailP
                             </span>
                         </div>
                     </div>
+                    
+                    {/* 成本价和盈亏显示 */}
+                    {stock.cost_price && (
+                        <div className="cost-profit-bar">
+                            <span className="cost-label">成本 {formatNumber(stock.cost_price)}</span>
+                            {profit && (
+                                <span className={`profit-value ${profit.class}`}>
+                                    {profit.value >= 0 ? '+' : ''}{profit.value.toFixed(2)}%
+                                </span>
+                            )}
+                            {stock.target_price && (
+                                <span className="target-label">目标 {formatNumber(stock.target_price)}</span>
+                            )}
+                        </div>
+                    )}
                     
                     {/* 当日行情 */}
                     <div className="price-detail-grid">
@@ -232,98 +408,241 @@ export default function StockDetailPanel({ stock, quote, onClose }: StockDetailP
                     </div>
                 </div>
 
-                {/* K线缩略图 */}
-                <div className="kline-section">
-                    <h3>近30日走势</h3>
-                    {loading ? (
-                        <div className="kline-loading">加载中...</div>
-                    ) : error ? (
-                        <div className="kline-error">{error}</div>
-                    ) : (
-                        <div className="kline-chart">
-                            <svg viewBox="0 0 300 100" preserveAspectRatio="none">
-                                {/* 网格线 */}
-                                <line x1="0" y1="25" x2="300" y2="25" className="grid-line" />
-                                <line x1="0" y1="50" x2="300" y2="50" className="grid-line" />
-                                <line x1="0" y1="75" x2="300" y2="75" className="grid-line" />
-                                
-                                {/* K线蜡烛 */}
-                                {klineData.map((d, i) => {
-                                    const x = (i / klineData.length) * 300 + 5
-                                    const candleWidth = 280 / klineData.length - 2
-                                    const isUp = d.close >= d.open
-                                    const bodyTop = scaleY(Math.max(d.open, d.close))
-                                    const bodyBottom = scaleY(Math.min(d.open, d.close))
-                                    const bodyHeight = Math.max(bodyBottom - bodyTop, 1)
-                                    
-                                    return (
-                                        <g key={d.trade_date}>
-                                            {/* 影线 */}
-                                            <line
-                                                x1={x + candleWidth / 2}
-                                                y1={scaleY(d.high)}
-                                                x2={x + candleWidth / 2}
-                                                y2={scaleY(d.low)}
-                                                className={`wick ${isUp ? 'up' : 'down'}`}
-                                            />
-                                            {/* 实体 */}
-                                            <rect
-                                                x={x}
-                                                y={bodyTop}
-                                                width={candleWidth}
-                                                height={bodyHeight}
-                                                className={`candle ${isUp ? 'up' : 'down'}`}
-                                            />
-                                        </g>
-                                    )
-                                })}
-                            </svg>
-                            <div className="kline-legend">
-                                <span>{formatNumber(priceRange.max)}</span>
-                                <span>{formatNumber(priceRange.min)}</span>
+                {/* Tab 导航 */}
+                <div className="detail-tabs">
+                    <button 
+                        className={`tab-btn ${activeTab === 'chart' ? 'active' : ''}`}
+                        onClick={() => setActiveTab('chart')}
+                    >
+                        📈 走势
+                    </button>
+                    <button 
+                        className={`tab-btn ${activeTab === 'history' ? 'active' : ''}`}
+                        onClick={() => setActiveTab('history')}
+                    >
+                        📊 行情
+                    </button>
+                    <button 
+                        className={`tab-btn ${activeTab === 'alerts' ? 'active' : ''}`}
+                        onClick={() => setActiveTab('alerts')}
+                    >
+                        📢 消息 {alerts.length > 0 && <span className="tab-badge">{alerts.length}</span>}
+                    </button>
+                    <button 
+                        className={`tab-btn ${activeTab === 'settings' ? 'active' : ''}`}
+                        onClick={() => setActiveTab('settings')}
+                    >
+                        ⚙️ 设置
+                    </button>
+                </div>
+
+                {/* Tab 内容 */}
+                <div className="detail-tab-content">
+                    {/* K线图 Tab */}
+                    {activeTab === 'chart' && (
+                        <>
+                            {/* K线缩略图 */}
+                            <div className="kline-section">
+                                <h3>近30日走势</h3>
+                                {loading ? (
+                                    <div className="kline-loading">加载中...</div>
+                                ) : error ? (
+                                    <div className="kline-error">{error}</div>
+                                ) : (
+                                    <div className="kline-chart">
+                                        <svg viewBox="0 0 300 100" preserveAspectRatio="none">
+                                            {/* 网格线 */}
+                                            <line x1="0" y1="25" x2="300" y2="25" className="grid-line" />
+                                            <line x1="0" y1="50" x2="300" y2="50" className="grid-line" />
+                                            <line x1="0" y1="75" x2="300" y2="75" className="grid-line" />
+                                            
+                                            {/* K线蜡烛 */}
+                                            {klineData.map((d, i) => {
+                                                const x = (i / klineData.length) * 300 + 5
+                                                const candleWidth = 280 / klineData.length - 2
+                                                const isUp = d.close >= d.open
+                                                const bodyTop = scaleY(Math.max(d.open, d.close))
+                                                const bodyBottom = scaleY(Math.min(d.open, d.close))
+                                                const bodyHeight = Math.max(bodyBottom - bodyTop, 1)
+                                                
+                                                return (
+                                                    <g key={d.trade_date}>
+                                                        {/* 影线 */}
+                                                        <line
+                                                            x1={x + candleWidth / 2}
+                                                            y1={scaleY(d.high)}
+                                                            x2={x + candleWidth / 2}
+                                                            y2={scaleY(d.low)}
+                                                            className={`wick ${isUp ? 'up' : 'down'}`}
+                                                        />
+                                                        {/* 实体 */}
+                                                        <rect
+                                                            x={x}
+                                                            y={bodyTop}
+                                                            width={candleWidth}
+                                                            height={bodyHeight}
+                                                            className={`candle ${isUp ? 'up' : 'down'}`}
+                                                        />
+                                                    </g>
+                                                )
+                                            })}
+                                        </svg>
+                                        <div className="kline-legend">
+                                            <span>{formatNumber(priceRange.max)}</span>
+                                            <span>{formatNumber(priceRange.min)}</span>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* 技术指标信号 */}
+                            {techSignals.length > 0 && (
+                                <div className="tech-signals-section">
+                                    <h3>技术指标</h3>
+                                    <div className="tech-signals-list">
+                                        {techSignals.map((signal, i) => (
+                                            <div key={i} className={`tech-signal-item signal-${signal.signal}`}>
+                                                <div className="signal-header">
+                                                    <span className="signal-name">{signal.name}</span>
+                                                    <span className={`signal-badge ${signal.signal}`}>
+                                                        {signal.signal === 'buy' ? '看多' : 
+                                                         signal.signal === 'sell' ? '看空' : '中性'}
+                                                    </span>
+                                                </div>
+                                                <div className="signal-value">{signal.value}</div>
+                                                <div className="signal-desc">{signal.description}</div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </>
+                    )}
+
+                    {/* 历史行情 Tab */}
+                    {activeTab === 'history' && (
+                        <div className="history-section">
+                            <h3>近期行情</h3>
+                            <div className="history-table-wrapper">
+                                <table className="history-table">
+                                    <thead>
+                                        <tr>
+                                            <th>日期</th>
+                                            <th>收盘</th>
+                                            <th>涨跌幅</th>
+                                            <th>成交量</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {historyData.map(d => (
+                                            <tr key={d.trade_date}>
+                                                <td>{formatDate(d.trade_date)}</td>
+                                                <td>{formatNumber(d.close)}</td>
+                                                <td className={getChangeClass(d.pct_chg)}>
+                                                    {d.pct_chg >= 0 ? '+' : ''}{formatNumber(d.pct_chg)}%
+                                                </td>
+                                                <td>{formatVolume(d.vol)}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* 消息时间线 Tab */}
+                    {activeTab === 'alerts' && (
+                        <div className="alerts-timeline-section">
+                            <h3>相关消息</h3>
+                            {alertsLoading ? (
+                                <div className="alerts-loading">加载中...</div>
+                            ) : alerts.length === 0 ? (
+                                <div className="alerts-empty">
+                                    <span className="empty-icon">📭</span>
+                                    <p>暂无相关消息</p>
+                                </div>
+                            ) : (
+                                <div className="alerts-timeline">
+                                    {alerts.map((alert, i) => {
+                                        const config = ALERT_CONFIG[alert.alert_type as AlertType]
+                                        return (
+                                            <div key={alert.id} className={`timeline-item priority-${alert.priority}`}>
+                                                <div className="timeline-dot">
+                                                    <span className="dot-icon">{config?.icon || '📢'}</span>
+                                                </div>
+                                                <div className="timeline-content">
+                                                    <div className="timeline-header">
+                                                        <span className="timeline-type">{config?.label || alert.alert_type}</span>
+                                                        <span className="timeline-date">{formatAlertDate(alert.alert_date)}</span>
+                                                    </div>
+                                                    <div className="timeline-title">{alert.title}</div>
+                                                </div>
+                                                {i < alerts.length - 1 && <div className="timeline-line"></div>}
+                                            </div>
+                                        )
+                                    })}
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* 设置 Tab */}
+                    {activeTab === 'settings' && (
+                        <div className="settings-section">
+                            {/* 价格设置 */}
+                            <div className="settings-group">
+                                <h3>价格设置</h3>
+                                <div className="settings-row">
+                                    <div className="setting-item">
+                                        <label>成本价</label>
+                                        <input
+                                            type="number"
+                                            step="0.01"
+                                            placeholder="输入成本价"
+                                            value={costPrice}
+                                            onChange={e => setCostPrice(e.target.value)}
+                                        />
+                                    </div>
+                                    <div className="setting-item">
+                                        <label>目标价</label>
+                                        <input
+                                            type="number"
+                                            step="0.01"
+                                            placeholder="输入目标价"
+                                            value={targetPrice}
+                                            onChange={e => setTargetPrice(e.target.value)}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* 备注 */}
+                            <div className="settings-group">
+                                <h3>备注</h3>
+                                <div className="notes-editor">
+                                    <textarea
+                                        placeholder="添加备注..."
+                                        value={notesValue}
+                                        onChange={e => setNotesValue(e.target.value)}
+                                        rows={4}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* 保存按钮 */}
+                            <div className="settings-actions">
+                                <button 
+                                    className="btn-save"
+                                    onClick={handleSaveSettings}
+                                    disabled={saving}
+                                >
+                                    {saving ? '保存中...' : '保存设置'}
+                                </button>
                             </div>
                         </div>
                     )}
                 </div>
-
-                {/* 历史数据表格 */}
-                <div className="history-section">
-                    <h3>近期行情</h3>
-                    <div className="history-table-wrapper">
-                        <table className="history-table">
-                            <thead>
-                                <tr>
-                                    <th>日期</th>
-                                    <th>收盘</th>
-                                    <th>涨跌幅</th>
-                                    <th>成交量</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {historyData.slice(0, 10).map(d => (
-                                    <tr key={d.trade_date}>
-                                        <td>{formatDate(d.trade_date)}</td>
-                                        <td>{formatNumber(d.close)}</td>
-                                        <td className={getChangeClass(d.pct_chg)}>
-                                            {d.pct_chg >= 0 ? '+' : ''}{formatNumber(d.pct_chg)}%
-                                        </td>
-                                        <td>{formatVolume(d.vol)}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                {/* 用户备注 */}
-                {stock.notes && (
-                    <div className="notes-section">
-                        <h3>备注</h3>
-                        <p>{stock.notes}</p>
-                    </div>
-                )}
             </div>
         </div>
     )
 }
-
