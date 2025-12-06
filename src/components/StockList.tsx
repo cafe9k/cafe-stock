@@ -126,7 +126,7 @@ function StockList() {
             {error && (
                 <div className="error-message">
                     <span>⚠️ {error}</span>
-                    <button onClick={fetchStocks} className="retry-btn">
+                    <button onClick={() => fetchStocks(currentPage)} className="retry-btn">
                         重试
                     </button>
                 </div>
@@ -170,7 +170,7 @@ function StockList() {
                 </div>
 
                 <button 
-                    onClick={fetchStocks} 
+                    onClick={() => fetchStocks(currentPage)} 
                     disabled={loading}
                     className="refresh-btn"
                 >
