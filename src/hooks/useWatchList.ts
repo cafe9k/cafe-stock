@@ -168,6 +168,11 @@ export function useWatchStocks(groupId?: string | null) {
         }
 
         try {
+            // 检查当前 session 状态
+            const { data: sessionData } = await supabase.auth.getSession()
+            console.log('当前 Session:', sessionData?.session ? '已登录' : '未登录')
+            console.log('Access Token 前20字符:', sessionData?.session?.access_token?.substring(0, 20) + '...')
+            
             console.log('准备插入数据到 watch_stocks 表')
             const insertData = {
                 user_id: user.id,
@@ -178,15 +183,13 @@ export function useWatchStocks(groupId?: string | null) {
             }
             console.log('插入数据:', insertData)
             
-            const response = supabase
+            console.log('Supabase 请求已发送，等待响应...')
+            
+            const { data, error } = await supabase
                 .from('watch_stocks')
                 .insert(insertData)
                 .select()
                 .single()
-            
-            console.log('Supabase 请求已发送，等待响应...')
-            
-            const { data, error } = await response
 
             console.log('Supabase 返回:', { data, error })
 
