@@ -6,7 +6,7 @@
  */
 
 import { TUSHARE_TOKEN } from '../config/tushare'
-import { SUPABASE_FUNCTIONS_URL } from '../config/supabase'
+import { SUPABASE_FUNCTIONS_URL, SUPABASE_ANON_KEY } from '../config/supabase'
 
 /**
  * Tushare API 请求参数接口
@@ -94,13 +94,16 @@ class TushareClient {
             const response = await fetch(this.apiUrl, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                    'apikey': SUPABASE_ANON_KEY
                 },
                 body: JSON.stringify(requestBody)
             })
             
             if (!response.ok) {
-                throw new TushareError(response.status, `HTTP 错误: ${response.statusText}`)
+                const errorText = response.statusText || `状态码 ${response.status}`
+                throw new TushareError(response.status, `HTTP 错误: ${errorText}`)
             }
             
             const result: TushareResponse<T> = await response.json()
