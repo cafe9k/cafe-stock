@@ -1,9 +1,10 @@
 /**
  * 自选股数据管理 Hook
+ * 使用 REST API 直接调用 Supabase，便于观察网络日志
  */
 
 import { useState, useEffect, useCallback } from 'react'
-import { supabase } from '../lib/supabaseClient'
+import { select, insert, update, remove } from '../lib/supabaseRestClient'
 import { useAuth } from '../contexts/AuthContext'
 import type { WatchGroup, WatchStock } from '../types/database'
 
@@ -35,15 +36,19 @@ export function useWatchGroups() {
 
         try {
             setLoading(true)
-            const { data, error } = await supabase
-                .from('watch_groups')
-                .select('*')
-                .eq('user_id', user.id)
-                .order('sort_order', { ascending: true })
+            console.log('[useWatchGroups] 获取分组列表')
+            
+            const { data, error: fetchError } = await select<WatchGroup[]>('watch_groups', {
+                columns: '*',
+                filters: { 'user_id': `eq.${user.id}` },
+                order: { column: 'sort_order', ascending: true },
+            })
 
-            if (error) throw error
+            if (fetchError) throw new Error(fetchError.message)
             setGroups(data || [])
+            console.log('[useWatchGroups] 获取到', data?.length || 0, '个分组')
         } catch (err) {
+            console.error('[useWatchGroups] 获取分组失败:', err)
             setError(err instanceof Error ? err.message : '获取分组失败')
         } finally {
             setLoading(false)
@@ -55,21 +60,23 @@ export function useWatchGroups() {
         if (!user) return null
 
         try {
-            const { data, error } = await supabase
-                .from('watch_groups')
-                .insert({
-                    user_id: user.id,
-                    name,
-                    color: color || '#58a6ff',
-                    sort_order: groups.length,
-                })
-                .select()
-                .single()
+            console.log('[useWatchGroups] 创建分组:', name)
+            
+            const { data, error: insertError } = await insert<WatchGroup>('watch_groups', {
+                user_id: user.id,
+                name,
+                color: color || '#58a6ff',
+                sort_order: groups.length,
+            }, { returnData: true, single: true })
 
-            if (error) throw error
-            setGroups(prev => [...prev, data])
+            if (insertError) throw new Error(insertError.message)
+            if (data) {
+                setGroups(prev => [...prev, data])
+                console.log('[useWatchGroups] 分组创建成功:', data.id)
+            }
             return data
         } catch (err) {
+            console.error('[useWatchGroups] 创建分组失败:', err)
             setError(err instanceof Error ? err.message : '创建分组失败')
             return null
         }
@@ -78,15 +85,16 @@ export function useWatchGroups() {
     // 更新分组
     const updateGroup = async (id: string, updates: Partial<Pick<WatchGroup, 'name' | 'color' | 'sort_order'>>) => {
         try {
-            const { error } = await supabase
-                .from('watch_groups')
-                .update(updates)
-                .eq('id', id)
+            console.log('[useWatchGroups] 更新分组:', id, updates)
+            
+            const { error: updateError } = await update('watch_groups', updates, { 'id': `eq.${id}` })
 
-            if (error) throw error
+            if (updateError) throw new Error(updateError.message)
             setGroups(prev => prev.map(g => g.id === id ? { ...g, ...updates } : g))
+            console.log('[useWatchGroups] 分组更新成功')
             return true
         } catch (err) {
+            console.error('[useWatchGroups] 更新分组失败:', err)
             setError(err instanceof Error ? err.message : '更新分组失败')
             return false
         }
@@ -95,15 +103,16 @@ export function useWatchGroups() {
     // 删除分组
     const deleteGroup = async (id: string) => {
         try {
-            const { error } = await supabase
-                .from('watch_groups')
-                .delete()
-                .eq('id', id)
+            console.log('[useWatchGroups] 删除分组:', id)
+            
+            const { error: deleteError } = await remove('watch_groups', { 'id': `eq.${id}` })
 
-            if (error) throw error
+            if (deleteError) throw new Error(deleteError.message)
             setGroups(prev => prev.filter(g => g.id !== id))
+            console.log('[useWatchGroups] 分组删除成功')
             return true
         } catch (err) {
+            console.error('[useWatchGroups] 删除分组失败:', err)
             setError(err instanceof Error ? err.message : '删除分组失败')
             return false
         }
@@ -136,22 +145,28 @@ export function useWatchStocks(groupId?: string | null) {
 
         try {
             setLoading(true)
-            let query = supabase
-                .from('watch_stocks')
-                .select('*')
-                .eq('user_id', user.id)
-                .order('sort_order', { ascending: true })
-
+            console.log('[useWatchStocks] 获取股票列表, groupId:', groupId)
+            
+            const filters: Record<string, string> = {
+                'user_id': `eq.${user.id}`,
+            }
+            
             // 如果指定了分组，则只获取该分组的股票
             if (groupId) {
-                query = query.eq('group_id', groupId)
+                filters['group_id'] = `eq.${groupId}`
             }
 
-            const { data, error } = await query
+            const { data, error: fetchError } = await select<WatchStock[]>('watch_stocks', {
+                columns: '*',
+                filters,
+                order: { column: 'sort_order', ascending: true },
+            })
 
-            if (error) throw error
+            if (fetchError) throw new Error(fetchError.message)
             setStocks(data || [])
+            console.log('[useWatchStocks] 获取到', data?.length || 0, '只股票')
         } catch (err) {
+            console.error('[useWatchStocks] 获取股票列表失败:', err)
             setError(err instanceof Error ? err.message : '获取股票列表失败')
         } finally {
             setLoading(false)
@@ -160,20 +175,15 @@ export function useWatchStocks(groupId?: string | null) {
 
     // 添加关注股票
     const addStock = async (tsCode: string, name: string, groupId?: string) => {
-        console.log('addStock 被调用:', { tsCode, name, groupId, user: user?.id })
+        console.log('[useWatchStocks] addStock 被调用:', { tsCode, name, groupId, user: user?.id })
         
         if (!user) {
-            console.error('用户未登录，无法添加股票')
+            console.error('[useWatchStocks] 用户未登录，无法添加股票')
             throw new Error('请先登录')
         }
 
         try {
-            // 检查当前 session 状态
-            const { data: sessionData } = await supabase.auth.getSession()
-            console.log('当前 Session:', sessionData?.session ? '已登录' : '未登录')
-            console.log('Access Token 前20字符:', sessionData?.session?.access_token?.substring(0, 20) + '...')
-            
-            console.log('准备插入数据到 watch_stocks 表')
+            console.log('[useWatchStocks] 准备插入数据到 watch_stocks 表')
             const insertData = {
                 user_id: user.id,
                 ts_code: tsCode,
@@ -181,29 +191,29 @@ export function useWatchStocks(groupId?: string | null) {
                 group_id: groupId || null,
                 sort_order: stocks.length,
             }
-            console.log('插入数据:', insertData)
+            console.log('[useWatchStocks] 插入数据:', insertData)
             
-            console.log('Supabase 请求已发送，等待响应...')
-            
-            const { data, error } = await supabase
-                .from('watch_stocks')
-                .insert(insertData)
-                .select()
-                .single()
+            const { data, error: insertError } = await insert<WatchStock>('watch_stocks', insertData, {
+                returnData: true,
+                single: true,
+            })
 
-            console.log('Supabase 返回:', { data, error })
+            console.log('[useWatchStocks] Supabase 返回:', { data, error: insertError })
 
-            if (error) {
-                if (error.code === '23505') {
+            if (insertError) {
+                if (insertError.code === '23505') {
                     throw new Error('该股票已在关注列表中')
                 }
-                throw error
+                throw new Error(insertError.message)
             }
-            setStocks(prev => [...prev, data])
-            console.log('股票添加成功，更新本地状态')
+            
+            if (data) {
+                setStocks(prev => [...prev, data])
+                console.log('[useWatchStocks] 股票添加成功，更新本地状态')
+            }
             return data
         } catch (err) {
-            console.error('添加股票出错:', err)
+            console.error('[useWatchStocks] 添加股票出错:', err)
             const message = err instanceof Error ? err.message : '添加股票失败'
             setError(message)
             throw new Error(message)
@@ -213,15 +223,16 @@ export function useWatchStocks(groupId?: string | null) {
     // 更新关注股票
     const updateStock = async (id: string, updates: Partial<Pick<WatchStock, 'group_id' | 'notes' | 'target_price' | 'cost_price' | 'sort_order'>>) => {
         try {
-            const { error } = await supabase
-                .from('watch_stocks')
-                .update(updates)
-                .eq('id', id)
+            console.log('[useWatchStocks] 更新股票:', id, updates)
+            
+            const { error: updateError } = await update('watch_stocks', updates, { 'id': `eq.${id}` })
 
-            if (error) throw error
+            if (updateError) throw new Error(updateError.message)
             setStocks(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s))
+            console.log('[useWatchStocks] 股票更新成功')
             return true
         } catch (err) {
+            console.error('[useWatchStocks] 更新股票失败:', err)
             setError(err instanceof Error ? err.message : '更新股票失败')
             return false
         }
@@ -230,15 +241,16 @@ export function useWatchStocks(groupId?: string | null) {
     // 删除关注股票
     const deleteStock = async (id: string) => {
         try {
-            const { error } = await supabase
-                .from('watch_stocks')
-                .delete()
-                .eq('id', id)
+            console.log('[useWatchStocks] 删除股票:', id)
+            
+            const { error: deleteError } = await remove('watch_stocks', { 'id': `eq.${id}` })
 
-            if (error) throw error
+            if (deleteError) throw new Error(deleteError.message)
             setStocks(prev => prev.filter(s => s.id !== id))
+            console.log('[useWatchStocks] 股票删除成功')
             return true
         } catch (err) {
+            console.error('[useWatchStocks] 删除股票失败:', err)
             setError(err instanceof Error ? err.message : '删除股票失败')
             return false
         }
@@ -269,4 +281,3 @@ export function useWatchStocks(groupId?: string | null) {
 export function useAllWatchStocks() {
     return useWatchStocks(undefined)
 }
-
