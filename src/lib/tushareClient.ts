@@ -279,50 +279,67 @@ class TushareClient {
      * 批量查询多只股票的行情数据（优化版）
      * 适用于 daily、daily_basic 等按日期查询的接口
      * 
+     * 优化策略：
+     * - 只查询指定的股票代码，不拉取全量数据
+     * - 使用 ts_code 参数精确查询
+     * - 支持批量查询和缓存
+     * 
      * @param apiName - 接口名称
      * @param tradeDate - 交易日期
-     * @param tsCodes - 股票代码数组（可选，不传则获取全市场）
+     * @param tsCodes - 股票代码数组（必须指定）
      * @param fields - 返回字段
      */
     async queryDailyBatch<T = any>(
         apiName: string,
         tradeDate: string,
-        tsCodes?: string[],
+        tsCodes: string[],
         fields?: string[]
     ): Promise<Map<string, T>> {
-        // 生成缓存 key
-        const cacheParams = { trade_date: tradeDate }
+        const dataMap = new Map<string, T>()
         
-        // 检查缓存
-        const cached = tushareCache.get<T[]>(apiName, cacheParams)
-        let allData: T[]
-        
-        if (cached) {
-            allData = cached
-        } else {
-            // 获取当日全市场数据（一次请求获取所有）
-            allData = await this.query<T>(apiName, cacheParams, fields)
+        if (!tsCodes || tsCodes.length === 0) {
+            return dataMap
         }
         
-        // 转换为 Map 方便查找
-        const dataMap = new Map<string, T>()
-        allData.forEach(item => {
+        // 检查每只股票是否有缓存
+        const uncachedCodes: string[] = []
+        
+        for (const tsCode of tsCodes) {
+            const cacheParams = { ts_code: tsCode, trade_date: tradeDate }
+            const cached = tushareCache.get<T[]>(apiName, cacheParams)
+            
+            if (cached && cached.length > 0) {
+                dataMap.set(tsCode, cached[0])
+            } else {
+                uncachedCodes.push(tsCode)
+            }
+        }
+        
+        // 如果所有数据都在缓存中，直接返回
+        if (uncachedCodes.length === 0) {
+            console.log(`[TushareClient] ${apiName} 全部命中缓存: ${tsCodes.length} 只股票`)
+            return dataMap
+        }
+        
+        console.log(`[TushareClient] ${apiName} 需要请求: ${uncachedCodes.length}/${tsCodes.length} 只股票`)
+        
+        // 批量查询未缓存的股票
+        // 使用 ts_code 参数精确查询，避免拉取全量数据
+        const batchData = await this.queryBatch<T>(
+            apiName,
+            uncachedCodes,
+            { trade_date: tradeDate },
+            fields
+        )
+        
+        // 将结果存入缓存和 Map
+        for (const item of batchData) {
             const tsCode = (item as any).ts_code
             if (tsCode) {
                 dataMap.set(tsCode, item)
+                // 单独缓存每只股票的数据
+                tushareCache.set(apiName, { ts_code: tsCode, trade_date: tradeDate }, [item])
             }
-        })
-        
-        // 如果指定了股票代码，只返回这些股票的数据
-        if (tsCodes && tsCodes.length > 0) {
-            const filteredMap = new Map<string, T>()
-            tsCodes.forEach(code => {
-                const data = dataMap.get(code)
-                if (data) {
-                    filteredMap.set(code, data)
-                }
-            })
-            return filteredMap
         }
         
         return dataMap

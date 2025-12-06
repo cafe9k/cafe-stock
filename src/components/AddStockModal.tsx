@@ -18,16 +18,15 @@ export default function AddStockModal({ isOpen, onClose, onAdd, isStockWatched }
     const [adding, setAdding] = useState<string | null>(null)
     const inputRef = useRef<HTMLInputElement>(null)
     
-    const { results, loading, loadAllStocks, search, clearResults, isLoaded } = useStockSearch()
+    const { results, loading, search, clearResults } = useStockSearch()
 
-    // 打开模态框时加载股票列表
+    // 打开模态框时聚焦输入框
     useEffect(() => {
         if (isOpen) {
-            loadAllStocks()
             // 聚焦输入框
             setTimeout(() => inputRef.current?.focus(), 100)
         }
-    }, [isOpen, loadAllStocks])
+    }, [isOpen])
 
     // 搜索防抖
     useEffect(() => {
@@ -101,8 +100,7 @@ export default function AddStockModal({ isOpen, onClose, onAdd, isStockWatched }
                         type="text"
                         value={keyword}
                         onChange={e => setKeyword(e.target.value)}
-                        placeholder={isLoaded ? "输入股票代码或名称搜索..." : "加载股票列表中..."}
-                        disabled={!isLoaded}
+                        placeholder="输入股票代码或名称搜索..."
                     />
                     {keyword && (
                         <button className="search-clear" onClick={() => setKeyword('')}>×</button>
@@ -110,10 +108,10 @@ export default function AddStockModal({ isOpen, onClose, onAdd, isStockWatched }
                 </div>
 
                 <div className="search-results">
-                    {loading && !isLoaded && (
+                    {loading && (
                         <div className="search-loading">
                             <div className="loading-spinner small"></div>
-                            <span>加载股票列表中...</span>
+                            <span>搜索中...</span>
                         </div>
                     )}
 
@@ -164,7 +162,7 @@ export default function AddStockModal({ isOpen, onClose, onAdd, isStockWatched }
                         )
                     })}
 
-                    {!keyword && isLoaded && (
+                    {!keyword && !loading && (
                         <div className="search-hint">
                             <p>💡 输入股票代码（如 000001）或名称（如 平安银行）进行搜索</p>
                         </div>

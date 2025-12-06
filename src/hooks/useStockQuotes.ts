@@ -208,74 +208,180 @@ export interface StockBasicInfo {
     list_date: string
 }
 
+/**
+ * 股票搜索 Hook（优化版）
+ * 
+ * 优化策略：
+ * - 按需搜索，不预加载全量股票列表
+ * - 支持按股票代码或名称精确/模糊搜索
+ * - 搜索结果缓存，避免重复请求
+ */
 export function useStockSearch() {
     const [results, setResults] = useState<StockBasicInfo[]>([])
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
-    const [allStocks, setAllStocks] = useState<StockBasicInfo[]>([])
     
-    // 用于防止重复加载
-    const loadingRef = useRef(false)
+    // 搜索结果缓存（内存级）
+    const searchCacheRef = useRef<Map<string, StockBasicInfo[]>>(new Map())
+    // 防止重复请求
+    const searchingRef = useRef(false)
+    // 当前搜索关键词
+    const currentKeywordRef = useRef('')
 
-    // 加载所有上市股票（用于本地搜索）
-    // 自动利用 24 小时缓存
-    const loadAllStocks = useCallback(async () => {
-        if (allStocks.length > 0) return // 已加载到内存
-        if (loadingRef.current) return   // 正在加载中
-
-        loadingRef.current = true
+    /**
+     * 搜索股票（按需请求）
+     * 支持：
+     * - 股票代码搜索（如 000001、600000）
+     * - 股票名称搜索（如 平安、招商）
+     */
+    const search = useCallback(async (keyword: string) => {
+        const kw = keyword.trim()
+        
+        if (!kw) {
+            setResults([])
+            return
+        }
+        
+        // 记录当前搜索关键词
+        currentKeywordRef.current = kw
+        
+        // 检查缓存
+        const cached = searchCacheRef.current.get(kw)
+        if (cached) {
+            setResults(cached)
+            return
+        }
+        
+        // 防止重复请求
+        if (searchingRef.current) {
+            return
+        }
+        
+        searchingRef.current = true
         setLoading(true)
         setError(null)
         
         try {
-            // 使用 tushareClient.query，自动利用缓存
-            // stock_basic 接口配置了 24 小时缓存
-            const data = await tushareClient.query<StockBasicInfo>('stock_basic', {
-                list_status: 'L', // 只获取上市股票
-            }, ['ts_code', 'symbol', 'name', 'area', 'industry', 'market', 'list_date'])
+            // 判断搜索类型
+            const isCodeSearch = /^\d+$/.test(kw) || /^\d+\.[A-Z]+$/i.test(kw)
             
-            setAllStocks(data)
-            console.log(`[useStockSearch] 成功加载 ${data.length} 只股票`)
-            console.log('[useStockSearch] 缓存状态:', tushareClient.getCacheStats())
+            let data: StockBasicInfo[] = []
+            
+            if (isCodeSearch) {
+                // 按股票代码搜索
+                // 尝试补全代码后缀
+                const codes = []
+                if (kw.includes('.')) {
+                    codes.push(kw.toUpperCase())
+                } else {
+                    // 6 开头是上海，其他是深圳
+                    if (kw.startsWith('6')) {
+                        codes.push(`${kw}.SH`)
+                    } else if (kw.startsWith('0') || kw.startsWith('3')) {
+                        codes.push(`${kw}.SZ`)
+                    } else {
+                        // 不确定，两个都尝试
+                        codes.push(`${kw}.SH`, `${kw}.SZ`)
+                    }
+                }
+                
+                // 使用 ts_code 精确查询
+                for (const code of codes) {
+                    try {
+                        const result = await tushareClient.query<StockBasicInfo>('stock_basic', {
+                            ts_code: code,
+                            list_status: 'L',
+                        }, ['ts_code', 'symbol', 'name', 'area', 'industry', 'market', 'list_date'])
+                        
+                        if (result.length > 0) {
+                            data.push(...result)
+                        }
+                    } catch {
+                        // 忽略单个查询失败
+                    }
+                }
+                
+                // 如果精确查询没结果，尝试模糊匹配
+                if (data.length === 0 && kw.length >= 2) {
+                    // 使用 name_code 参数进行模糊搜索（如果 API 支持）
+                    // 否则退回到获取少量数据进行本地过滤
+                    const partialData = await tushareClient.query<StockBasicInfo>('stock_basic', {
+                        list_status: 'L',
+                        exchange: kw.startsWith('6') ? 'SSE' : 'SZSE',
+                    }, ['ts_code', 'symbol', 'name', 'area', 'industry', 'market', 'list_date'])
+                    
+                    data = partialData.filter(s => 
+                        s.ts_code.includes(kw.toUpperCase()) || 
+                        s.symbol.includes(kw)
+                    ).slice(0, 20)
+                }
+            } else {
+                // 按名称搜索 - 使用 name 参数（如果 API 支持模糊搜索）
+                // Tushare stock_basic 不支持名称模糊搜索，需要获取数据后本地过滤
+                // 优化：只获取主板股票，减少数据量
+                const exchanges = ['SSE', 'SZSE'] // 上海、深圳
+                
+                for (const exchange of exchanges) {
+                    try {
+                        const result = await tushareClient.query<StockBasicInfo>('stock_basic', {
+                            list_status: 'L',
+                            exchange,
+                        }, ['ts_code', 'symbol', 'name', 'area', 'industry', 'market', 'list_date'])
+                        
+                        // 本地过滤
+                        const filtered = result.filter(s => 
+                            s.name.includes(kw)
+                        )
+                        data.push(...filtered)
+                        
+                        // 如果已经找到足够多的结果，停止搜索
+                        if (data.length >= 20) break
+                    } catch {
+                        // 忽略单个查询失败
+                    }
+                }
+                
+                data = data.slice(0, 20)
+            }
+            
+            // 检查是否是最新的搜索请求
+            if (currentKeywordRef.current === kw) {
+                setResults(data)
+                // 缓存结果
+                searchCacheRef.current.set(kw, data)
+                
+                // 限制缓存大小
+                if (searchCacheRef.current.size > 50) {
+                    const firstKey = searchCacheRef.current.keys().next().value
+                    if (firstKey) {
+                        searchCacheRef.current.delete(firstKey)
+                    }
+                }
+            }
+            
+            console.log(`[useStockSearch] 搜索 "${kw}" 找到 ${data.length} 只股票`)
         } catch (err) {
-            console.error('加载股票列表失败:', err)
-            setError(err instanceof Error ? err.message : '加载股票列表失败')
+            console.error('搜索股票失败:', err)
+            if (currentKeywordRef.current === kw) {
+                setError(err instanceof Error ? err.message : '搜索股票失败')
+            }
         } finally {
+            searchingRef.current = false
             setLoading(false)
-            loadingRef.current = false
         }
-    }, [allStocks.length])
-
-    // 搜索股票（本地搜索）
-    const search = useCallback((keyword: string) => {
-        if (!keyword.trim()) {
-            setResults([])
-            return
-        }
-
-        const kw = keyword.trim().toUpperCase()
-        
-        const filtered = allStocks.filter(stock => 
-            stock.ts_code.toUpperCase().includes(kw) ||
-            stock.symbol.includes(kw) ||
-            stock.name.includes(keyword.trim())
-        ).slice(0, 20) // 限制结果数量
-
-        setResults(filtered)
-    }, [allStocks])
+    }, [])
 
     // 清空搜索结果
     const clearResults = useCallback(() => {
         setResults([])
+        currentKeywordRef.current = ''
     }, [])
 
     return {
         results,
         loading,
         error,
-        loadAllStocks,
         search,
         clearResults,
-        isLoaded: allStocks.length > 0,
     }
 }
