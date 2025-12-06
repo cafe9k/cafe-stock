@@ -101,11 +101,18 @@ export default function DashboardPage() {
 
     // 添加股票
     const handleAddStock = async (stock: StockBasicInfo) => {
+        console.log('handleAddStock 被调用:', stock)
+        console.log('当前分组:', groups)
+        
         // 使用第一个分组，如果没有分组则为 undefined（会存为 null）
         const defaultGroupId = groups.length > 0 ? groups[0].id : undefined
+        console.log('使用的分组 ID:', defaultGroupId)
+        
         try {
-            await addStock(stock.ts_code, stock.name, defaultGroupId)
+            const result = await addStock(stock.ts_code, stock.name, defaultGroupId)
+            console.log('addStock 返回结果:', result)
         } catch (err) {
+            console.error('handleAddStock 捕获到错误:', err)
             // 错误已在 AddStockModal 中处理
             throw err
         }

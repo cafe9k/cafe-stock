@@ -46,12 +46,25 @@ export default function AddStockModal({ isOpen, onClose, onAdd, isStockWatched }
 
     // 添加股票
     const handleAdd = async (stock: StockBasicInfo) => {
-        if (isStockWatched(stock.ts_code)) return
+        // 检查是否已关注
+        if (isStockWatched(stock.ts_code)) {
+            console.log('股票已关注:', stock.ts_code)
+            return
+        }
         
+        // 检查是否正在添加中
+        if (adding) {
+            console.log('正在添加中，忽略重复点击')
+            return
+        }
+        
+        console.log('开始添加股票:', stock.ts_code, stock.name)
         setAdding(stock.ts_code)
+        
         try {
             await onAdd(stock)
-            // 添加成功后可以显示提示或关闭模态框
+            console.log('添加股票成功:', stock.ts_code)
+            // 添加成功后可以显示提示
         } catch (err) {
             console.error('添加股票失败:', err)
             alert(err instanceof Error ? err.message : '添加失败，请重试')

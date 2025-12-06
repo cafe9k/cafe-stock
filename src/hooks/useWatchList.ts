@@ -160,9 +160,15 @@ export function useWatchStocks(groupId?: string | null) {
 
     // 添加关注股票
     const addStock = async (tsCode: string, name: string, groupId?: string) => {
-        if (!user) return null
+        console.log('addStock 被调用:', { tsCode, name, groupId, user: user?.id })
+        
+        if (!user) {
+            console.error('用户未登录，无法添加股票')
+            throw new Error('请先登录')
+        }
 
         try {
+            console.log('准备插入数据到 watch_stocks 表')
             const { data, error } = await supabase
                 .from('watch_stocks')
                 .insert({
@@ -175,6 +181,8 @@ export function useWatchStocks(groupId?: string | null) {
                 .select()
                 .single()
 
+            console.log('Supabase 返回:', { data, error })
+
             if (error) {
                 if (error.code === '23505') {
                     throw new Error('该股票已在关注列表中')
@@ -182,8 +190,10 @@ export function useWatchStocks(groupId?: string | null) {
                 throw error
             }
             setStocks(prev => [...prev, data])
+            console.log('股票添加成功，更新本地状态')
             return data
         } catch (err) {
+            console.error('添加股票出错:', err)
             const message = err instanceof Error ? err.message : '添加股票失败'
             setError(message)
             throw new Error(message)
