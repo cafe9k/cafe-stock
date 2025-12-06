@@ -111,6 +111,54 @@
     background: rgba(48, 54, 61, 0.6);
 }
 
+/* 错误提示横幅 */
+.error-banner {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 24px;
+    background: rgba(248, 81, 73, 0.12);
+    border-bottom: 1px solid rgba(248, 81, 73, 0.3);
+    font-size: 13px;
+    color: #f8a39b;
+    animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.error-icon {
+    font-size: 16px;
+}
+
+.error-text {
+    flex: 1;
+}
+
+.btn-retry {
+    padding: 4px 12px;
+    border: 1px solid rgba(248, 81, 73, 0.4);
+    border-radius: 4px;
+    background: transparent;
+    color: #f8a39b;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-retry:hover {
+    background: rgba(248, 81, 73, 0.2);
+    border-color: rgba(248, 81, 73, 0.6);
+}
+
 /* 主内容区 */
 .dashboard-content {
     display: flex;

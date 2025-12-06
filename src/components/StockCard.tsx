@@ -11,17 +11,19 @@ interface StockCardProps {
     stock: WatchStock
     quote?: StockQuote
     groupColor?: string
+    loading?: boolean
     onDelete: (id: string) => void
     onClick?: () => void
 }
 
-export default function StockCard({ stock, quote, groupColor, onDelete, onClick }: StockCardProps) {
+export default function StockCard({ stock, quote, groupColor, loading, onDelete, onClick }: StockCardProps) {
     const [showMenu, setShowMenu] = useState(false)
     const [deleting, setDeleting] = useState(false)
 
     // 价格变动状态
     const priceChange = quote?.pct_chg ?? 0
     const changeClass = priceChange > 0 ? 'up' : priceChange < 0 ? 'down' : 'flat'
+    const hasData = quote !== undefined
 
     // 格式化数字
     const formatNumber = (num: number | undefined, decimals = 2) => {
@@ -71,7 +73,7 @@ export default function StockCard({ stock, quote, groupColor, onDelete, onClick 
     }
 
     return (
-        <div className={`stock-card ${changeClass}`} onClick={onClick}>
+        <div className={`stock-card ${changeClass} ${loading ? 'loading' : ''} ${!hasData ? 'no-data' : ''}`} onClick={onClick}>
             {/* 头部 */}
             <div className="card-header">
                 <div className="card-title">

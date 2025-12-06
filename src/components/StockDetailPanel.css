@@ -1,0 +1,433 @@
+/* 股票详情面板样式 */
+
+/* 遮罩层 */
+.detail-panel-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.75);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    animation: fadeIn 0.2s ease;
+    padding: 20px;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* 面板主体 */
+.detail-panel {
+    background: linear-gradient(180deg, #1a2332 0%, #0d1117 100%);
+    border: 1px solid rgba(88, 166, 255, 0.2);
+    border-radius: 16px;
+    width: 100%;
+    max-width: 560px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* 头部 */
+.detail-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    padding: 20px 24px;
+    border-bottom: 1px solid rgba(48, 54, 61, 0.5);
+    position: sticky;
+    top: 0;
+    background: inherit;
+    z-index: 10;
+}
+
+.detail-title h2 {
+    margin: 0 0 4px 0;
+    font-size: 22px;
+    font-weight: 600;
+    color: #e6edf3;
+}
+
+.detail-code {
+    font-size: 13px;
+    color: #8b949e;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.btn-close {
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: rgba(177, 186, 196, 0.08);
+    color: #8b949e;
+    font-size: 24px;
+    line-height: 1;
+    cursor: pointer;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+}
+
+.btn-close:hover {
+    background: rgba(248, 81, 73, 0.15);
+    color: #f85149;
+}
+
+/* 价格概览 */
+.detail-price-section {
+    padding: 20px 24px;
+    border-bottom: 1px solid rgba(48, 54, 61, 0.3);
+}
+
+.price-overview {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.current-price {
+    font-size: 36px;
+    font-weight: 700;
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: -1px;
+}
+
+.price-changes {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+}
+
+.pct-change {
+    font-weight: 600;
+    font-size: 16px;
+}
+
+/* 当日行情网格 */
+.price-detail-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+}
+
+.price-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.price-item .label {
+    font-size: 12px;
+    color: #6e7681;
+}
+
+.price-item .value {
+    font-size: 14px;
+    color: #c9d1d9;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+/* 涨跌颜色 */
+.up {
+    color: #f85149 !important;
+}
+
+.down {
+    color: #3fb950 !important;
+}
+
+.flat {
+    color: #8b949e !important;
+}
+
+/* 关键指标 */
+.detail-metrics {
+    padding: 20px 24px;
+    border-bottom: 1px solid rgba(48, 54, 61, 0.3);
+}
+
+.metrics-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.metrics-row:last-child {
+    margin-bottom: 0;
+}
+
+.metric-box {
+    background: rgba(22, 27, 34, 0.6);
+    border: 1px solid rgba(48, 54, 61, 0.4);
+    border-radius: 8px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.metric-label {
+    font-size: 11px;
+    color: #6e7681;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.metric-value {
+    font-size: 15px;
+    font-weight: 600;
+    color: #e6edf3;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+/* K线图区域 */
+.kline-section {
+    padding: 20px 24px;
+    border-bottom: 1px solid rgba(48, 54, 61, 0.3);
+}
+
+.kline-section h3 {
+    margin: 0 0 16px 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: #8b949e;
+}
+
+.kline-loading,
+.kline-error {
+    height: 100px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #6e7681;
+    font-size: 13px;
+}
+
+.kline-error {
+    color: #f85149;
+}
+
+.kline-chart {
+    position: relative;
+    background: rgba(13, 17, 23, 0.5);
+    border-radius: 8px;
+    padding: 12px;
+}
+
+.kline-chart svg {
+    width: 100%;
+    height: 100px;
+    display: block;
+}
+
+.grid-line {
+    stroke: rgba(48, 54, 61, 0.3);
+    stroke-width: 1;
+}
+
+.wick {
+    stroke-width: 1;
+}
+
+.wick.up {
+    stroke: #f85149;
+}
+
+.wick.down {
+    stroke: #3fb950;
+}
+
+.candle.up {
+    fill: #f85149;
+}
+
+.candle.down {
+    fill: #3fb950;
+}
+
+.kline-legend {
+    position: absolute;
+    right: 16px;
+    top: 12px;
+    bottom: 12px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    font-size: 10px;
+    color: #6e7681;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+/* 历史数据表格 */
+.history-section {
+    padding: 20px 24px;
+    border-bottom: 1px solid rgba(48, 54, 61, 0.3);
+}
+
+.history-section h3 {
+    margin: 0 0 12px 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: #8b949e;
+}
+
+.history-table-wrapper {
+    overflow-x: auto;
+}
+
+.history-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.history-table th,
+.history-table td {
+    padding: 10px 8px;
+    text-align: right;
+}
+
+.history-table th:first-child,
+.history-table td:first-child {
+    text-align: left;
+}
+
+.history-table th {
+    color: #6e7681;
+    font-weight: 500;
+    border-bottom: 1px solid rgba(48, 54, 61, 0.4);
+}
+
+.history-table td {
+    color: #c9d1d9;
+    font-family: 'JetBrains Mono', monospace;
+    border-bottom: 1px solid rgba(48, 54, 61, 0.2);
+}
+
+.history-table tr:last-child td {
+    border-bottom: none;
+}
+
+.history-table tr:hover td {
+    background: rgba(177, 186, 196, 0.04);
+}
+
+/* 备注区域 */
+.notes-section {
+    padding: 20px 24px;
+}
+
+.notes-section h3 {
+    margin: 0 0 8px 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: #8b949e;
+}
+
+.notes-section p {
+    margin: 0;
+    font-size: 14px;
+    color: #c9d1d9;
+    line-height: 1.6;
+}
+
+/* 响应式 */
+@media (max-width: 480px) {
+    .detail-panel-overlay {
+        padding: 0;
+        align-items: flex-end;
+    }
+
+    .detail-panel {
+        max-width: none;
+        max-height: 85vh;
+        border-radius: 16px 16px 0 0;
+        animation: slideUpMobile 0.3s ease;
+    }
+
+    @keyframes slideUpMobile {
+        from {
+            opacity: 0;
+            transform: translateY(100%);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .detail-header {
+        padding: 16px 20px;
+    }
+
+    .detail-title h2 {
+        font-size: 18px;
+    }
+
+    .current-price {
+        font-size: 28px;
+    }
+
+    .price-detail-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .metrics-row {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .metrics-row:last-child .metric-box:last-child {
+        grid-column: span 2;
+    }
+
+    .detail-price-section,
+    .detail-metrics,
+    .kline-section,
+    .history-section,
+    .notes-section {
+        padding: 16px 20px;
+    }
+}
+
+/* 滚动条样式 */
+.detail-panel::-webkit-scrollbar {
+    width: 6px;
+}
+
+.detail-panel::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.detail-panel::-webkit-scrollbar-thumb {
+    background: rgba(139, 148, 158, 0.3);
+    border-radius: 3px;
+}
+
+.detail-panel::-webkit-scrollbar-thumb:hover {
+    background: rgba(139, 148, 158, 0.5);
+}
+

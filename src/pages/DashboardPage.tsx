@@ -9,6 +9,8 @@ import { useStockQuotes, StockBasicInfo } from '../hooks/useStockQuotes'
 import GroupSidebar from '../components/GroupSidebar'
 import StockCard from '../components/StockCard'
 import AddStockModal from '../components/AddStockModal'
+import StockDetailPanel from '../components/StockDetailPanel'
+import type { WatchStock } from '../types/database'
 import './DashboardPage.css'
 
 type SortOption = 'default' | 'change_desc' | 'change_asc' | 'volume' | 'turnover'
@@ -18,11 +20,12 @@ export default function DashboardPage() {
     const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null)
     const [showAddModal, setShowAddModal] = useState(false)
     const [sortBy, setSortBy] = useState<SortOption>('default')
+    const [selectedStock, setSelectedStock] = useState<WatchStock | null>(null)
 
     // 数据 hooks
     const { groups, createGroup, updateGroup, deleteGroup } = useWatchGroups()
     const { stocks, addStock, deleteStock, isStockWatched, fetchStocks } = useWatchStocks()
-    const { loading: quotesLoading, lastUpdate, fetchQuotes, getQuote } = useStockQuotes()
+    const { loading: quotesLoading, lastUpdate, error: quotesError, fetchQuotes, getQuote } = useStockQuotes()
 
     // 计算每个分组的股票数量
     const stockCounts = useMemo(() => {
@@ -190,6 +193,19 @@ export default function DashboardPage() {
                 </div>
             )}
 
+            {/* 错误提示 */}
+            {quotesError && (
+                <div className="error-banner">
+                    <span className="error-icon">⚠️</span>
+                    <span className="error-text">
+                        {quotesError.includes('IP数量超限') 
+                            ? '行情数据获取受限，Tushare API IP 限制，请稍后重试' 
+                            : quotesError}
+                    </span>
+                    <button className="btn-retry" onClick={handleRefresh}>重试</button>
+                </div>
+            )}
+
             {/* 主内容区 */}
             <div className="dashboard-content">
                 {/* 左侧边栏 - 分组 */}
@@ -245,7 +261,9 @@ export default function DashboardPage() {
                                     stock={stock}
                                     quote={getQuote(stock.ts_code)}
                                     groupColor={getGroupColor(stock.group_id)}
+                                    loading={quotesLoading}
                                     onDelete={handleDeleteStock}
+                                    onClick={() => setSelectedStock(stock)}
                                 />
                             ))
                         ) : (
@@ -287,6 +305,15 @@ export default function DashboardPage() {
                 onAdd={handleAddStock}
                 isStockWatched={isStockWatched}
             />
+
+            {/* 股票详情面板 */}
+            {selectedStock && (
+                <StockDetailPanel
+                    stock={selectedStock}
+                    quote={getQuote(selectedStock.ts_code)}
+                    onClose={() => setSelectedStock(null)}
+                />
+            )}
         </div>
     )
 }

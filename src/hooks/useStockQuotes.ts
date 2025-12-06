@@ -147,8 +147,14 @@ export function useStockQuotes() {
             setQuotes(newQuotes)
             setLastUpdate(new Date())
         } catch (err) {
+            const errorMsg = err instanceof Error ? err.message : '获取行情数据失败'
             console.error('获取行情数据失败:', err)
-            setError(err instanceof Error ? err.message : '获取行情数据失败')
+            setError(errorMsg)
+            
+            // 显示用户友好的错误提示
+            if (errorMsg.includes('IP数量超限')) {
+                console.warn('⚠️ Tushare API IP 限制，请稍后重试或检查 API 配置')
+            }
         } finally {
             setLoading(false)
         }

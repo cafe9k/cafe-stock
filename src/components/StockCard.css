@@ -1,28 +1,55 @@
 /* 股票卡片样式 */
 
 .stock-card {
-    background: rgba(22, 27, 34, 0.95);
+    background: linear-gradient(145deg, rgba(22, 27, 34, 0.98) 0%, rgba(13, 17, 23, 0.95) 100%);
     border: 1px solid rgba(48, 54, 61, 0.6);
-    border-radius: 10px;
+    border-radius: 12px;
     padding: 16px;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
+    overflow: hidden;
+}
+
+.stock-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, rgba(88, 166, 255, 0.05) 0%, transparent 50%);
+    opacity: 0;
+    transition: opacity 0.25s ease;
+    pointer-events: none;
 }
 
 .stock-card:hover {
-    border-color: rgba(88, 166, 255, 0.4);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+    border-color: rgba(88, 166, 255, 0.5);
+    transform: translateY(-3px);
+    box-shadow: 
+        0 8px 24px rgba(0, 0, 0, 0.35),
+        0 0 0 1px rgba(88, 166, 255, 0.1);
+}
+
+.stock-card:hover::before {
+    opacity: 1;
+}
+
+.stock-card:active {
+    transform: translateY(-1px);
+    transition-duration: 0.1s;
 }
 
 /* 涨跌状态边框 */
 .stock-card.up {
     border-left: 3px solid #f85149;
+    background: linear-gradient(145deg, rgba(248, 81, 73, 0.08) 0%, rgba(13, 17, 23, 0.95) 30%);
 }
 
 .stock-card.down {
     border-left: 3px solid #3fb950;
+    background: linear-gradient(145deg, rgba(63, 185, 80, 0.08) 0%, rgba(13, 17, 23, 0.95) 30%);
 }
 
 .stock-card.flat {
@@ -248,13 +275,36 @@
 }
 
 /* 加载状态 */
-.stock-card.loading {
-    animation: pulse 1.5s infinite;
+.stock-card.loading .price-value,
+.stock-card.loading .price-change,
+.stock-card.loading .price-pct,
+.stock-card.loading .metric-value {
+    background: linear-gradient(90deg, rgba(139, 148, 158, 0.15) 25%, rgba(139, 148, 158, 0.3) 50%, rgba(139, 148, 158, 0.15) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: 4px;
+    color: transparent !important;
 }
 
-@keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.6; }
+@keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+}
+
+/* 点击提示 */
+.stock-card::after {
+    content: '点击查看详情';
+    position: absolute;
+    bottom: 8px;
+    right: 12px;
+    font-size: 10px;
+    color: #6e7681;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.stock-card:hover::after {
+    opacity: 1;
 }
 
 /* 响应式 */
