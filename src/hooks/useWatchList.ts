@@ -1,9 +1,13 @@
 /**
  * 自选股数据管理 Hook
  * 使用 REST API 直接调用 Supabase，便于观察网络日志
+ * 
+ * 优化：
+ * 1. 使用 useRef 防止重复请求
+ * 2. 使用 user.id 作为依赖而非整个 user 对象
  */
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { select, insert, update, remove } from '../lib/supabaseRestClient'
 import { useAuth } from '../contexts/AuthContext'
 import type { WatchGroup, WatchStock } from '../types/database'
@@ -29,10 +33,22 @@ export function useWatchGroups() {
     const [groups, setGroups] = useState<WatchGroup[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
+    
+    // 防止重复请求
+    const fetchingRef = useRef(false)
+    const lastUserIdRef = useRef<string | null>(null)
 
     // 获取分组列表
     const fetchGroups = useCallback(async () => {
         if (!user) return
+        
+        // 防止重复请求：同一用户只请求一次
+        if (fetchingRef.current && lastUserIdRef.current === user.id) {
+            return
+        }
+
+        fetchingRef.current = true
+        lastUserIdRef.current = user.id
 
         try {
             setLoading(true)
@@ -52,8 +68,9 @@ export function useWatchGroups() {
             setError(err instanceof Error ? err.message : '获取分组失败')
         } finally {
             setLoading(false)
+            fetchingRef.current = false
         }
-    }, [user])
+    }, [user?.id]) // 只依赖 user.id 而非整个 user 对象
 
     // 创建分组
     const createGroup = async (name: string, color?: string) => {
@@ -138,10 +155,25 @@ export function useWatchStocks(groupId?: string | null) {
     const [stocks, setStocks] = useState<WatchStock[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
+    
+    // 防止重复请求
+    const fetchingRef = useRef(false)
+    const lastFetchKeyRef = useRef<string | null>(null)
 
     // 获取关注股票列表
     const fetchStocks = useCallback(async () => {
         if (!user) return
+        
+        // 生成请求唯一键
+        const fetchKey = `${user.id}-${groupId || 'all'}`
+        
+        // 防止重复请求
+        if (fetchingRef.current && lastFetchKeyRef.current === fetchKey) {
+            return
+        }
+
+        fetchingRef.current = true
+        lastFetchKeyRef.current = fetchKey
 
         try {
             setLoading(true)
@@ -170,8 +202,9 @@ export function useWatchStocks(groupId?: string | null) {
             setError(err instanceof Error ? err.message : '获取股票列表失败')
         } finally {
             setLoading(false)
+            fetchingRef.current = false
         }
-    }, [user, groupId])
+    }, [user?.id, groupId]) // 只依赖 user.id 而非整个 user 对象
 
     // 添加关注股票
     const addStock = async (tsCode: string, name: string, groupId?: string) => {

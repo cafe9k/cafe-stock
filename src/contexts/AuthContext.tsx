@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
+import { createContext, useContext, useEffect, useState, useRef, ReactNode } from 'react'
 import { 
     signInWithPassword, 
     signUp as restSignUp, 
@@ -30,8 +30,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [user, setUser] = useState<User | null>(null)
     const [session, setSession] = useState<any | null>(null)
     const [loading, setLoading] = useState(true)
+    
+    // 防止 StrictMode 导致的重复初始化
+    const initRef = useRef(false)
 
     useEffect(() => {
+        // 防止重复初始化
+        if (initRef.current) return
+        initRef.current = true
+        
         // 获取初始会话
         const initAuth = async () => {
             console.log('[AuthContext] 初始化认证状态')
