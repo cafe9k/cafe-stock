@@ -283,9 +283,10 @@ class TushareClient {
      * - 只查询指定的股票代码，不拉取全量数据
      * - 使用 ts_code 参数精确查询
      * - 支持批量查询和缓存
+     * - 所有数据持久化到 localStorage（24小时）
      * 
      * @param apiName - 接口名称
-     * @param tradeDate - 交易日期
+     * @param tradeDate - 交易日期 (YYYYMMDD)
      * @param tsCodes - 股票代码数组（必须指定）
      * @param fields - 返回字段
      */
