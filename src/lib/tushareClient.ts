@@ -13,7 +13,7 @@ import { SUPABASE_FUNCTIONS_URL } from '../config/supabase'
  */
 interface TushareRequestParams {
     api_name: string
-    token: string
+    token?: string  // token 可选，边缘函数已配置
     params?: Record<string, any>
     fields?: string
 }
@@ -55,9 +55,8 @@ class TushareClient {
         // 使用 Supabase Edge Function 代理，解决 CORS 问题
         this.apiUrl = apiUrl || `${SUPABASE_FUNCTIONS_URL}/tushare-proxy`
         
-        if (!this.token) {
-            console.warn('Tushare token 未配置，请在 .env 文件中设置 VITE_TUSHARE_TOKEN')
-        }
+        // Token 已在边缘函数中配置，前端无需传递
+        // 如果前端配置了 token，会优先使用前端的 token
     }
     
     /**
@@ -76,17 +75,19 @@ class TushareClient {
     
     /**
      * 发起 HTTP API 请求
+     * 注意：Token 已在 Supabase Edge Function 中配置，前端无需传递
      */
     private async request<T = any>(params: TushareRequestParams): Promise<TushareResponse<T>> {
-        if (!this.token) {
-            throw new TushareError(-1, 'Token 未配置，无法调用 API')
-        }
-        
-        const requestBody = {
+        // 构建请求体，token 可以为空（边缘函数会使用服务器端配置的 token）
+        const requestBody: Record<string, any> = {
             api_name: params.api_name,
-            token: this.token,
             params: params.params || {},
             fields: params.fields || ''
+        }
+        
+        // 如果前端配置了 token，则传递给边缘函数
+        if (this.token) {
+            requestBody.token = this.token
         }
         
         try {
