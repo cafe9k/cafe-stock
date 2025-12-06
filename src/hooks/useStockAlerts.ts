@@ -7,7 +7,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { tushareClient } from '../lib/tushareClient'
 import { useAuth } from '../contexts/AuthContext'
-import type { StockAlert, AlertType, AlertPriority, ALERT_TYPE_CONFIG } from '../types/database'
+import type { StockAlert, AlertType, AlertPriority } from '../types/database'
 
 // 消息类型配置
 const ALERT_CONFIG: Record<AlertType, { label: string; priority: AlertPriority; icon: string }> = {

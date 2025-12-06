@@ -22,7 +22,7 @@ export default function StockCard({ stock, quote, groupColor, loading, onDelete,
     const [deleting, setDeleting] = useState(false)
     
     // 获取最近一周公告（最多3条）
-    const { announcements, loading: announcementsLoading } = useRecentAnnouncements(stock.ts_code, 3)
+    const { announcements } = useRecentAnnouncements(stock.ts_code, 3)
 
     // 价格变动状态
     const priceChange = quote?.pct_chg ?? 0

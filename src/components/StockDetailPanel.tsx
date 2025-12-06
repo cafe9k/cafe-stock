@@ -65,7 +65,7 @@ export default function StockDetailPanel({ stock, quote, onClose, onUpdateStock 
     const [error, setError] = useState<string | null>(null)
     
     // 编辑状态
-    const [isEditingNotes, setIsEditingNotes] = useState(false)
+    const [, setIsEditingNotes] = useState(false)
     const [notesValue, setNotesValue] = useState(stock.notes || '')
     const [targetPrice, setTargetPrice] = useState(stock.target_price?.toString() || '')
     const [costPrice, setCostPrice] = useState(stock.cost_price?.toString() || '')
