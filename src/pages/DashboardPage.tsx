@@ -6,12 +6,16 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useWatchGroups, useWatchStocks } from '../hooks/useWatchList'
 import { useStockQuotes, StockBasicInfo } from '../hooks/useStockQuotes'
+import { useStockAlerts } from '../hooks/useStockAlerts'
 import GroupSidebar from '../components/GroupSidebar'
 import StockCard from '../components/StockCard'
 import AddStockModal from '../components/AddStockModal'
 import StockDetailPanel from '../components/StockDetailPanel'
 import CacheStatusBar from '../components/CacheStatusBar'
-import type { WatchStock } from '../types/database'
+import AlertBanner from '../components/AlertBanner'
+import AlertListPanel from '../components/AlertListPanel'
+import AlertDetailModal from '../components/AlertDetailModal'
+import type { WatchStock, StockAlert } from '../types/database'
 import './DashboardPage.css'
 
 type SortOption = 'default' | 'change_desc' | 'change_asc' | 'volume' | 'turnover'
@@ -22,11 +26,27 @@ export default function DashboardPage() {
     const [showAddModal, setShowAddModal] = useState(false)
     const [sortBy, setSortBy] = useState<SortOption>('default')
     const [selectedStock, setSelectedStock] = useState<WatchStock | null>(null)
+    
+    // 消息系统状态
+    const [showAlertPanel, setShowAlertPanel] = useState(false)
+    const [selectedAlert, setSelectedAlert] = useState<StockAlert | null>(null)
 
     // 数据 hooks
     const { groups, createGroup, updateGroup, deleteGroup } = useWatchGroups()
     const { stocks, addStock, deleteStock, isStockWatched, fetchStocks } = useWatchStocks()
     const { loading: quotesLoading, lastUpdate, error: quotesError, fetchQuotes, getQuote } = useStockQuotes()
+    
+    // 消息系统 hook
+    const {
+        alerts,
+        unreadCount,
+        loading: alertsLoading,
+        scanning,
+        scanAlerts,
+        markAsRead,
+        markAllAsRead,
+        deleteAlert
+    } = useStockAlerts()
 
     // 计算每个分组的股票数量
     const stockCounts = useMemo(() => {
@@ -102,6 +122,24 @@ export default function DashboardPage() {
             fetchQuotes(stocks.map(s => s.ts_code))
         }
     }, [fetchStocks, fetchQuotes, stocks])
+    
+    // 扫描消息
+    const handleScanAlerts = useCallback(() => {
+        if (stocks.length > 0) {
+            scanAlerts(stocks.map(s => s.ts_code))
+        }
+    }, [stocks, scanAlerts])
+    
+    // 首次加载时自动扫描消息
+    useEffect(() => {
+        if (stocks.length > 0 && alerts.length === 0 && !scanning) {
+            // 延迟扫描，避免与行情数据请求冲突
+            const timer = setTimeout(() => {
+                handleScanAlerts()
+            }, 2000)
+            return () => clearTimeout(timer)
+        }
+    }, [stocks.length]) // 只在股票列表变化时触发
 
     // 添加股票
     const handleAddStock = async (stock: StockBasicInfo) => {
@@ -164,12 +202,30 @@ export default function DashboardPage() {
                     <h1>股票关注面板</h1>
                 </div>
                 <div className="header-right">
+                    <button 
+                        className="btn-alerts"
+                        onClick={() => setShowAlertPanel(true)}
+                        title="消息中心"
+                    >
+                        <span className="alert-icon">🔔</span>
+                        {unreadCount > 0 && (
+                            <span className="alert-badge">{unreadCount > 99 ? '99+' : unreadCount}</span>
+                        )}
+                    </button>
                     <span className="user-email">{user?.email}</span>
                     <button className="btn-logout" onClick={signOut}>
                         退出
                     </button>
                 </div>
             </header>
+
+            {/* 消息横幅 */}
+            <AlertBanner
+                alerts={alerts}
+                unreadCount={unreadCount}
+                onViewAll={() => setShowAlertPanel(true)}
+                onMarkAsRead={markAsRead}
+            />
 
             {/* 统计横幅 */}
             {stocks.length > 0 && (
@@ -307,6 +363,26 @@ export default function DashboardPage() {
                     onClose={() => setSelectedStock(null)}
                 />
             )}
+            
+            {/* 消息列表面板 */}
+            <AlertListPanel
+                isOpen={showAlertPanel}
+                alerts={alerts}
+                loading={alertsLoading}
+                scanning={scanning}
+                onClose={() => setShowAlertPanel(false)}
+                onMarkAsRead={markAsRead}
+                onMarkAllAsRead={markAllAsRead}
+                onDelete={deleteAlert}
+                onScan={handleScanAlerts}
+                onViewDetail={setSelectedAlert}
+            />
+            
+            {/* 消息详情弹窗 */}
+            <AlertDetailModal
+                alert={selectedAlert}
+                onClose={() => setSelectedAlert(null)}
+            />
         </div>
     )
 }

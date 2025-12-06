@@ -50,6 +50,58 @@
     color: #8b949e;
 }
 
+/* 消息按钮 */
+.btn-alerts {
+    position: relative;
+    width: 36px;
+    height: 36px;
+    border: 1px solid rgba(48, 54, 61, 0.6);
+    border-radius: 8px;
+    background: transparent;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.btn-alerts:hover {
+    background: rgba(177, 186, 196, 0.12);
+    border-color: rgba(48, 54, 61, 0.8);
+}
+
+.btn-alerts .alert-icon {
+    font-size: 18px;
+}
+
+.btn-alerts .alert-badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 9px;
+    background: #f85149;
+    color: #ffffff;
+    font-size: 10px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid #161b22;
+    animation: pulse-badge 2s infinite;
+}
+
+@keyframes pulse-badge {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.1);
+    }
+}
+
 .btn-logout {
     padding: 6px 12px;
     border: 1px solid rgba(240, 246, 252, 0.1);
