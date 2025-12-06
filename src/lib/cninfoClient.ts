@@ -1,9 +1,11 @@
 /**
  * 巨潮资讯网公告查询客户端
  * 通过 Supabase Edge Function 代理访问
+ * 支持本地缓存，避免触发限流
  */
 
 import { SUPABASE_FUNCTIONS_URL, SUPABASE_ANON_KEY } from '../config/supabase'
+import { cninfoCache } from './cninfoCache'
 
 // 公告数据结构
 export interface Announcement {
@@ -80,14 +82,39 @@ class CninfoClient {
     }
 
     /**
-     * 查询公告
+     * 查询公告（带缓存）
      */
-    async query(params: AnnouncementQueryParams): Promise<{
+    async query(params: AnnouncementQueryParams, useCache = true): Promise<{
         announcements: Announcement[]
         total: number
         hasMore: boolean
+        fromCache: boolean
     }> {
-        // 频率限制
+        // 构建缓存请求参数
+        const cacheRequest = {
+            stock: params.stock,
+            searchkey: params.searchkey,
+            category: params.category,
+            pageNum: params.pageNum || 1,
+            pageSize: params.pageSize || 10,
+            seDate: params.seDate,
+        }
+
+        // 1. 检查缓存
+        if (useCache) {
+            const cachedResult = cninfoCache.get(cacheRequest)
+            if (cachedResult && cachedResult.data) {
+                console.log(`[CninfoClient] 使用缓存数据: ${params.stock}`)
+                return {
+                    announcements: cachedResult.data.announcements || [],
+                    total: cachedResult.data.totalRecordNum || 0,
+                    hasMore: cachedResult.data.hasMore || false,
+                    fromCache: true,
+                }
+            }
+        }
+
+        // 2. 频率限制
         await this.waitForRateLimit()
         this.lastRequestTime = Date.now()
 
@@ -98,14 +125,7 @@ class CninfoClient {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
                 },
-                body: JSON.stringify({
-                    stock: params.stock,
-                    searchkey: params.searchkey,
-                    category: params.category,
-                    pageNum: params.pageNum || 1,
-                    pageSize: params.pageSize || 10,
-                    seDate: params.seDate,
-                }),
+                body: JSON.stringify(cacheRequest),
             })
 
             if (!response.ok) {
@@ -123,10 +143,16 @@ class CninfoClient {
                 throw new Error(result.msg || '查询失败')
             }
 
+            // 3. 存入缓存
+            if (useCache) {
+                cninfoCache.set(cacheRequest, result)
+            }
+
             return {
                 announcements: result.data?.announcements || [],
                 total: result.data?.totalRecordNum || 0,
                 hasMore: result.data?.hasMore || false,
+                fromCache: false,
             }
         } catch (error) {
             console.error('查询公告失败:', error)
@@ -135,9 +161,12 @@ class CninfoClient {
     }
 
     /**
-     * 获取最近一周的公告
+     * 获取最近一周的公告（带缓存）
      */
-    async getRecentAnnouncements(tsCode: string, limit = 5): Promise<Announcement[]> {
+    async getRecentAnnouncements(tsCode: string, limit = 5, useCache = true): Promise<{
+        announcements: Announcement[]
+        fromCache: boolean
+    }> {
         // 计算一周前的日期
         const endDate = new Date()
         const startDate = new Date()
@@ -160,13 +189,16 @@ class CninfoClient {
             pageNum: 1,
             pageSize: limit,
             seDate,
-        })
+        }, useCache)
 
-        return result.announcements
+        return {
+            announcements: result.announcements,
+            fromCache: result.fromCache,
+        }
     }
 
     /**
-     * 获取指定股票的所有公告（分页）
+     * 获取指定股票的所有公告（分页，带缓存）
      */
     async getAnnouncements(
         tsCode: string, 
@@ -175,11 +207,13 @@ class CninfoClient {
             pageNum?: number
             pageSize?: number
             seDate?: string
+            useCache?: boolean
         }
     ): Promise<{
         announcements: Announcement[]
         total: number
         hasMore: boolean
+        fromCache: boolean
     }> {
         // 去掉股票代码后缀
         const stockCode = tsCode.replace(/\.(SZ|SH|sz|sh)$/, '')
@@ -190,7 +224,26 @@ class CninfoClient {
             pageNum: options?.pageNum || 1,
             pageSize: options?.pageSize || 10,
             seDate: options?.seDate,
-        })
+        }, options?.useCache !== false)
+    }
+
+    /**
+     * 清除指定股票的公告缓存
+     */
+    clearCache(tsCode?: string): void {
+        if (tsCode) {
+            // 清除指定股票的缓存需要知道完整的请求参数
+            // 这里简化处理，直接清除所有缓存
+            console.log(`[CninfoClient] 清除缓存: ${tsCode}`)
+        }
+        cninfoCache.clear()
+    }
+
+    /**
+     * 获取缓存统计信息
+     */
+    getCacheStats() {
+        return cninfoCache.getStats()
     }
 }
 

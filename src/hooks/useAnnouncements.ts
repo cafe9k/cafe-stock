@@ -1,6 +1,7 @@
 /**
  * 公告查询 Hook
  * 用于获取股票公告信息
+ * 支持本地缓存，避免触发限流
  */
 
 import { useState, useEffect, useCallback } from 'react'
@@ -11,6 +12,7 @@ interface UseAnnouncementsOptions {
     category?: AnnouncementCategory
     pageSize?: number
     autoFetch?: boolean  // 是否自动获取
+    useCache?: boolean   // 是否使用缓存
 }
 
 interface UseAnnouncementsReturn {
@@ -20,13 +22,14 @@ interface UseAnnouncementsReturn {
     loading: boolean
     error: string | null
     pageNum: number
+    fromCache: boolean   // 数据是否来自缓存
     refresh: () => Promise<void>
     loadMore: () => Promise<void>
     setCategory: (category?: AnnouncementCategory) => void
 }
 
 export function useAnnouncements(options: UseAnnouncementsOptions): UseAnnouncementsReturn {
-    const { tsCode, category: initialCategory, pageSize = 10, autoFetch = true } = options
+    const { tsCode, category: initialCategory, pageSize = 10, autoFetch = true, useCache = true } = options
     
     const [announcements, setAnnouncements] = useState<Announcement[]>([])
     const [total, setTotal] = useState(0)
@@ -35,9 +38,10 @@ export function useAnnouncements(options: UseAnnouncementsOptions): UseAnnouncem
     const [error, setError] = useState<string | null>(null)
     const [pageNum, setPageNum] = useState(1)
     const [category, setCategory] = useState<AnnouncementCategory | undefined>(initialCategory)
+    const [fromCache, setFromCache] = useState(false)
 
     // 获取公告
-    const fetchAnnouncements = useCallback(async (page: number, append = false) => {
+    const fetchAnnouncements = useCallback(async (page: number, append = false, forceRefresh = false) => {
         if (!tsCode) return
         
         setLoading(true)
@@ -48,6 +52,7 @@ export function useAnnouncements(options: UseAnnouncementsOptions): UseAnnouncem
                 category,
                 pageNum: page,
                 pageSize,
+                useCache: useCache && !forceRefresh,  // 强制刷新时不使用缓存
             })
             
             if (append) {
@@ -59,16 +64,17 @@ export function useAnnouncements(options: UseAnnouncementsOptions): UseAnnouncem
             setTotal(result.total)
             setHasMore(result.hasMore)
             setPageNum(page)
+            setFromCache(result.fromCache)
         } catch (err) {
             setError(err instanceof Error ? err.message : '获取公告失败')
         } finally {
             setLoading(false)
         }
-    }, [tsCode, category, pageSize])
+    }, [tsCode, category, pageSize, useCache])
 
-    // 刷新
+    // 刷新（强制从服务器获取）
     const refresh = useCallback(async () => {
-        await fetchAnnouncements(1, false)
+        await fetchAnnouncements(1, false, true)
     }, [fetchAnnouncements])
 
     // 加载更多
@@ -98,6 +104,7 @@ export function useAnnouncements(options: UseAnnouncementsOptions): UseAnnouncem
         loading,
         error,
         pageNum,
+        fromCache,
         refresh,
         loadMore,
         setCategory: handleSetCategory,
@@ -106,43 +113,48 @@ export function useAnnouncements(options: UseAnnouncementsOptions): UseAnnouncem
 
 /**
  * 获取最近一周公告的简化 Hook
+ * 支持本地缓存
  */
 interface UseRecentAnnouncementsReturn {
     announcements: Announcement[]
     loading: boolean
     error: string | null
+    fromCache: boolean
     refresh: () => Promise<void>
 }
 
-export function useRecentAnnouncements(tsCode: string, limit = 3): UseRecentAnnouncementsReturn {
+export function useRecentAnnouncements(tsCode: string, limit = 3, useCache = true): UseRecentAnnouncementsReturn {
     const [announcements, setAnnouncements] = useState<Announcement[]>([])
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
+    const [fromCache, setFromCache] = useState(false)
 
-    const fetchAnnouncements = useCallback(async () => {
+    const fetchAnnouncements = useCallback(async (forceRefresh = false) => {
         if (!tsCode) return
         
         setLoading(true)
         setError(null)
         
         try {
-            const result = await cninfoClient.getRecentAnnouncements(tsCode, limit)
-            setAnnouncements(result)
+            const result = await cninfoClient.getRecentAnnouncements(tsCode, limit, useCache && !forceRefresh)
+            setAnnouncements(result.announcements)
+            setFromCache(result.fromCache)
         } catch (err) {
             setError(err instanceof Error ? err.message : '获取公告失败')
         } finally {
             setLoading(false)
         }
-    }, [tsCode, limit])
+    }, [tsCode, limit, useCache])
 
+    // 强制刷新
     const refresh = useCallback(async () => {
-        await fetchAnnouncements()
+        await fetchAnnouncements(true)
     }, [fetchAnnouncements])
 
     // 初始加载
     useEffect(() => {
         if (tsCode) {
-            fetchAnnouncements()
+            fetchAnnouncements(false)
         }
     }, [tsCode]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -150,6 +162,7 @@ export function useRecentAnnouncements(tsCode: string, limit = 3): UseRecentAnno
         announcements,
         loading,
         error,
+        fromCache,
         refresh,
     }
 }
