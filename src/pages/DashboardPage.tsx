@@ -22,7 +22,7 @@ export default function DashboardPage() {
     // 数据 hooks
     const { groups, createGroup, updateGroup, deleteGroup } = useWatchGroups()
     const { stocks, addStock, deleteStock, isStockWatched, fetchStocks } = useWatchStocks()
-    const { quotes, loading: quotesLoading, lastUpdate, fetchQuotes, getQuote } = useStockQuotes()
+    const { loading: quotesLoading, lastUpdate, fetchQuotes, getQuote } = useStockQuotes()
 
     // 计算每个分组的股票数量
     const stockCounts = useMemo(() => {
