@@ -169,17 +169,24 @@ export function useWatchStocks(groupId?: string | null) {
 
         try {
             console.log('准备插入数据到 watch_stocks 表')
-            const { data, error } = await supabase
+            const insertData = {
+                user_id: user.id,
+                ts_code: tsCode,
+                name,
+                group_id: groupId || null,
+                sort_order: stocks.length,
+            }
+            console.log('插入数据:', insertData)
+            
+            const response = supabase
                 .from('watch_stocks')
-                .insert({
-                    user_id: user.id,
-                    ts_code: tsCode,
-                    name,
-                    group_id: groupId || null,
-                    sort_order: stocks.length,
-                })
+                .insert(insertData)
                 .select()
                 .single()
+            
+            console.log('Supabase 请求已发送，等待响应...')
+            
+            const { data, error } = await response
 
             console.log('Supabase 返回:', { data, error })
 

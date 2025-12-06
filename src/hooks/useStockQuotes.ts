@@ -180,6 +180,33 @@ export interface StockBasicInfo {
     list_date: string
 }
 
+// 简单的延迟函数
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+
+// 带重试的请求函数
+async function fetchWithRetry<T>(
+    fn: () => Promise<T>,
+    maxRetries: number = 3,
+    retryDelay: number = 1000
+): Promise<T> {
+    let lastError: Error | null = null
+    
+    for (let i = 0; i < maxRetries; i++) {
+        try {
+            return await fn()
+        } catch (err) {
+            lastError = err instanceof Error ? err : new Error(String(err))
+            console.warn(`请求失败 (尝试 ${i + 1}/${maxRetries}):`, lastError.message)
+            
+            if (i < maxRetries - 1) {
+                await delay(retryDelay * (i + 1)) // 递增延迟
+            }
+        }
+    }
+    
+    throw lastError
+}
+
 export function useStockSearch() {
     const [results, setResults] = useState<StockBasicInfo[]>([])
     const [loading, setLoading] = useState(false)
@@ -191,12 +218,20 @@ export function useStockSearch() {
         if (allStocks.length > 0) return // 已加载
 
         setLoading(true)
+        setError(null)
+        
         try {
-            const data = await tushareClient.query<StockBasicInfo>('stock_basic', {
-                list_status: 'L', // 只获取上市股票
-            }, ['ts_code', 'symbol', 'name', 'area', 'industry', 'market', 'list_date'])
+            // 使用重试机制加载股票列表
+            const data = await fetchWithRetry(
+                () => tushareClient.query<StockBasicInfo>('stock_basic', {
+                    list_status: 'L', // 只获取上市股票
+                }, ['ts_code', 'symbol', 'name', 'area', 'industry', 'market', 'list_date']),
+                3,  // 最多重试 3 次
+                2000 // 初始延迟 2 秒
+            )
             
             setAllStocks(data)
+            console.log(`成功加载 ${data.length} 只股票`)
         } catch (err) {
             console.error('加载股票列表失败:', err)
             setError(err instanceof Error ? err.message : '加载股票列表失败')
