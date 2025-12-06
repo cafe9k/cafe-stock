@@ -1,8 +1,148 @@
+/**
+ * 主面板页面
+ */
+
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useAuth } from '../contexts/AuthContext'
+import { useWatchGroups, useWatchStocks } from '../hooks/useWatchList'
+import { useStockQuotes, StockBasicInfo } from '../hooks/useStockQuotes'
+import GroupSidebar from '../components/GroupSidebar'
+import StockCard from '../components/StockCard'
+import AddStockModal from '../components/AddStockModal'
 import './DashboardPage.css'
+
+type SortOption = 'default' | 'change_desc' | 'change_asc' | 'volume' | 'turnover'
 
 export default function DashboardPage() {
     const { user, signOut } = useAuth()
+    const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null)
+    const [showAddModal, setShowAddModal] = useState(false)
+    const [sortBy, setSortBy] = useState<SortOption>('default')
+
+    // 数据 hooks
+    const { groups, createGroup, updateGroup, deleteGroup } = useWatchGroups()
+    const { stocks, addStock, deleteStock, isStockWatched, fetchStocks } = useWatchStocks()
+    const { quotes, loading: quotesLoading, lastUpdate, fetchQuotes, getQuote } = useStockQuotes()
+
+    // 计算每个分组的股票数量
+    const stockCounts = useMemo(() => {
+        const counts = new Map<string, number>()
+        stocks.forEach(stock => {
+            if (stock.group_id) {
+                counts.set(stock.group_id, (counts.get(stock.group_id) || 0) + 1)
+            }
+        })
+        return counts
+    }, [stocks])
+
+    // 按分组过滤股票
+    const filteredStocks = useMemo(() => {
+        if (selectedGroupId === null) {
+            return stocks
+        }
+        return stocks.filter(s => s.group_id === selectedGroupId)
+    }, [stocks, selectedGroupId])
+
+    // 排序股票
+    const sortedStocks = useMemo(() => {
+        const sorted = [...filteredStocks]
+        
+        switch (sortBy) {
+            case 'change_desc':
+                sorted.sort((a, b) => {
+                    const qa = getQuote(a.ts_code)
+                    const qb = getQuote(b.ts_code)
+                    return (qb?.pct_chg ?? 0) - (qa?.pct_chg ?? 0)
+                })
+                break
+            case 'change_asc':
+                sorted.sort((a, b) => {
+                    const qa = getQuote(a.ts_code)
+                    const qb = getQuote(b.ts_code)
+                    return (qa?.pct_chg ?? 0) - (qb?.pct_chg ?? 0)
+                })
+                break
+            case 'volume':
+                sorted.sort((a, b) => {
+                    const qa = getQuote(a.ts_code)
+                    const qb = getQuote(b.ts_code)
+                    return (qb?.vol ?? 0) - (qa?.vol ?? 0)
+                })
+                break
+            case 'turnover':
+                sorted.sort((a, b) => {
+                    const qa = getQuote(a.ts_code)
+                    const qb = getQuote(b.ts_code)
+                    return (qb?.turnover_rate ?? 0) - (qa?.turnover_rate ?? 0)
+                })
+                break
+            default:
+                sorted.sort((a, b) => a.sort_order - b.sort_order)
+        }
+        
+        return sorted
+    }, [filteredStocks, sortBy, getQuote])
+
+    // 获取行情数据
+    useEffect(() => {
+        if (stocks.length > 0) {
+            const tsCodes = stocks.map(s => s.ts_code)
+            fetchQuotes(tsCodes)
+        }
+    }, [stocks, fetchQuotes])
+
+    // 刷新数据
+    const handleRefresh = useCallback(() => {
+        fetchStocks()
+        if (stocks.length > 0) {
+            fetchQuotes(stocks.map(s => s.ts_code))
+        }
+    }, [fetchStocks, fetchQuotes, stocks])
+
+    // 添加股票
+    const handleAddStock = async (stock: StockBasicInfo) => {
+        // 使用第一个分组，如果没有分组则为 undefined（会存为 null）
+        const defaultGroupId = groups.length > 0 ? groups[0].id : undefined
+        try {
+            await addStock(stock.ts_code, stock.name, defaultGroupId)
+        } catch (err) {
+            // 错误已在 AddStockModal 中处理
+            throw err
+        }
+    }
+
+    // 删除股票
+    const handleDeleteStock = async (id: string) => {
+        await deleteStock(id)
+    }
+
+    // 获取分组颜色
+    const getGroupColor = (groupId: string | null) => {
+        if (!groupId) return undefined
+        return groups.find(g => g.id === groupId)?.color
+    }
+
+    // 统计涨跌
+    const stats = useMemo(() => {
+        let up = 0, down = 0, flat = 0
+        stocks.forEach(stock => {
+            const quote = getQuote(stock.ts_code)
+            if (!quote) return
+            if (quote.pct_chg > 0) up++
+            else if (quote.pct_chg < 0) down++
+            else flat++
+        })
+        return { up, down, flat }
+    }, [stocks, getQuote])
+
+    // 格式化更新时间
+    const formatLastUpdate = () => {
+        if (!lastUpdate) return '--'
+        return lastUpdate.toLocaleTimeString('zh-CN', {
+            hour: '2-digit',
+            minute: '2-digit',
+        })
+    }
 
     return (
         <div className="dashboard">
@@ -20,46 +160,70 @@ export default function DashboardPage() {
                 </div>
             </header>
 
-            {/* 消息横幅 */}
-            <div className="alert-banner">
-                <span className="alert-icon">🔔</span>
-                <span className="alert-text">暂无新消息</span>
-            </div>
+            {/* 统计横幅 */}
+            {stocks.length > 0 && (
+                <div className="stats-banner">
+                    <div className="stat-item">
+                        <span className="stat-label">关注</span>
+                        <span className="stat-value">{stocks.length}</span>
+                    </div>
+                    <div className="stat-divider"></div>
+                    <div className="stat-item">
+                        <span className="stat-label">上涨</span>
+                        <span className="stat-value color-up">{stats.up}</span>
+                    </div>
+                    <div className="stat-item">
+                        <span className="stat-label">下跌</span>
+                        <span className="stat-value color-down">{stats.down}</span>
+                    </div>
+                    <div className="stat-item">
+                        <span className="stat-label">平盘</span>
+                        <span className="stat-value color-flat">{stats.flat}</span>
+                    </div>
+                </div>
+            )}
 
             {/* 主内容区 */}
             <div className="dashboard-content">
                 {/* 左侧边栏 - 分组 */}
-                <aside className="sidebar">
-                    <div className="sidebar-header">
-                        <h2>分组</h2>
-                        <button className="btn-add-group" title="新建分组">+</button>
-                    </div>
-                    <nav className="group-list">
-                        <a href="#" className="group-item active">
-                            <span className="group-color" style={{ background: '#58a6ff' }}></span>
-                            <span className="group-name">自选股</span>
-                            <span className="group-count">0</span>
-                        </a>
-                    </nav>
-                </aside>
+                <GroupSidebar
+                    groups={groups}
+                    selectedGroupId={selectedGroupId}
+                    stockCounts={stockCounts}
+                    totalCount={stocks.length}
+                    onSelectGroup={setSelectedGroupId}
+                    onCreateGroup={createGroup}
+                    onUpdateGroup={updateGroup}
+                    onDeleteGroup={deleteGroup}
+                />
 
                 {/* 主面板 */}
                 <main className="main-panel">
                     {/* 工具栏 */}
                     <div className="toolbar">
                         <div className="toolbar-left">
-                            <button className="btn-add-stock">
+                            <button className="btn-add-stock" onClick={() => setShowAddModal(true)}>
                                 <span>+</span> 添加股票
                             </button>
                         </div>
                         <div className="toolbar-right">
-                            <select className="sort-select">
+                            <select
+                                className="sort-select"
+                                value={sortBy}
+                                onChange={e => setSortBy(e.target.value as SortOption)}
+                            >
                                 <option value="default">默认排序</option>
                                 <option value="change_desc">涨幅从高到低</option>
                                 <option value="change_asc">涨幅从低到高</option>
                                 <option value="volume">成交量</option>
+                                <option value="turnover">换手率</option>
                             </select>
-                            <button className="btn-refresh" title="刷新">
+                            <button
+                                className={`btn-refresh ${quotesLoading ? 'loading' : ''}`}
+                                onClick={handleRefresh}
+                                disabled={quotesLoading}
+                                title="刷新"
+                            >
                                 🔄
                             </button>
                         </div>
@@ -67,22 +231,35 @@ export default function DashboardPage() {
 
                     {/* 股票卡片网格 */}
                     <div className="stock-grid">
-                        {/* 空状态 */}
-                        <div className="empty-state">
-                            <div className="empty-icon">📋</div>
-                            <h3>还没有关注的股票</h3>
-                            <p>点击"添加股票"开始追踪您感兴趣的股票</p>
-                            <button className="btn-add-stock-large">
-                                + 添加第一只股票
-                            </button>
-                        </div>
+                        {sortedStocks.length > 0 ? (
+                            sortedStocks.map(stock => (
+                                <StockCard
+                                    key={stock.id}
+                                    stock={stock}
+                                    quote={getQuote(stock.ts_code)}
+                                    groupColor={getGroupColor(stock.group_id)}
+                                    onDelete={handleDeleteStock}
+                                />
+                            ))
+                        ) : (
+                            <div className="empty-state">
+                                <div className="empty-icon">📋</div>
+                                <h3>
+                                    {selectedGroupId
+                                        ? '该分组还没有股票'
+                                        : '还没有关注的股票'}
+                                </h3>
+                                <p>点击"添加股票"开始追踪您感兴趣的股票</p>
+                                <button
+                                    className="btn-add-stock-large"
+                                    onClick={() => setShowAddModal(true)}
+                                >
+                                    + 添加第一只股票
+                                </button>
+                            </div>
+                        )}
                     </div>
                 </main>
-
-                {/* 右侧详情面板（暂时隐藏） */}
-                {/* <aside className="detail-panel">
-                    详情面板
-                </aside> */}
             </div>
 
             {/* 底部状态栏 */}
@@ -92,10 +269,17 @@ export default function DashboardPage() {
                     数据来源: Tushare Pro
                 </span>
                 <span className="status-item">
-                    最后更新: --
+                    最后更新: {formatLastUpdate()}
                 </span>
             </footer>
+
+            {/* 添加股票模态框 */}
+            <AddStockModal
+                isOpen={showAddModal}
+                onClose={() => setShowAddModal(false)}
+                onAdd={handleAddStock}
+                isStockWatched={isStockWatched}
+            />
         </div>
     )
 }
-

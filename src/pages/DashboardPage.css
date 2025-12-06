@@ -66,20 +66,49 @@
     border-color: rgba(240, 246, 252, 0.2);
 }
 
-/* 消息横幅 */
-.alert-banner {
+/* 统计横幅 */
+.stats-banner {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 20px;
     padding: 10px 24px;
     background: rgba(33, 38, 45, 0.8);
     border-bottom: 1px solid rgba(48, 54, 61, 0.4);
     font-size: 13px;
+}
+
+.stat-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.stat-label {
     color: #8b949e;
 }
 
-.alert-icon {
-    font-size: 14px;
+.stat-value {
+    font-weight: 600;
+    font-family: 'JetBrains Mono', monospace;
+    color: #e6edf3;
+}
+
+.stat-value.color-up {
+    color: #f85149;
+}
+
+.stat-value.color-down {
+    color: #3fb950;
+}
+
+.stat-value.color-flat {
+    color: #8b949e;
+}
+
+.stat-divider {
+    width: 1px;
+    height: 20px;
+    background: rgba(48, 54, 61, 0.6);
 }
 
 /* 主内容区 */
@@ -89,102 +118,7 @@
     overflow: hidden;
 }
 
-/* 左侧边栏 */
-.sidebar {
-    width: 220px;
-    background: rgba(22, 27, 34, 0.6);
-    border-right: 1px solid rgba(48, 54, 61, 0.4);
-    display: flex;
-    flex-direction: column;
-    flex-shrink: 0;
-}
-
-.sidebar-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 16px;
-    border-bottom: 1px solid rgba(48, 54, 61, 0.3);
-}
-
-.sidebar-header h2 {
-    font-size: 13px;
-    font-weight: 600;
-    color: #8b949e;
-    margin: 0;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.btn-add-group {
-    width: 24px;
-    height: 24px;
-    border: 1px dashed rgba(139, 148, 158, 0.4);
-    border-radius: 4px;
-    background: transparent;
-    color: #8b949e;
-    font-size: 14px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s;
-}
-
-.btn-add-group:hover {
-    border-color: #58a6ff;
-    color: #58a6ff;
-}
-
-.group-list {
-    flex: 1;
-    padding: 8px;
-    overflow-y: auto;
-}
-
-.group-item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 10px 12px;
-    border-radius: 6px;
-    text-decoration: none;
-    color: #c9d1d9;
-    font-size: 14px;
-    transition: all 0.15s;
-    cursor: pointer;
-}
-
-.group-item:hover {
-    background: rgba(177, 186, 196, 0.08);
-}
-
-.group-item.active {
-    background: rgba(88, 166, 255, 0.15);
-    color: #58a6ff;
-}
-
-.group-color {
-    width: 8px;
-    height: 8px;
-    border-radius: 2px;
-    flex-shrink: 0;
-}
-
-.group-name {
-    flex: 1;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.group-count {
-    font-size: 12px;
-    color: #8b949e;
-    background: rgba(110, 118, 129, 0.2);
-    padding: 2px 6px;
-    border-radius: 10px;
-}
+/* 左侧边栏 - 样式已移至 GroupSidebar.css */
 
 /* 主面板 */
 .main-panel {
@@ -269,6 +203,19 @@
 .btn-refresh:hover {
     background: rgba(177, 186, 196, 0.08);
     border-color: rgba(48, 54, 61, 0.8);
+}
+
+.btn-refresh.loading {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.btn-refresh:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 
 /* 股票卡片网格 */
@@ -356,9 +303,6 @@
 
 /* 响应式 */
 @media (max-width: 768px) {
-    .sidebar {
-        display: none;
-    }
 
     .toolbar {
         padding: 12px 16px;
