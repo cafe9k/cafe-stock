@@ -1,8 +1,13 @@
 /**
  * 股票行情数据 Hook
+ * 
+ * 优化功能：
+ * 1. 使用 queryDailyBatch 获取全市场数据，减少请求次数
+ * 2. 自动利用缓存，避免重复请求
+ * 3. 支持批量股票查询
  */
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { tushareClient } from '../lib/tushareClient'
 
 // 日线行情数据
@@ -89,33 +94,45 @@ export function useStockQuotes() {
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [lastUpdate, setLastUpdate] = useState<Date | null>(null)
+    
+    // 用于防止重复请求
+    const fetchingRef = useRef(false)
 
-    // 获取指定股票的行情数据
+    // 获取指定股票的行情数据（优化版）
     const fetchQuotes = useCallback(async (tsCodes: string[]) => {
         if (tsCodes.length === 0) return
+        
+        // 防止重复请求
+        if (fetchingRef.current) {
+            console.log('[useStockQuotes] 请求进行中，跳过')
+            return
+        }
 
+        fetchingRef.current = true
         setLoading(true)
         setError(null)
 
         try {
             const tradeDate = getRecentTradeDate()
             
-            // 并行获取日线行情和每日指标
-            const [dailyData, basicData] = await Promise.all([
-                tushareClient.query<DailyQuote>('daily', {
-                    trade_date: tradeDate,
-                }, ['ts_code', 'trade_date', 'open', 'high', 'low', 'close', 'pre_close', 'change', 'pct_chg', 'vol', 'amount']),
-                
-                tushareClient.query<DailyBasic>('daily_basic', {
-                    trade_date: tradeDate,
-                }, ['ts_code', 'trade_date', 'turnover_rate', 'pe', 'pb', 'total_mv', 'circ_mv']),
+            // 使用优化的批量查询方法
+            // 这会利用缓存，如果数据已缓存则直接返回
+            const [dailyMap, basicMap] = await Promise.all([
+                tushareClient.queryDailyBatch<DailyQuote>(
+                    'daily',
+                    tradeDate,
+                    tsCodes,
+                    ['ts_code', 'trade_date', 'open', 'high', 'low', 'close', 'pre_close', 'change', 'pct_chg', 'vol', 'amount']
+                ),
+                tushareClient.queryDailyBatch<DailyBasic>(
+                    'daily_basic',
+                    tradeDate,
+                    tsCodes,
+                    ['ts_code', 'trade_date', 'turnover_rate', 'pe', 'pb', 'total_mv', 'circ_mv']
+                ),
             ])
 
-            // 创建 Map 方便查找
-            const dailyMap = new Map(dailyData.map(d => [d.ts_code, d]))
-            const basicMap = new Map(basicData.map(d => [d.ts_code, d]))
-
-            // 合并数据，只保留关注的股票
+            // 合并数据
             const newQuotes = new Map<string, StockQuote>()
             
             for (const tsCode of tsCodes) {
@@ -146,17 +163,22 @@ export function useStockQuotes() {
 
             setQuotes(newQuotes)
             setLastUpdate(new Date())
+            
+            // 打印缓存和节流器状态（调试用）
+            console.log('[useStockQuotes] 缓存状态:', tushareClient.getCacheStats())
+            console.log('[useStockQuotes] 节流器状态:', tushareClient.getRateLimiterStatus())
         } catch (err) {
             const errorMsg = err instanceof Error ? err.message : '获取行情数据失败'
             console.error('获取行情数据失败:', err)
             setError(errorMsg)
             
             // 显示用户友好的错误提示
-            if (errorMsg.includes('IP数量超限')) {
-                console.warn('⚠️ Tushare API IP 限制，请稍后重试或检查 API 配置')
+            if (errorMsg.includes('IP数量超限') || errorMsg.includes('频率')) {
+                console.warn('⚠️ Tushare API 限流，请稍后重试')
             }
         } finally {
             setLoading(false)
+            fetchingRef.current = false
         }
     }, [])
 
@@ -186,63 +208,41 @@ export interface StockBasicInfo {
     list_date: string
 }
 
-// 简单的延迟函数
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
-
-// 带重试的请求函数
-async function fetchWithRetry<T>(
-    fn: () => Promise<T>,
-    maxRetries: number = 3,
-    retryDelay: number = 1000
-): Promise<T> {
-    let lastError: Error | null = null
-    
-    for (let i = 0; i < maxRetries; i++) {
-        try {
-            return await fn()
-        } catch (err) {
-            lastError = err instanceof Error ? err : new Error(String(err))
-            console.warn(`请求失败 (尝试 ${i + 1}/${maxRetries}):`, lastError.message)
-            
-            if (i < maxRetries - 1) {
-                await delay(retryDelay * (i + 1)) // 递增延迟
-            }
-        }
-    }
-    
-    throw lastError
-}
-
 export function useStockSearch() {
     const [results, setResults] = useState<StockBasicInfo[]>([])
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [allStocks, setAllStocks] = useState<StockBasicInfo[]>([])
+    
+    // 用于防止重复加载
+    const loadingRef = useRef(false)
 
     // 加载所有上市股票（用于本地搜索）
+    // 自动利用 24 小时缓存
     const loadAllStocks = useCallback(async () => {
-        if (allStocks.length > 0) return // 已加载
+        if (allStocks.length > 0) return // 已加载到内存
+        if (loadingRef.current) return   // 正在加载中
 
+        loadingRef.current = true
         setLoading(true)
         setError(null)
         
         try {
-            // 使用重试机制加载股票列表
-            const data = await fetchWithRetry(
-                () => tushareClient.query<StockBasicInfo>('stock_basic', {
-                    list_status: 'L', // 只获取上市股票
-                }, ['ts_code', 'symbol', 'name', 'area', 'industry', 'market', 'list_date']),
-                3,  // 最多重试 3 次
-                2000 // 初始延迟 2 秒
-            )
+            // 使用 tushareClient.query，自动利用缓存
+            // stock_basic 接口配置了 24 小时缓存
+            const data = await tushareClient.query<StockBasicInfo>('stock_basic', {
+                list_status: 'L', // 只获取上市股票
+            }, ['ts_code', 'symbol', 'name', 'area', 'industry', 'market', 'list_date'])
             
             setAllStocks(data)
-            console.log(`成功加载 ${data.length} 只股票`)
+            console.log(`[useStockSearch] 成功加载 ${data.length} 只股票`)
+            console.log('[useStockSearch] 缓存状态:', tushareClient.getCacheStats())
         } catch (err) {
             console.error('加载股票列表失败:', err)
             setError(err instanceof Error ? err.message : '加载股票列表失败')
         } finally {
             setLoading(false)
+            loadingRef.current = false
         }
     }, [allStocks.length])
 
@@ -279,4 +279,3 @@ export function useStockSearch() {
         isLoaded: allStocks.length > 0,
     }
 }
-

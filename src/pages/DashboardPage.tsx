@@ -10,6 +10,7 @@ import GroupSidebar from '../components/GroupSidebar'
 import StockCard from '../components/StockCard'
 import AddStockModal from '../components/AddStockModal'
 import StockDetailPanel from '../components/StockDetailPanel'
+import CacheStatusBar from '../components/CacheStatusBar'
 import type { WatchStock } from '../types/database'
 import './DashboardPage.css'
 
@@ -287,16 +288,8 @@ export default function DashboardPage() {
                 </main>
             </div>
 
-            {/* 底部状态栏 */}
-            <footer className="dashboard-footer">
-                <span className="status-item">
-                    <span className="status-dot"></span>
-                    数据来源: Tushare Pro
-                </span>
-                <span className="status-item">
-                    最后更新: {formatLastUpdate()}
-                </span>
-            </footer>
+            {/* 底部状态栏（整合缓存状态） */}
+            <CacheStatusBar lastUpdate={formatLastUpdate()} />
 
             {/* 添加股票模态框 */}
             <AddStockModal

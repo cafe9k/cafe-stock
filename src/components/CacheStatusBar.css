@@ -1,0 +1,293 @@
+/* 缓存状态栏样式 - 整合底部状态栏 */
+
+.cache-status-bar {
+    background: rgba(22, 27, 34, 0.95);
+    border-top: 1px solid rgba(48, 54, 61, 0.6);
+    font-size: 12px;
+    transition: all 0.3s ease;
+}
+
+/* 折叠状态的摘要栏 */
+.cache-summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 24px;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.2s;
+}
+
+.cache-summary:hover {
+    background: rgba(48, 54, 61, 0.3);
+}
+
+.cache-summary-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #8b949e;
+}
+
+.status-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #3fb950;
+}
+
+.status-divider {
+    color: rgba(48, 54, 61, 0.8);
+    margin: 0 4px;
+}
+
+.cache-summary-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.cache-icon {
+    font-size: 12px;
+}
+
+.cache-label {
+    color: #8b949e;
+}
+
+.cache-count {
+    color: #c9d1d9;
+    font-weight: 500;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.cache-tag {
+    padding: 1px 6px;
+    border-radius: 8px;
+    font-size: 10px;
+    font-weight: 500;
+}
+
+.cache-tag.static {
+    background: rgba(56, 139, 253, 0.15);
+    color: #58a6ff;
+}
+
+.cache-tag.dynamic {
+    background: rgba(163, 113, 247, 0.15);
+    color: #a371f7;
+}
+
+.cache-size {
+    color: #8b949e;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+}
+
+.expand-icon {
+    color: #8b949e;
+    font-size: 10px;
+    transition: transform 0.3s ease;
+    margin-left: 4px;
+}
+
+.expand-icon.rotated {
+    transform: rotate(180deg);
+}
+
+/* 展开状态的详细信息 */
+.cache-detail {
+    border-top: 1px solid rgba(48, 54, 61, 0.4);
+    padding: 16px 24px;
+    background: rgba(13, 17, 23, 0.5);
+    animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.cache-detail-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+}
+
+.cache-detail-header h4 {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 600;
+    color: #e6edf3;
+}
+
+.btn-clear-cache {
+    padding: 4px 10px;
+    border: 1px solid rgba(248, 81, 73, 0.4);
+    border-radius: 4px;
+    background: transparent;
+    color: #f85149;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-clear-cache:hover {
+    background: rgba(248, 81, 73, 0.15);
+    border-color: rgba(248, 81, 73, 0.6);
+}
+
+/* 缓存列表 */
+.cache-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.cache-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.cache-group-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #8b949e;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.cache-group-title .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+.cache-group-title .dot.static {
+    background: #58a6ff;
+}
+
+.cache-group-title .dot.dynamic {
+    background: #a371f7;
+}
+
+/* 缓存条目 */
+.cache-entry {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 10px 14px;
+    background: rgba(48, 54, 61, 0.2);
+    border-radius: 6px;
+    border-left: 3px solid rgba(88, 166, 255, 0.3);
+}
+
+.cache-entry-main {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.cache-entry-name {
+    color: #e6edf3;
+    font-weight: 500;
+}
+
+.cache-entry-count {
+    color: #8b949e;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.cache-entry-meta {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    font-size: 11px;
+}
+
+.cache-entry-time {
+    color: #8b949e;
+}
+
+.cache-entry-remaining {
+    color: #3fb950;
+    font-weight: 500;
+}
+
+/* 空状态 */
+.cache-empty {
+    text-align: center;
+    padding: 20px;
+    color: #8b949e;
+}
+
+/* 提示信息 */
+.cache-tip {
+    margin-top: 16px;
+    padding: 10px 14px;
+    background: rgba(187, 128, 9, 0.1);
+    border: 1px solid rgba(187, 128, 9, 0.2);
+    border-radius: 6px;
+    color: #d29922;
+    font-size: 11px;
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+    .cache-summary {
+        padding: 8px 16px;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    
+    .cache-summary-left {
+        flex: 1;
+        min-width: 200px;
+    }
+    
+    .cache-summary-right {
+        flex-wrap: wrap;
+        justify-content: flex-end;
+    }
+    
+    .cache-detail {
+        padding: 12px 16px;
+    }
+    
+    .cache-tag {
+        display: none;
+    }
+    
+    .cache-entry-meta {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+    }
+    
+    .status-divider {
+        display: none;
+    }
+    
+    .cache-summary-left {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+    }
+}

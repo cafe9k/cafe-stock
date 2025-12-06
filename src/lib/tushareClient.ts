@@ -3,10 +3,17 @@
  * 文档: https://tushare.pro/document/1?doc_id=130
  * 
  * 通过 Supabase Edge Function 代理请求，解决 CORS 问题
+ * 
+ * 优化功能：
+ * 1. 请求节流：并发限制 2 个，每分钟控制频率
+ * 2. 本地缓存：静态数据 24h+，动态数据短期缓存
+ * 3. 批量合并：支持多只股票合并请求
  */
 
 import { TUSHARE_TOKEN } from '../config/tushare'
 import { SUPABASE_FUNCTIONS_URL, SUPABASE_ANON_KEY } from '../config/supabase'
+import { tushareRateLimiter } from './rateLimiter'
+import { tushareCache } from './tushareCache'
 
 /**
  * Tushare API 请求参数接口
@@ -44,16 +51,31 @@ class TushareError extends Error {
 }
 
 /**
+ * 批量请求配置
+ */
+interface BatchConfig {
+    batchSize: number      // 每批股票数量
+    batchDelay: number     // 批次间延迟（毫秒）
+}
+
+const DEFAULT_BATCH_CONFIG: BatchConfig = {
+    batchSize: 50,         // 每批最多 50 只股票
+    batchDelay: 200        // 批次间延迟 200ms
+}
+
+/**
  * Tushare HTTP 客户端类
  */
 class TushareClient {
     private token: string
     private apiUrl: string
+    private batchConfig: BatchConfig
     
-    constructor(token?: string, apiUrl?: string) {
+    constructor(token?: string, apiUrl?: string, batchConfig?: Partial<BatchConfig>) {
         this.token = token || TUSHARE_TOKEN
         // 使用 Supabase Edge Function 代理，解决 CORS 问题
         this.apiUrl = apiUrl || `${SUPABASE_FUNCTIONS_URL}/tushare-proxy`
+        this.batchConfig = { ...DEFAULT_BATCH_CONFIG, ...batchConfig }
         
         // Token 已在边缘函数中配置，前端无需传递
         // 如果前端配置了 token，会优先使用前端的 token
@@ -74,10 +96,9 @@ class TushareClient {
     }
     
     /**
-     * 发起 HTTP API 请求
-     * 注意：Token 已在 Supabase Edge Function 中配置，前端无需传递
+     * 发起 HTTP API 请求（内部方法，不经过节流器）
      */
-    private async request<T = any>(params: TushareRequestParams): Promise<TushareResponse<T>> {
+    private async doRequest<T = any>(params: TushareRequestParams): Promise<TushareResponse<T>> {
         // 构建请求体，token 可以为空（边缘函数会使用服务器端配置的 token）
         const requestBody: Record<string, any> = {
             api_name: params.api_name,
@@ -123,13 +144,31 @@ class TushareClient {
     }
     
     /**
+     * 发起 HTTP API 请求（经过节流器）
+     */
+    private async request<T = any>(params: TushareRequestParams): Promise<TushareResponse<T>> {
+        return tushareRateLimiter.execute(() => this.doRequest<T>(params))
+    }
+    
+    /**
      * 查询数据并转换为对象数组
+     * 支持缓存
      */
     async query<T = any>(
         apiName: string,
         params?: Record<string, any>,
-        fields?: string[]
+        fields?: string[],
+        options?: { skipCache?: boolean }
     ): Promise<T[]> {
+        // 1. 检查缓存
+        if (!options?.skipCache) {
+            const cached = tushareCache.get<T[]>(apiName, params)
+            if (cached) {
+                return cached
+            }
+        }
+        
+        // 2. 发起请求
         const fieldsStr = fields ? fields.join(',') : ''
         
         const response = await this.request<any>({
@@ -139,16 +178,21 @@ class TushareClient {
             fields: fieldsStr
         })
         
-        // 将数据转换为对象数组
+        // 3. 将数据转换为对象数组
         const { fields: fieldNames, items } = response.data
         
-        return items.map(item => {
+        const result = items.map(item => {
             const obj: any = {}
             fieldNames.forEach((field, index) => {
                 obj[field] = item[index]
             })
             return obj as T
         })
+        
+        // 4. 存入缓存
+        tushareCache.set(apiName, params, result)
+        
+        return result
     }
     
     /**
@@ -168,6 +212,149 @@ class TushareClient {
             fields: fieldsStr
         })
     }
+    
+    /**
+     * 批量查询多只股票数据
+     * 自动分批处理，避免单次请求数据过大
+     * 
+     * @param apiName - 接口名称
+     * @param tsCodes - 股票代码数组
+     * @param params - 其他参数（不包含 ts_code）
+     * @param fields - 返回字段
+     * @returns 合并后的数据数组
+     */
+    async queryBatch<T = any>(
+        apiName: string,
+        tsCodes: string[],
+        params?: Record<string, any>,
+        fields?: string[]
+    ): Promise<T[]> {
+        if (tsCodes.length === 0) {
+            return []
+        }
+        
+        // 如果股票数量少，直接单次请求
+        if (tsCodes.length <= this.batchConfig.batchSize) {
+            return this.query<T>(apiName, {
+                ...params,
+                ts_code: tsCodes.join(',')
+            }, fields)
+        }
+        
+        // 分批处理
+        const results: T[] = []
+        const batches: string[][] = []
+        
+        for (let i = 0; i < tsCodes.length; i += this.batchConfig.batchSize) {
+            batches.push(tsCodes.slice(i, i + this.batchConfig.batchSize))
+        }
+        
+        console.log(`[TushareClient] 批量请求: ${tsCodes.length} 只股票，分 ${batches.length} 批处理`)
+        
+        for (let i = 0; i < batches.length; i++) {
+            const batch = batches[i]
+            
+            try {
+                const batchData = await this.query<T>(apiName, {
+                    ...params,
+                    ts_code: batch.join(',')
+                }, fields)
+                
+                results.push(...batchData)
+            } catch (error) {
+                console.error(`[TushareClient] 批次 ${i + 1}/${batches.length} 请求失败:`, error)
+                // 继续处理其他批次
+            }
+            
+            // 批次间延迟（最后一批不需要延迟）
+            if (i < batches.length - 1) {
+                await this.delay(this.batchConfig.batchDelay)
+            }
+        }
+        
+        return results
+    }
+    
+    /**
+     * 批量查询多只股票的行情数据（优化版）
+     * 适用于 daily、daily_basic 等按日期查询的接口
+     * 
+     * @param apiName - 接口名称
+     * @param tradeDate - 交易日期
+     * @param tsCodes - 股票代码数组（可选，不传则获取全市场）
+     * @param fields - 返回字段
+     */
+    async queryDailyBatch<T = any>(
+        apiName: string,
+        tradeDate: string,
+        tsCodes?: string[],
+        fields?: string[]
+    ): Promise<Map<string, T>> {
+        // 生成缓存 key
+        const cacheParams = { trade_date: tradeDate }
+        
+        // 检查缓存
+        const cached = tushareCache.get<T[]>(apiName, cacheParams)
+        let allData: T[]
+        
+        if (cached) {
+            allData = cached
+        } else {
+            // 获取当日全市场数据（一次请求获取所有）
+            allData = await this.query<T>(apiName, cacheParams, fields)
+        }
+        
+        // 转换为 Map 方便查找
+        const dataMap = new Map<string, T>()
+        allData.forEach(item => {
+            const tsCode = (item as any).ts_code
+            if (tsCode) {
+                dataMap.set(tsCode, item)
+            }
+        })
+        
+        // 如果指定了股票代码，只返回这些股票的数据
+        if (tsCodes && tsCodes.length > 0) {
+            const filteredMap = new Map<string, T>()
+            tsCodes.forEach(code => {
+                const data = dataMap.get(code)
+                if (data) {
+                    filteredMap.set(code, data)
+                }
+            })
+            return filteredMap
+        }
+        
+        return dataMap
+    }
+    
+    /**
+     * 延迟函数
+     */
+    private delay(ms: number): Promise<void> {
+        return new Promise(resolve => setTimeout(resolve, ms))
+    }
+    
+    /**
+     * 清空缓存
+     */
+    clearCache(): void {
+        tushareCache.clear()
+    }
+    
+    /**
+     * 获取缓存统计
+     */
+    getCacheStats() {
+        return tushareCache.getStats()
+    }
+    
+    /**
+     * 获取节流器状态
+     */
+    getRateLimiterStatus() {
+        return tushareRateLimiter.getStatus()
+    }
 }
 
 // 导出单例实例
@@ -175,26 +362,30 @@ export const tushareClient = new TushareClient()
 
 // 导出类和类型
 export { TushareClient, TushareError }
-export type { TushareRequestParams, TushareResponse }
+export type { TushareRequestParams, TushareResponse, BatchConfig }
 
 /**
  * 使用示例:
  * 
- * // 1. 查询股票基本信息
+ * // 1. 查询股票基本信息（自动缓存 24 小时）
  * const stocks = await tushareClient.query('stock_basic', {
  *     list_status: 'L'
  * }, ['ts_code', 'name', 'area', 'industry', 'list_date'])
  * 
- * // 2. 查询日线行情
- * const daily = await tushareClient.query('daily', {
- *     ts_code: '000001.SZ',
- *     start_date: '20231201',
- *     end_date: '20231231'
- * }, ['trade_date', 'open', 'high', 'low', 'close', 'vol'])
+ * // 2. 批量查询多只股票的日线行情
+ * const quotes = await tushareClient.queryBatch('daily', 
+ *     ['000001.SZ', '600000.SH', '000002.SZ'],
+ *     { trade_date: '20231229' },
+ *     ['ts_code', 'open', 'high', 'low', 'close', 'vol']
+ * )
  * 
- * // 3. 获取原始响应
- * const rawResponse = await tushareClient.queryRaw('stock_basic', {
- *     list_status: 'L'
- * })
+ * // 3. 获取当日全市场行情（优化版，自动缓存）
+ * const dailyMap = await tushareClient.queryDailyBatch('daily', '20231229',
+ *     ['000001.SZ', '600000.SH'],
+ *     ['ts_code', 'open', 'high', 'low', 'close', 'vol']
+ * )
+ * 
+ * // 4. 查看缓存和节流器状态
+ * console.log(tushareClient.getCacheStats())
+ * console.log(tushareClient.getRateLimiterStatus())
  */
-
