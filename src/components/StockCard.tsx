@@ -5,6 +5,7 @@
 import { useState } from 'react'
 import type { WatchStock } from '../types/database'
 import type { StockQuote } from '../hooks/useStockQuotes'
+import { useRecentAnnouncements } from '../hooks/useAnnouncements'
 import './StockCard.css'
 
 interface StockCardProps {
@@ -19,6 +20,9 @@ interface StockCardProps {
 export default function StockCard({ stock, quote, groupColor, loading, onDelete, onClick }: StockCardProps) {
     const [showMenu, setShowMenu] = useState(false)
     const [deleting, setDeleting] = useState(false)
+    
+    // 获取最近一周公告（最多3条）
+    const { announcements, loading: announcementsLoading } = useRecentAnnouncements(stock.ts_code, 3)
 
     // 价格变动状态
     const priceChange = quote?.pct_chg ?? 0
@@ -60,6 +64,18 @@ export default function StockCard({ stock, quote, groupColor, loading, onDelete,
             return `${(yi / 10000).toFixed(2)}万亿`
         }
         return `${yi.toFixed(0)}亿`
+    }
+
+    // 格式化公告日期
+    const formatAnnouncementDate = (timestamp: number) => {
+        const date = new Date(timestamp)
+        const now = new Date()
+        const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24))
+        
+        if (diffDays === 0) return '今天'
+        if (diffDays === 1) return '昨天'
+        if (diffDays <= 7) return `${diffDays}天前`
+        return `${date.getMonth() + 1}/${date.getDate()}`
     }
 
     const handleDelete = async () => {
@@ -146,6 +162,31 @@ export default function StockCard({ stock, quote, groupColor, loading, onDelete,
                     <span className="extra-value">{formatMarketCap(quote?.total_mv)}</span>
                 </div>
             </div>
+
+            {/* 最近公告（悬浮显示） */}
+            {announcements.length > 0 && (
+                <div className="card-announcements">
+                    <div className="announcements-header">
+                        <span className="announcements-icon">📢</span>
+                        <span className="announcements-title">最近公告</span>
+                    </div>
+                    <div className="announcements-list">
+                        {announcements.map((ann) => (
+                            <a
+                                key={ann.id}
+                                className="announcement-item"
+                                href={ann.pdfUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                                <span className="announcement-date">{formatAnnouncementDate(ann.announcementTime)}</span>
+                                <span className="announcement-title">{ann.announcementTitle}</span>
+                            </a>
+                        ))}
+                    </div>
+                </div>
+            )}
 
             {/* 点击遮罩层关闭菜单 */}
             {showMenu && (

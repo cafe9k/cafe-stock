@@ -18,6 +18,8 @@ import { tushareClient } from '../lib/tushareClient'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../contexts/AuthContext'
 import { ALERT_CONFIG } from '../hooks/useStockAlerts'
+import { useAnnouncements } from '../hooks/useAnnouncements'
+import { ANNOUNCEMENT_CATEGORIES, type AnnouncementCategory } from '../lib/cninfoClient'
 import './StockDetailPanel.css'
 
 interface StockDetailPanelProps {
@@ -51,7 +53,7 @@ interface TechSignal {
 }
 
 // Tab 类型
-type TabType = 'chart' | 'history' | 'alerts' | 'settings'
+type TabType = 'chart' | 'history' | 'announcements' | 'alerts' | 'settings'
 
 export default function StockDetailPanel({ stock, quote, onClose, onUpdateStock }: StockDetailPanelProps) {
     const { user } = useAuth()
@@ -127,6 +129,12 @@ export default function StockDetailPanel({ stock, quote, onClose, onUpdateStock 
         return `${date.getMonth() + 1}月${date.getDate()}日`
     }
 
+    // 格式化公告日期
+    const formatAnnouncementDate = (timestamp: number) => {
+        const date = new Date(timestamp)
+        return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+    }
+
     // 获取历史数据
     useEffect(() => {
         const fetchHistory = async () => {
@@ -192,6 +200,21 @@ export default function StockDetailPanel({ stock, quote, onClose, onUpdateStock 
 
         fetchAlerts()
     }, [user, stock.ts_code])
+
+    // 获取公告
+    const {
+        announcements,
+        total: announcementsTotal,
+        hasMore: announcementsHasMore,
+        loading: announcementsLoading,
+        error: announcementsError,
+        loadMore: loadMoreAnnouncements,
+        setCategory: setAnnouncementCategory,
+    } = useAnnouncements({
+        tsCode: stock.ts_code,
+        pageSize: 10,
+        autoFetch: activeTab === 'announcements',
+    })
 
     // 计算涨跌颜色
     const getChangeClass = (pctChg: number) => {
@@ -423,6 +446,12 @@ export default function StockDetailPanel({ stock, quote, onClose, onUpdateStock 
                         📊 行情
                     </button>
                     <button 
+                        className={`tab-btn ${activeTab === 'announcements' ? 'active' : ''}`}
+                        onClick={() => setActiveTab('announcements')}
+                    >
+                        📄 公告
+                    </button>
+                    <button 
                         className={`tab-btn ${activeTab === 'alerts' ? 'active' : ''}`}
                         onClick={() => setActiveTab('alerts')}
                     >
@@ -547,6 +576,96 @@ export default function StockDetailPanel({ stock, quote, onClose, onUpdateStock 
                                     </tbody>
                                 </table>
                             </div>
+                        </div>
+                    )}
+
+                    {/* 公告 Tab */}
+                    {activeTab === 'announcements' && (
+                        <div className="announcements-section">
+                            <div className="announcements-header-bar">
+                                <h3>公司公告</h3>
+                                <span className="announcements-count">共 {announcementsTotal} 条</span>
+                            </div>
+                            
+                            {/* 类别筛选 */}
+                            <div className="announcements-filter">
+                                <button 
+                                    className="filter-btn active"
+                                    onClick={() => setAnnouncementCategory(undefined)}
+                                >
+                                    全部
+                                </button>
+                                {Object.entries(ANNOUNCEMENT_CATEGORIES).map(([key, label]) => (
+                                    <button
+                                        key={key}
+                                        className="filter-btn"
+                                        onClick={() => setAnnouncementCategory(key as AnnouncementCategory)}
+                                    >
+                                        {label}
+                                    </button>
+                                ))}
+                            </div>
+
+                            {/* 公告列表 */}
+                            {announcementsLoading && announcements.length === 0 ? (
+                                <div className="announcements-loading">加载中...</div>
+                            ) : announcementsError ? (
+                                <div className="announcements-error">{announcementsError}</div>
+                            ) : announcements.length === 0 ? (
+                                <div className="announcements-empty">
+                                    <span className="empty-icon">📄</span>
+                                    <p>暂无公告</p>
+                                </div>
+                            ) : (
+                                <>
+                                    <div className="announcements-list-detail">
+                                        {announcements.map((ann) => (
+                                            <a
+                                                key={ann.id}
+                                                className="announcement-card"
+                                                href={ann.pdfUrl}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                            >
+                                                <div className="announcement-card-header">
+                                                    <span className="announcement-card-date">
+                                                        {formatAnnouncementDate(ann.announcementTime)}
+                                                    </span>
+                                                    <span className="announcement-card-type">
+                                                        {ann.adjunctType}
+                                                    </span>
+                                                </div>
+                                                <div className="announcement-card-title">
+                                                    {ann.announcementTitle}
+                                                </div>
+                                                <div className="announcement-card-footer">
+                                                    <span className="announcement-card-size">
+                                                        {ann.adjunctSize > 1024 
+                                                            ? `${(ann.adjunctSize / 1024).toFixed(1)} MB`
+                                                            : `${ann.adjunctSize} KB`
+                                                        }
+                                                    </span>
+                                                    <span className="announcement-card-link">
+                                                        查看 →
+                                                    </span>
+                                                </div>
+                                            </a>
+                                        ))}
+                                    </div>
+                                    
+                                    {/* 加载更多 */}
+                                    {announcementsHasMore && (
+                                        <div className="announcements-load-more">
+                                            <button 
+                                                onClick={loadMoreAnnouncements}
+                                                disabled={announcementsLoading}
+                                            >
+                                                {announcementsLoading ? '加载中...' : '加载更多'}
+                                            </button>
+                                        </div>
+                                    )}
+                                </>
+                            )}
                         </div>
                     )}
 

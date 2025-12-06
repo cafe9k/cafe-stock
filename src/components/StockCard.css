@@ -250,6 +250,84 @@
     max-height: 50px;
 }
 
+/* 公告区域（悬浮显示） */
+.card-announcements {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(48, 54, 61, 0.3);
+    opacity: 0;
+    max-height: 0;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.stock-card:hover .card-announcements {
+    opacity: 1;
+    max-height: 200px;
+}
+
+.announcements-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+
+.announcements-icon {
+    font-size: 12px;
+}
+
+.announcements-title {
+    font-size: 11px;
+    color: #8b949e;
+    font-weight: 500;
+}
+
+.announcements-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.announcement-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 6px 8px;
+    background: rgba(22, 27, 34, 0.6);
+    border-radius: 6px;
+    text-decoration: none;
+    transition: all 0.15s;
+    cursor: pointer;
+}
+
+.announcement-item:hover {
+    background: rgba(88, 166, 255, 0.1);
+}
+
+.announcement-date {
+    font-size: 10px;
+    color: #6e7681;
+    white-space: nowrap;
+    flex-shrink: 0;
+    min-width: 40px;
+}
+
+.announcement-title {
+    font-size: 11px;
+    color: #c9d1d9;
+    line-height: 1.4;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+.announcement-item:hover .announcement-title {
+    color: #58a6ff;
+}
+
 .extra-item {
     display: flex;
     flex-direction: column;
