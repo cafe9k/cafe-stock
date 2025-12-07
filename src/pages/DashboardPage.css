@@ -20,6 +20,7 @@
     top: 0;
     z-index: 100;
     backdrop-filter: blur(10px);
+    position: relative;
 }
 
 .header-left {
@@ -37,6 +38,55 @@
     font-weight: 600;
     margin: 0;
     color: #e6edf3;
+}
+
+/* 顶部选项卡 */
+.header-center {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.header-tabs {
+    display: flex;
+    gap: 4px;
+    background: rgba(33, 38, 45, 0.8);
+    padding: 4px;
+    border-radius: 10px;
+    border: 1px solid rgba(48, 54, 61, 0.6);
+}
+
+.tab-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: #8b949e;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.tab-btn:hover {
+    color: #c9d1d9;
+    background: rgba(177, 186, 196, 0.08);
+}
+
+.tab-btn.active {
+    background: rgba(88, 166, 255, 0.15);
+    color: #58a6ff;
+}
+
+.tab-icon {
+    font-size: 14px;
+}
+
+.tab-text {
+    font-weight: 500;
 }
 
 .header-right {
@@ -394,6 +444,27 @@
 
     .dashboard-header {
         padding: 12px 16px;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+
+    .header-center {
+        position: static;
+        transform: none;
+        order: 3;
+        width: 100%;
+        display: flex;
+        justify-content: center;
+    }
+
+    .header-tabs {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .tab-btn {
+        flex: 1;
+        justify-content: center;
     }
 
     .header-left h1 {

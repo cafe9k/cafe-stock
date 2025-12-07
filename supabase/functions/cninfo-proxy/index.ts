@@ -317,17 +317,22 @@ serve(async (req) => {
 		// 处理股票代码，去掉后缀
 		const stockCode = body.stock?.replace(/\.(SZ|SH|sz|sh)$/, "") || "";
 
-		// 确定板块（根据股票代码判断）
+		// 确定板块和 orgId（根据股票代码判断）
 		let column = body.column || "szse";
+		let orgId = "";
 
-		// 确保股票代码是6位，不足则前面补0
-		const paddedCode = stockCode ? stockCode.padStart(6, "0") : "";
+		if (stockCode) {
+			// 确保股票代码是6位，不足则前面补0
+			const paddedCode = stockCode.padStart(6, "0");
 
-		// 判断是沪市还是深市
-		const isSSE = paddedCode.startsWith("6"); // 沪市
-
-		if (paddedCode) {
-			column = isSSE ? "sse" : "szse";
+			// 6开头是沪市，其他是深市
+			if (paddedCode.startsWith("6")) {
+				column = "sse";
+				orgId = `gssh0${paddedCode}`; // 沪市 orgId 格式: gssh0 + 6位代码
+			} else {
+				column = "szse";
+				orgId = `gssz0${paddedCode}`; // 深市 orgId 格式: gssz0 + 6位代码
+			}
 		}
 
 		// 处理类别参数
@@ -336,28 +341,14 @@ serve(async (req) => {
 			category = CATEGORY_MAP[category];
 		}
 
-		// 构建 stock 参数
-		// 深市：股票代码,gssz0+代码 格式
-		// 沪市：orgId 是特殊数字，无法推导，使用 searchkey 方式查询
-		let stockParam = "";
-		let searchKey = body.searchkey || "";
-
-		if (paddedCode) {
-			if (isSSE) {
-				// 沪市股票：使用股票代码作为搜索关键词
-				searchKey = paddedCode;
-				stockParam = "";
-			} else {
-				// 深市股票：使用 股票代码,orgId 格式
-				const orgId = `gssz0${paddedCode}`;
-				stockParam = `${paddedCode},${orgId}`;
-			}
-		}
+		// 构建 stock 参数（需要包含 orgId）
+		const paddedStockCode = stockCode ? stockCode.padStart(6, "0") : "";
+		const stockParam = paddedStockCode ? `${paddedStockCode},${orgId}` : "";
 
 		// 构建请求参数
 		const params = new URLSearchParams({
 			stock: stockParam,
-			searchkey: searchKey,
+			searchkey: body.searchkey || "",
 			category: category,
 			pageNum: String(body.pageNum || 1),
 			pageSize: String(Math.min(body.pageSize || 10, 30)), // 最大30
@@ -400,7 +391,7 @@ serve(async (req) => {
 		const announcements: Announcement[] = (rawData.announcements || []).map((ann: any) => ({
 			id: ann.id || ann.announcementId,
 			secCode: ann.secCode,
-			secName: ann.secName?.replace(/<[^>]*>/g, "") || "", // 移除 HTML 标签
+			secName: ann.secName,
 			announcementId: ann.announcementId,
 			announcementTitle: ann.announcementTitle?.replace(/<[^>]*>/g, "") || "", // 移除 HTML 标签
 			announcementTime: ann.announcementTime,

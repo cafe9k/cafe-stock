@@ -15,13 +15,16 @@ import CacheStatusBar from '../components/CacheStatusBar'
 import AlertBanner from '../components/AlertBanner'
 import AlertListPanel from '../components/AlertListPanel'
 import AlertDetailModal from '../components/AlertDetailModal'
+import ToolsPage from './ToolsPage'
 import type { WatchStock, StockAlert } from '../types/database'
 import './DashboardPage.css'
 
 type SortOption = 'default' | 'change_desc' | 'change_asc' | 'volume' | 'turnover'
+type TabType = 'panel' | 'tools'
 
 export default function DashboardPage() {
     const { user, signOut } = useAuth()
+    const [activeTab, setActiveTab] = useState<TabType>('panel')
     const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null)
     const [showAddModal, setShowAddModal] = useState(false)
     const [sortBy, setSortBy] = useState<SortOption>('default')
@@ -33,7 +36,7 @@ export default function DashboardPage() {
 
     // 数据 hooks
     const { groups, createGroup, updateGroup, deleteGroup } = useWatchGroups()
-    const { stocks, addStock, deleteStock, updateStock, isStockWatched, fetchStocks } = useWatchStocks()
+    const { stocks, addStock, deleteStock, isStockWatched, fetchStocks } = useWatchStocks()
     const { loading: quotesLoading, lastUpdate, error: quotesError, fetchQuotes, getQuote } = useStockQuotes()
     
     // 消息系统 hook
@@ -201,6 +204,24 @@ export default function DashboardPage() {
                     <span className="logo">📊</span>
                     <h1>股票关注面板</h1>
                 </div>
+                <div className="header-center">
+                    <nav className="header-tabs">
+                        <button 
+                            className={`tab-btn ${activeTab === 'panel' ? 'active' : ''}`}
+                            onClick={() => setActiveTab('panel')}
+                        >
+                            <span className="tab-icon">📋</span>
+                            <span className="tab-text">面板</span>
+                        </button>
+                        <button 
+                            className={`tab-btn ${activeTab === 'tools' ? 'active' : ''}`}
+                            onClick={() => setActiveTab('tools')}
+                        >
+                            <span className="tab-icon">🛠️</span>
+                            <span className="tab-text">工具</span>
+                        </button>
+                    </nav>
+                </div>
                 <div className="header-right">
                     <button 
                         className="btn-alerts"
@@ -219,8 +240,14 @@ export default function DashboardPage() {
                 </div>
             </header>
 
-            {/* 消息横幅 */}
-            <AlertBanner
+            {/* 工具页面 */}
+            {activeTab === 'tools' && <ToolsPage />}
+
+            {/* 面板内容 - 仅在面板标签激活时显示 */}
+            {activeTab === 'panel' && (
+                <>
+                    {/* 消息横幅 */}
+                    <AlertBanner
                 alerts={alerts}
                 unreadCount={unreadCount}
                 onViewAll={() => setShowAlertPanel(true)}
@@ -344,8 +371,10 @@ export default function DashboardPage() {
                 </main>
             </div>
 
-            {/* 底部状态栏（整合缓存状态） */}
-            <CacheStatusBar lastUpdate={formatLastUpdate()} />
+                    {/* 底部状态栏（整合缓存状态） */}
+                    <CacheStatusBar lastUpdate={formatLastUpdate()} />
+                </>
+            )}
 
             {/* 添加股票模态框 */}
             <AddStockModal
@@ -361,7 +390,6 @@ export default function DashboardPage() {
                     stock={selectedStock}
                     quote={getQuote(selectedStock.ts_code)}
                     onClose={() => setSelectedStock(null)}
-                    onUpdateStock={updateStock}
                 />
             )}
             

@@ -3,6 +3,18 @@
  * 与 Supabase 数据库表结构对应
  */
 
+// A股股票基础信息（来自Tushare，存储在Supabase）
+export interface StockBasic {
+    ts_code: string      // 股票代码，如 000001.SZ
+    symbol: string       // 股票简码，如 000001
+    name: string         // 股票名称
+    area: string         // 地区
+    industry: string     // 行业
+    market: string       // 市场类型（主板/创业板/科创板/北交所）
+    list_date: string    // 上市日期，格式 YYYYMMDD
+    updated_at: string   // 更新时间
+}
+
 // 关注分组
 export interface WatchGroup {
     id: string
@@ -107,6 +119,11 @@ export interface Database {
                 Row: UserSettings
                 Insert: Omit<UserSettings, 'created_at' | 'updated_at'>
                 Update: Partial<Omit<UserSettings, 'user_id' | 'created_at' | 'updated_at'>>
+            }
+            stock_basic: {
+                Row: StockBasic
+                Insert: Omit<StockBasic, 'updated_at'>
+                Update: Partial<Omit<StockBasic, 'ts_code'>>
             }
         }
     }
