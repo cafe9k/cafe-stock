@@ -20,16 +20,21 @@ contextBridge.exposeInMainWorld("electronAPI", {
 		return ipcRenderer.invoke("get-announcements", page, pageSize);
 	},
 
-	// 触发同步
-	syncAnnouncements: () => {
-		return ipcRenderer.invoke("sync-announcements");
+	// 触发增量同步
+	triggerIncrementalSync: () => {
+		return ipcRenderer.invoke("trigger-incremental-sync");
 	},
 
-	// 监听同步进度
-	onSyncProgress: (callback: (data: any) => void) => {
+	// 加载历史数据
+	loadHistoricalData: () => {
+		return ipcRenderer.invoke("load-historical-data");
+	},
+
+	// 监听数据更新
+	onDataUpdated: (callback: (data: any) => void) => {
 		const subscription = (_event: any, data: any) => callback(data);
-		ipcRenderer.on("sync-progress", subscription);
-		return () => ipcRenderer.removeListener("sync-progress", subscription);
+		ipcRenderer.on("data-updated", subscription);
+		return () => ipcRenderer.removeListener("data-updated", subscription);
 	},
 
 	// 自动更新相关

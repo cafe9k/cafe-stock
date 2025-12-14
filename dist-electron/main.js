@@ -13856,6 +13856,19 @@ const getLatestAnnDate = () => {
   const row = db.prepare("SELECT MAX(ann_date) as max_date FROM announcements").get();
   return (row == null ? void 0 : row.max_date) || null;
 };
+const getOldestAnnDate = () => {
+  const row = db.prepare("SELECT MIN(ann_date) as min_date FROM announcements").get();
+  return (row == null ? void 0 : row.min_date) || null;
+};
+const hasDataInDateRange = (startDate, endDate) => {
+  const row = db.prepare(
+    `
+    SELECT COUNT(*) as count FROM announcements 
+    WHERE ann_date >= ? AND ann_date <= ?
+  `
+  ).get(startDate, endDate);
+  return row.count > 0;
+};
 const getAnnouncements = (limit, offset) => {
   return db.prepare(
     `
@@ -14096,28 +14109,24 @@ function registerShortcuts() {
     }
   });
 }
-async function performSync() {
-  if (isSyncing) return { status: "skipped", message: "Sync already in progress" };
+async function performIncrementalSync() {
+  if (isSyncing) {
+    console.log("Sync already in progress, skipping");
+    return { status: "skipped", message: "Sync already in progress" };
+  }
   isSyncing = true;
-  console.log("Starting sync...");
+  console.log("Starting incremental sync...");
   let totalSynced = 0;
-  let startDate = "";
-  let endDate = "";
   try {
     const lastDate = getLatestAnnDate();
     const now = /* @__PURE__ */ new Date();
     const today = now.toISOString().slice(0, 10).replace(/-/g, "");
-    const pastDate = new Date(now);
-    pastDate.setMonth(pastDate.getMonth() - 1);
-    const oneMonthAgo = pastDate.toISOString().slice(0, 10).replace(/-/g, "");
-    startDate = lastDate && lastDate > oneMonthAgo ? lastDate : oneMonthAgo;
-    endDate = today;
     if (lastDate === today) {
       console.log("Already synced to today.");
-      isSyncing = false;
-      return { status: "success", message: "Already up to date", startDate, endDate, totalSynced: 0 };
+      return { status: "success", message: "Already up to date", totalSynced: 0 };
     }
-    console.log(`Syncing from ${startDate} to ${today}`);
+    const startDate = lastDate || today;
+    console.log(`Incremental sync from ${startDate} to ${today}`);
     let offset = 0;
     const limit = 2e3;
     let hasMore = true;
@@ -14127,8 +14136,8 @@ async function performSync() {
         insertAnnouncements(data);
         console.log(`Synced ${data.length} items.`);
         totalSynced += data.length;
-        mainWindow == null ? void 0 : mainWindow.webContents.send("sync-progress", {
-          status: "syncing",
+        mainWindow == null ? void 0 : mainWindow.webContents.send("data-updated", {
+          type: "incremental",
           totalSynced,
           currentBatchSize: data.length
         });
@@ -14145,13 +14154,76 @@ async function performSync() {
         break;
       }
     }
-    return { status: "success", message: "Sync completed", startDate, endDate, totalSynced };
+    console.log(`Incremental sync completed. Total: ${totalSynced}`);
+    return { status: "success", message: "Sync completed", totalSynced };
   } catch (error2) {
-    console.error("Sync failed:", error2);
+    console.error("Incremental sync failed:", error2);
     return { status: "failed", message: error2.message || "Unknown error" };
   } finally {
     isSyncing = false;
-    console.log("Sync finished.");
+  }
+}
+async function loadHistoricalData() {
+  if (isLoadingHistory) {
+    console.log("History loading already in progress");
+    return { status: "skipped", message: "Loading already in progress" };
+  }
+  isLoadingHistory = true;
+  console.log("Loading historical data...");
+  let totalLoaded = 0;
+  try {
+    const oldestDate = getOldestAnnDate();
+    let endDate;
+    if (!oldestDate) {
+      const now = /* @__PURE__ */ new Date();
+      endDate = now.toISOString().slice(0, 10).replace(/-/g, "");
+    } else {
+      endDate = oldestDate;
+    }
+    const endDateObj = /* @__PURE__ */ new Date(endDate.slice(0, 4) + "-" + endDate.slice(4, 6) + "-" + endDate.slice(6, 8));
+    endDateObj.setMonth(endDateObj.getMonth() - 1);
+    const startDate = endDateObj.toISOString().slice(0, 10).replace(/-/g, "");
+    console.log(`Loading history from ${startDate} to ${endDate}`);
+    if (hasDataInDateRange(startDate, endDate)) {
+      console.log("Data already exists in this range");
+      return { status: "success", message: "Data already exists", totalLoaded: 0 };
+    }
+    let offset = 0;
+    const limit = 2e3;
+    let hasMore = true;
+    while (hasMore) {
+      const data = await TushareClient.getAnnouncements(void 0, void 0, startDate, endDate, limit, offset);
+      if (data.length > 0) {
+        insertAnnouncements(data);
+        console.log(`Loaded ${data.length} historical items.`);
+        totalLoaded += data.length;
+        mainWindow == null ? void 0 : mainWindow.webContents.send("data-updated", {
+          type: "historical",
+          totalLoaded,
+          currentBatchSize: data.length,
+          startDate,
+          endDate
+        });
+        if (data.length < limit) {
+          hasMore = false;
+        } else {
+          offset += limit;
+        }
+      } else {
+        hasMore = false;
+      }
+      if (offset > 5e4) {
+        console.warn("History load limit reached (safety break).");
+        break;
+      }
+    }
+    console.log(`Historical data loaded. Total: ${totalLoaded}`);
+    return { status: "success", message: "History loaded", totalLoaded, startDate, endDate };
+  } catch (error2) {
+    console.error("Historical data load failed:", error2);
+    return { status: "failed", message: error2.message || "Unknown error" };
+  } finally {
+    isLoadingHistory = false;
   }
 }
 function setupIPC() {
@@ -14168,13 +14240,19 @@ function setupIPC() {
     const items = getAnnouncements(pageSize, offset);
     const total = countAnnouncements();
     console.log(`[IPC] get-announcements: page=${page}, offset=${offset}, items=${items.length}, total=${total}`);
+    const totalPages = Math.ceil(total / pageSize);
+    const shouldLoadHistory = page >= totalPages - 2 && total > 0;
     return {
       items,
-      total
+      total,
+      shouldLoadHistory
     };
   });
-  ipcMain.handle("sync-announcements", async () => {
-    return await performSync();
+  ipcMain.handle("trigger-incremental-sync", async () => {
+    return await performIncrementalSync();
+  });
+  ipcMain.handle("load-historical-data", async () => {
+    return await loadHistoricalData();
   });
   ipcMain.handle("check-for-updates", async () => {
     if (isDev) {
@@ -14245,7 +14323,7 @@ app.whenReady().then(() => {
   registerShortcuts();
   setupIPC();
   setupAutoUpdater();
-  performSync();
+  performIncrementalSync().catch((err) => console.error("Auto sync failed:", err));
   if (!isDev) {
     setTimeout(() => {
       main$1.autoUpdater.checkForUpdates();

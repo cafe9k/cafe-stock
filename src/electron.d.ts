@@ -2,15 +2,22 @@
 export interface ElectronAPI {
 	showNotification: (title: string, body: string) => Promise<void>;
 	getAppVersion: () => Promise<string>;
-	getAnnouncements: (page: number, pageSize: number) => Promise<{ items: any[]; total: number }>;
-	syncAnnouncements: () => Promise<{
+	getAnnouncements: (page: number, pageSize: number) => Promise<{ items: any[]; total: number; shouldLoadHistory: boolean }>;
+	triggerIncrementalSync: () => Promise<{
 		status: "success" | "failed" | "skipped";
 		message: string;
-		startDate?: string;
-		endDate?: string;
 		totalSynced?: number;
 	}>;
-	onSyncProgress: (callback: (data: { status: string; totalSynced: number; currentBatchSize: number }) => void) => () => void;
+	loadHistoricalData: () => Promise<{
+		status: "success" | "failed" | "skipped";
+		message: string;
+		totalLoaded?: number;
+		startDate?: string;
+		endDate?: string;
+	}>;
+	onDataUpdated: (
+		callback: (data: { type: "incremental" | "historical"; totalSynced?: number; totalLoaded?: number; currentBatchSize: number }) => void
+	) => () => void;
 
 	// 自动更新相关
 	checkForUpdates: () => Promise<{ available: boolean; updateInfo?: any; error?: string; message?: string }>;

@@ -3,7 +3,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import windowStateKeeper from "electron-window-state";
 import { autoUpdater } from "electron-updater";
-import { getAnnouncements, getLatestAnnDate, insertAnnouncements, countAnnouncements } from "./db.js";
+import { getAnnouncements, getLatestAnnDate, getOldestAnnDate, hasDataInDateRange, insertAnnouncements, countAnnouncements } from "./db.js";
 import { TushareClient } from "./tushare.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -186,42 +186,38 @@ function registerShortcuts() {
 	});
 }
 
-// Sync Logic
-async function performSync() {
-	if (isSyncing) return { status: "skipped", message: "Sync already in progress" };
+// 增量同步：从最新数据到今天
+async function performIncrementalSync() {
+	if (isSyncing) {
+		console.log("Sync already in progress, skipping");
+		return { status: "skipped", message: "Sync already in progress" };
+	}
+
 	isSyncing = true;
-	console.log("Starting sync...");
+	console.log("Starting incremental sync...");
 
 	let totalSynced = 0;
-	let startDate = "";
-	let endDate = "";
 
 	try {
 		const lastDate = getLatestAnnDate();
 		const now = new Date();
 		const today = now.toISOString().slice(0, 10).replace(/-/g, "");
 
-		const pastDate = new Date(now);
-		pastDate.setMonth(pastDate.getMonth() - 1);
-		const oneMonthAgo = pastDate.toISOString().slice(0, 10).replace(/-/g, "");
-
-		startDate = lastDate && lastDate > oneMonthAgo ? lastDate : oneMonthAgo;
-		endDate = today;
-
+		// 如果已经是今天的数据，不需要同步
 		if (lastDate === today) {
 			console.log("Already synced to today.");
-			isSyncing = false;
-			return { status: "success", message: "Already up to date", startDate, endDate, totalSynced: 0 };
+			return { status: "success", message: "Already up to date", totalSynced: 0 };
 		}
 
-		console.log(`Syncing from ${startDate} to ${today}`);
+		// 从最新日期的下一天开始同步
+		const startDate = lastDate || today;
+		console.log(`Incremental sync from ${startDate} to ${today}`);
 
 		let offset = 0;
 		const limit = 2000;
 		let hasMore = true;
 
 		while (hasMore) {
-			// Fetch in batches
 			const data = await TushareClient.getAnnouncements(undefined, undefined, startDate, today, limit, offset);
 
 			if (data.length > 0) {
@@ -229,9 +225,9 @@ async function performSync() {
 				console.log(`Synced ${data.length} items.`);
 				totalSynced += data.length;
 
-				// Send progress update
-				mainWindow?.webContents.send("sync-progress", {
-					status: "syncing",
+				// 通知前端更新
+				mainWindow?.webContents.send("data-updated", {
+					type: "incremental",
 					totalSynced,
 					currentBatchSize: data.length,
 				});
@@ -245,20 +241,104 @@ async function performSync() {
 				hasMore = false;
 			}
 
-			// Safety break to prevent infinite loops during dev
+			// 安全限制
 			if (offset > 100000) {
 				console.warn("Sync limit reached (safety break).");
 				break;
 			}
 		}
 
-		return { status: "success", message: "Sync completed", startDate, endDate, totalSynced };
+		console.log(`Incremental sync completed. Total: ${totalSynced}`);
+		return { status: "success", message: "Sync completed", totalSynced };
 	} catch (error: any) {
-		console.error("Sync failed:", error);
+		console.error("Incremental sync failed:", error);
 		return { status: "failed", message: error.message || "Unknown error" };
 	} finally {
 		isSyncing = false;
-		console.log("Sync finished.");
+	}
+}
+
+// 历史数据回补：从最老数据往前一个月
+async function loadHistoricalData() {
+	if (isLoadingHistory) {
+		console.log("History loading already in progress");
+		return { status: "skipped", message: "Loading already in progress" };
+	}
+
+	isLoadingHistory = true;
+	console.log("Loading historical data...");
+
+	let totalLoaded = 0;
+
+	try {
+		const oldestDate = getOldestAnnDate();
+
+		// 如果没有数据，从今天往前一个月开始
+		let endDate: string;
+		if (!oldestDate) {
+			const now = new Date();
+			endDate = now.toISOString().slice(0, 10).replace(/-/g, "");
+		} else {
+			endDate = oldestDate;
+		}
+
+		// 计算起始日期（往前一个月）
+		const endDateObj = new Date(endDate.slice(0, 4) + "-" + endDate.slice(4, 6) + "-" + endDate.slice(6, 8));
+		endDateObj.setMonth(endDateObj.getMonth() - 1);
+		const startDate = endDateObj.toISOString().slice(0, 10).replace(/-/g, "");
+
+		console.log(`Loading history from ${startDate} to ${endDate}`);
+
+		// 检查这个范围是否已有数据
+		if (hasDataInDateRange(startDate, endDate)) {
+			console.log("Data already exists in this range");
+			return { status: "success", message: "Data already exists", totalLoaded: 0 };
+		}
+
+		let offset = 0;
+		const limit = 2000;
+		let hasMore = true;
+
+		while (hasMore) {
+			const data = await TushareClient.getAnnouncements(undefined, undefined, startDate, endDate, limit, offset);
+
+			if (data.length > 0) {
+				insertAnnouncements(data);
+				console.log(`Loaded ${data.length} historical items.`);
+				totalLoaded += data.length;
+
+				// 通知前端更新
+				mainWindow?.webContents.send("data-updated", {
+					type: "historical",
+					totalLoaded,
+					currentBatchSize: data.length,
+					startDate,
+					endDate,
+				});
+
+				if (data.length < limit) {
+					hasMore = false;
+				} else {
+					offset += limit;
+				}
+			} else {
+				hasMore = false;
+			}
+
+			// 安全限制
+			if (offset > 50000) {
+				console.warn("History load limit reached (safety break).");
+				break;
+			}
+		}
+
+		console.log(`Historical data loaded. Total: ${totalLoaded}`);
+		return { status: "success", message: "History loaded", totalLoaded, startDate, endDate };
+	} catch (error: any) {
+		console.error("Historical data load failed:", error);
+		return { status: "failed", message: error.message || "Unknown error" };
+	} finally {
+		isLoadingHistory = false;
 	}
 }
 
@@ -278,14 +358,26 @@ function setupIPC() {
 		const items = getAnnouncements(pageSize, offset);
 		const total = countAnnouncements();
 		console.log(`[IPC] get-announcements: page=${page}, offset=${offset}, items=${items.length}, total=${total}`);
+
+		// 检查是否需要加载历史数据（接近数据末尾时）
+		const totalPages = Math.ceil(total / pageSize);
+		const shouldLoadHistory = page >= totalPages - 2 && total > 0; // 倒数第2页时触发
+
 		return {
 			items,
 			total,
+			shouldLoadHistory,
 		};
 	});
 
-	ipcMain.handle("sync-announcements", async () => {
-		return await performSync();
+	// 触发增量同步
+	ipcMain.handle("trigger-incremental-sync", async () => {
+		return await performIncrementalSync();
+	});
+
+	// 触发历史数据加载
+	ipcMain.handle("load-historical-data", async () => {
+		return await loadHistoricalData();
 	});
 
 	// 自动更新相关 IPC
@@ -377,8 +469,8 @@ app.whenReady().then(() => {
 	setupIPC();
 	setupAutoUpdater();
 
-	// Auto sync on startup
-	performSync();
+	// 启动时自动执行增量同步（异步，不阻塞）
+	performIncrementalSync().catch((err) => console.error("Auto sync failed:", err));
 
 	// 启动时检查更新（生产环境）
 	if (!isDev) {

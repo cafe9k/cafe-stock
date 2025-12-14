@@ -48,6 +48,23 @@ export const getLatestAnnDate = () => {
 	return row?.max_date || null;
 };
 
+export const getOldestAnnDate = () => {
+	const row = db.prepare("SELECT MIN(ann_date) as min_date FROM announcements").get() as { min_date: string };
+	return row?.min_date || null;
+};
+
+export const hasDataInDateRange = (startDate: string, endDate: string) => {
+	const row = db
+		.prepare(
+			`
+    SELECT COUNT(*) as count FROM announcements 
+    WHERE ann_date >= ? AND ann_date <= ?
+  `
+		)
+		.get(startDate, endDate) as { count: number };
+	return row.count > 0;
+};
+
 export const getAnnouncements = (limit: number, offset: number) => {
 	return db
 		.prepare(
