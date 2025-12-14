@@ -688,34 +688,55 @@ function setupAutoUpdater() {
 	});
 }
 
-app.whenReady().then(() => {
-	createWindow();
-	createTray();
-	registerShortcuts();
-	setupIPC();
-	setupAutoUpdater();
+// 单实例锁定 - 确保只运行一个应用实例
+const gotTheLock = app.requestSingleInstanceLock();
 
-	// 启动时自动执行增量同步（异步，不阻塞）
-	performIncrementalSync().catch((err) => console.error("Auto sync failed:", err));
-
-	// 启动时自动同步股票列表（如果今天还没同步）
-	syncStockList().catch((err) => console.error("Stock sync failed:", err));
-
-	// 启动时检查更新（生产环境）
-	if (!isDev) {
-		setTimeout(() => {
-			autoUpdater.checkForUpdates();
-		}, 3000);
-	}
-
-	app.on("activate", () => {
-		if (BrowserWindow.getAllWindows().length === 0) {
-			createWindow();
-		} else {
-			mainWindow?.show();
+if (!gotTheLock) {
+	// 如果获取锁失败，说明已经有一个实例在运行，直接退出
+	console.log("应用已经在运行，退出当前实例");
+	app.quit();
+} else {
+	// 当尝试启动第二个实例时，将焦点放回第一个实例的窗口
+	app.on("second-instance", (event, commandLine, workingDirectory) => {
+		console.log("检测到第二个实例尝试启动，聚焦到主窗口");
+		if (mainWindow) {
+			if (mainWindow.isMinimized()) {
+				mainWindow.restore();
+			}
+			mainWindow.focus();
+			mainWindow.show();
 		}
 	});
-});
+
+	app.whenReady().then(() => {
+		createWindow();
+		createTray();
+		registerShortcuts();
+		setupIPC();
+		setupAutoUpdater();
+
+		// 启动时自动执行增量同步（异步，不阻塞）
+		performIncrementalSync().catch((err) => console.error("Auto sync failed:", err));
+
+		// 启动时自动同步股票列表（如果今天还没同步）
+		syncStockList().catch((err) => console.error("Stock sync failed:", err));
+
+		// 启动时检查更新（生产环境）
+		if (!isDev) {
+			setTimeout(() => {
+				autoUpdater.checkForUpdates();
+			}, 3000);
+		}
+
+		app.on("activate", () => {
+			if (BrowserWindow.getAllWindows().length === 0) {
+				createWindow();
+			} else {
+				mainWindow?.show();
+			}
+		});
+	});
+}
 
 app.on("window-all-closed", () => {
 	if (process.platform !== "darwin") {

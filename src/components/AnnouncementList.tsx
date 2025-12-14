@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { Table, Card, Tag, Typography, message, Badge, Space, Button, Input, DatePicker, Radio } from "antd";
-import { FileTextOutlined, SyncOutlined, ReloadOutlined, SearchOutlined, HistoryOutlined, CalendarOutlined } from "@ant-design/icons";
+import { FileTextOutlined, ReloadOutlined, SearchOutlined, HistoryOutlined, CalendarOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import dayjs, { Dayjs } from "dayjs";
 
@@ -34,7 +34,6 @@ export function AnnouncementList() {
 	const [loading, setLoading] = useState(true);
 	const [page, setPage] = useState(1);
 	const [total, setTotal] = useState(0);
-	const [syncing, setSyncing] = useState(false);
 	const [loadingHistory, setLoadingHistory] = useState(false);
 	const [searchKeyword, setSearchKeyword] = useState("");
 	const [expandedRowKeys, setExpandedRowKeys] = useState<string[]>([]);
@@ -81,48 +80,6 @@ export function AnnouncementList() {
 			} finally {
 				setLoadingExpanded((prev) => ({ ...prev, [record.ts_code]: false }));
 			}
-		}
-	};
-
-	// 手动触发增量同步
-	const handleSync = async () => {
-		setSyncing(true);
-		try {
-			const result = await window.electronAPI.triggerIncrementalSync();
-
-			if (result.status === "success") {
-				message.success(`同步成功！共同步 ${result.totalSynced || 0} 条公告`);
-				// 如果在第一页，刷新数据
-				if (page === 1) {
-					await fetchGroupedData(1);
-				}
-			} else if (result.status === "skipped") {
-				message.info(result.message);
-			} else {
-				message.error(`同步失败：${result.message}`);
-			}
-		} catch (error: any) {
-			console.error("Sync failed:", error);
-			message.error(`同步失败：${error.message || "未知错误"}`);
-		} finally {
-			setSyncing(false);
-		}
-	};
-
-	// 手动加载历史数据
-	const handleLoadHistory = async () => {
-		setLoadingHistory(true);
-		try {
-			const result = await window.electronAPI.loadHistoricalData();
-			if (result.status === "success" && result.totalLoaded && result.totalLoaded > 0) {
-				message.success(`历史数据加载成功！加载了 ${result.totalLoaded} 条公告`);
-				// 重新获取当前页数据
-				await fetchGroupedData(page);
-			}
-		} catch (err: any) {
-			console.error("History load error:", err);
-		} finally {
-			setLoadingHistory(false);
 		}
 	};
 
@@ -310,6 +267,14 @@ export function AnnouncementList() {
 	// 主表格列定义
 	const columns: ColumnsType<StockGroup> = [
 		{
+			title: "股票名称",
+			dataIndex: "stock_name",
+			key: "stock_name",
+			width: 150,
+			fixed: "left",
+			render: (text) => <AntText strong>{text}</AntText>,
+		},
+		{
 			title: "股票代码",
 			dataIndex: "ts_code",
 			key: "ts_code",
@@ -320,14 +285,6 @@ export function AnnouncementList() {
 					{text}
 				</Tag>
 			),
-		},
-		{
-			title: "股票名称",
-			dataIndex: "stock_name",
-			key: "stock_name",
-			width: 150,
-			fixed: "left",
-			render: (text) => <AntText strong>{text}</AntText>,
 		},
 		{
 			title: "行业",
@@ -470,29 +427,17 @@ export function AnnouncementList() {
 				</Space>
 			</div>
 
-			{/* 同步状态提示 */}
-			{(syncing || loadingHistory) && (
+			{/* 加载历史状态提示 */}
+			{loadingHistory && (
 				<div style={{ marginBottom: 16 }}>
-					{syncing && (
-						<Badge
-							status="processing"
-							text={
-								<AntText type="secondary">
-									<SyncOutlined spin /> 正在同步最新公告...
-								</AntText>
-							}
-						/>
-					)}
-					{loadingHistory && (
-						<Badge
-							status="processing"
-							text={
-								<AntText type="secondary">
-									<HistoryOutlined spin /> 正在加载历史数据...
-								</AntText>
-							}
-						/>
-					)}
+					<Badge
+						status="processing"
+						text={
+							<AntText type="secondary">
+								<HistoryOutlined spin /> 正在加载历史数据...
+							</AntText>
+						}
+					/>
 				</div>
 			)}
 
@@ -509,7 +454,21 @@ export function AnnouncementList() {
 						onExpand,
 						expandedRowKeys,
 						onExpandedRowsChange: (keys) => setExpandedRowKeys(keys as string[]),
+						showExpandColumn: false,
 					}}
+					onRow={(record) => ({
+						onClick: () => {
+							const key = record.ts_code;
+							const isExpanded = expandedRowKeys.includes(key);
+							if (isExpanded) {
+								setExpandedRowKeys(expandedRowKeys.filter((k) => k !== key));
+							} else {
+								setExpandedRowKeys([...expandedRowKeys, key]);
+								onExpand(true, record);
+							}
+						},
+						style: { cursor: "pointer" },
+					})}
 					scroll={{ x: 800 }}
 					size="small"
 					locale={{

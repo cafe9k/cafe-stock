@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
-import { Table, Input, Button, Space, Tag, Typography, Card, Statistic, Row, Col, message } from "antd";
+import { Table, Input, Button, Space, Tag, Typography, Card, message } from "antd";
 import { ReloadOutlined, SearchOutlined, SyncOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 
-const { Title, Text: AntText } = Typography;
+const { Text: AntText } = Typography;
 const { Search } = Input;
 
 interface Stock {
@@ -268,4 +268,3 @@ export default function Stocks() {
 		</div>
 	);
 }
-

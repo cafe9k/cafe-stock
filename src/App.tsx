@@ -7,10 +7,10 @@ function App() {
 	return (
 		<Routes>
 			<Route path="/" element={<Layout />}>
-				<Route index element={<Navigate to="/stocks" replace />} />
+				<Route index element={<Navigate to="/announcements" replace />} />
 				<Route path="stocks" element={<Stocks />} />
 				<Route path="announcements" element={<Announcements />} />
-				<Route path="*" element={<Navigate to="/stocks" replace />} />
+				<Route path="*" element={<Navigate to="/announcements" replace />} />
 			</Route>
 		</Routes>
 	);
