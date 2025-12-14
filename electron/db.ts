@@ -149,20 +149,23 @@ export const countAnnouncements = () => {
 export const getAnnouncementsGroupedByStock = (limit: number, offset: number, startDate?: string, endDate?: string, market?: string) => {
 	const params: any[] = [];
 	const conditions: string[] = [];
+	const annConditions: string[] = []; // 仅用于 announcements 表的条件
 
 	// 添加日期范围条件
 	if (startDate && endDate) {
 		conditions.push(`a.ann_date BETWEEN ? AND ?`);
+		annConditions.push(`a.ann_date BETWEEN ? AND ?`);
 		params.push(startDate, endDate);
 	}
 
-	// 添加市场条件
+	// 添加市场条件（仅用于第一个 CTE）
 	if (market && market !== "all") {
 		conditions.push(`s.market = ?`);
 		params.push(market);
 	}
 
 	const whereClause = conditions.length > 0 ? ` WHERE ` + conditions.join(" AND ") : "";
+	const annWhereClause = annConditions.length > 0 ? ` WHERE ` + annConditions.join(" AND ") : "";
 
 	// 使用 CTE (Common Table Expression) 优化查询
 	const sql = `
@@ -187,7 +190,7 @@ export const getAnnouncementsGroupedByStock = (limit: number, offset: number, st
           ORDER BY a.ann_date DESC, a.pub_time DESC
         ) as latest_ann_title
       FROM announcements a
-      ${whereClause.replace(/s\./g, 'a.')}
+      ${annWhereClause}
     )
     SELECT
       ad.ts_code,
@@ -292,10 +295,12 @@ export const searchAnnouncementsGroupedByStock = (
 	const likePattern = `%${keyword}%`;
 	const params: any[] = [likePattern, likePattern, likePattern];
 	const conditions: string[] = ["(s.name LIKE ? OR s.ts_code LIKE ? OR s.symbol LIKE ?)"];
+	const annConditions: string[] = [];
 
 	// 添加日期范围条件
 	if (startDate && endDate) {
 		conditions.push(`a.ann_date BETWEEN ? AND ?`);
+		annConditions.push(`a.ann_date BETWEEN ? AND ?`);
 		params.push(startDate, endDate);
 	}
 
@@ -306,6 +311,16 @@ export const searchAnnouncementsGroupedByStock = (
 	}
 
 	const whereClause = ` WHERE ` + conditions.join(" AND ");
+	
+	// 构建第二个 CTE 的 WHERE 子句（需要再次添加参数）
+	let annWhereClause = "";
+	if (annConditions.length > 0) {
+		annWhereClause = ` WHERE ` + annConditions.join(" AND ");
+		// 为第二个查询再次添加日期参数
+		if (startDate && endDate) {
+			params.push(startDate, endDate);
+		}
+	}
 
 	// 使用 CTE 和窗口函数优化
 	const sql = `
@@ -330,8 +345,7 @@ export const searchAnnouncementsGroupedByStock = (
           ORDER BY a.ann_date DESC, a.pub_time DESC
         ) as latest_ann_title
       FROM announcements a
-      INNER JOIN stocks s ON a.ts_code = s.ts_code
-      ${whereClause}
+      ${annWhereClause}
     )
     SELECT
       ad.ts_code,
@@ -638,6 +652,11 @@ export const getFavoriteStocksAnnouncementsGrouped = (limit: number, offset: num
     LIMIT ? OFFSET ?
   `;
 
+	// 如果有日期参数，需要为第二个 CTE 再添加一次
+	if (startDate && endDate) {
+		params.push(startDate, endDate);
+	}
+	
 	params.push(limit, offset);
 
 	return db.prepare(sql).all(...params);

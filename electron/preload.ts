@@ -117,6 +117,16 @@ contextBridge.exposeInMainWorld("electronAPI", {
 		return ipcRenderer.invoke("get-favorite-stocks-announcements-grouped", page, pageSize, startDate, endDate);
 	},
 
+	// 资讯相关
+	getNews: (src?: string, startDate?: string, endDate?: string) => {
+		return ipcRenderer.invoke("get-news", src, startDate, endDate);
+	},
+
+	// 十大股东相关
+	getTop10Holders: (tsCode: string, period?: string, annDate?: string, startDate?: string, endDate?: string) => {
+		return ipcRenderer.invoke("get-top10-holders", tsCode, period, annDate, startDate, endDate);
+	},
+
 	// 自动更新相关
 	checkForUpdates: () => {
 		return ipcRenderer.invoke("check-for-updates");

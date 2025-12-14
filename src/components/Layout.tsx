@@ -1,6 +1,6 @@
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { Layout as AntLayout, Menu } from "antd";
-import { StockOutlined, NotificationOutlined } from "@ant-design/icons";
+import { StockOutlined, NotificationOutlined, ReadOutlined, FundOutlined } from "@ant-design/icons";
 import type { MenuProps } from "antd";
 
 const { Header, Content } = AntLayout;
@@ -14,9 +14,19 @@ const items: MenuItem[] = [
 		label: "公告列表",
 	},
 	{
+		key: "/news",
+		icon: <ReadOutlined />,
+		label: "资讯",
+	},
+	{
 		key: "/stocks",
 		icon: <StockOutlined />,
 		label: "股票列表",
+	},
+	{
+		key: "/data-insights",
+		icon: <FundOutlined />,
+		label: "数据洞察",
 	},
 ];
 

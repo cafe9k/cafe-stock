@@ -777,6 +777,32 @@ function setupIPC() {
 			}
 		}
 	);
+
+	// 获取财经资讯
+	ipcMain.handle("get-news", async (_event, src?: string, startDate?: string, endDate?: string) => {
+		try {
+			console.log(`[IPC] get-news: src=${src}, startDate=${startDate}, endDate=${endDate}`);
+			const news = await TushareClient.getNews(src, startDate, endDate);
+			return news;
+		} catch (error: any) {
+			console.error("Failed to get news:", error);
+			throw error;
+		}
+	});
+
+	// 获取十大股东数据
+	ipcMain.handle("get-top10-holders", async (_event, tsCode: string, period?: string, annDate?: string, startDate?: string, endDate?: string) => {
+		try {
+			console.log(
+				`[IPC] get-top10-holders: tsCode=${tsCode}, period=${period}, annDate=${annDate}, startDate=${startDate}, endDate=${endDate}`
+			);
+			const holders = await TushareClient.getTop10Holders(tsCode, period, annDate, startDate, endDate);
+			return holders;
+		} catch (error: any) {
+			console.error("Failed to get top10 holders:", error);
+			throw error;
+		}
+	});
 }
 
 // 设置自动更新事件监听

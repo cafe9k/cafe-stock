@@ -137,6 +137,20 @@ export interface ElectronAPI {
 		pageSize: number;
 	}>;
 
+	// 资讯相关
+	getNews: (
+		src?: string,
+		startDate?: string,
+		endDate?: string
+	) => Promise<
+		Array<{
+			datetime: string;
+			content: string;
+			title: string;
+			channels: string;
+		}>
+	>;
+
 	// 自动更新相关
 	checkForUpdates: () => Promise<{ available: boolean; updateInfo?: any; error?: string; message?: string }>;
 	downloadUpdate: () => Promise<{ success: boolean; error?: string }>;
@@ -147,6 +161,24 @@ export interface ElectronAPI {
 	onUpdateDownloadProgress: (callback: (progress: { percent: number; transferred: number; total: number }) => void) => () => void;
 	onUpdateDownloaded: (callback: (info: { version: string }) => void) => () => void;
 	onUpdateError: (callback: (error: string) => void) => () => void;
+
+	// 十大股东相关
+	getTop10Holders: (
+		tsCode: string,
+		period?: string,
+		annDate?: string,
+		startDate?: string,
+		endDate?: string
+	) => Promise<
+		Array<{
+			ts_code: string;
+			ann_date: string;
+			end_date: string;
+			holder_name: string;
+			hold_amount: number;
+			hold_ratio: number;
+		}>
+	>;
 }
 
 declare global {

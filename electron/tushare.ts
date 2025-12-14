@@ -221,4 +221,64 @@ export class TushareClient {
 			end_date: endDate,
 		});
 	}
+
+	/**
+	 * 获取财经新闻
+	 * 文档: https://tushare.pro/document/2?doc_id=143
+	 * 接口：news
+	 * 描述：获取主要新闻网站的财经新闻数据
+	 * 限量：单次最大2000条
+	 * 权限：用户需要至少120积分才可以调取
+	 *
+	 * 输入参数：
+	 * src: str, 新闻来源 sina(新浪财经), wallstreetcn(华尔街见闻), 10jqka(同花顺), eastmoney(东方财富), yuncaijing(云财经)
+	 * start_date: str, 开始日期 (YYYYMMDD格式)
+	 * end_date: str, 结束日期 (YYYYMMDD格式)
+	 *
+	 * 输出参数：
+	 * datetime: str, 发布时间
+	 * content: str, 新闻内容
+	 * title: str, 新闻标题
+	 * channels: str, 频道
+	 */
+	static async getNews(src?: string, startDate?: string, endDate?: string) {
+		return this.request("news", {
+			src,
+			start_date: startDate,
+			end_date: endDate,
+		});
+	}
+
+	/**
+	 * 获取十大股东数据
+	 * 文档: https://tushare.pro/document/2?doc_id=61
+	 * 接口：top10_holders
+	 * 描述：获取上市公司前十大股东数据，包括持股数量和比例等信息
+	 * 限量：单次最大2000条，总量不限制
+	 * 权限：用户需要至少2000积分才可以调取
+	 *
+	 * 输入参数：
+	 * ts_code: str, 股票代码（支持单个或多个，多个用逗号分隔）
+	 * period: str, 报告期（YYYYMMDD格式）
+	 * ann_date: str, 公告日期（YYYYMMDD格式）
+	 * start_date: str, 报告期开始日期
+	 * end_date: str, 报告期结束日期
+	 *
+	 * 输出参数：
+	 * ts_code: str, TS股票代码
+	 * ann_date: str, 公告日期
+	 * end_date: str, 报告期
+	 * holder_name: str, 股东名称
+	 * hold_amount: float, 持有数量（股）
+	 * hold_ratio: float, 持有比例（%）
+	 */
+	static async getTop10Holders(tsCode: string, period?: string, annDate?: string, startDate?: string, endDate?: string) {
+		return this.request("top10_holders", {
+			ts_code: tsCode,
+			period,
+			ann_date: annDate,
+			start_date: startDate,
+			end_date: endDate,
+		});
+	}
 }
