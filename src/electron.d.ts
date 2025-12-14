@@ -1,15 +1,13 @@
 // Electron API 类型定义
 export interface ElectronAPI {
-    showNotification: (title: string, body: string) => Promise<void>
-    getAppVersion: () => Promise<string>
-    refreshData: () => void
-    onRefreshData: (callback: () => void) => () => void
+	showNotification: (title: string, body: string) => Promise<void>;
+	getAppVersion: () => Promise<string>;
 }
 
 declare global {
-    interface Window {
-        electronAPI: ElectronAPI
-    }
+	interface Window {
+		electronAPI: ElectronAPI;
+	}
 }
 
-export {}
+export {};

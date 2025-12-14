@@ -24,7 +24,7 @@ function createWindow() {
 		height: 800,
 		minWidth: 800,
 		minHeight: 600,
-		title: "A股股票数据查询系统",
+		title: "Electron App",
 		webPreferences: {
 			preload: path.join(__dirname, "preload.js"),
 			contextIsolation: true,
@@ -42,7 +42,7 @@ function createWindow() {
 		// 显示启动通知
 		if (Notification.isSupported()) {
 			new Notification({
-				title: "A股股票查询",
+				title: "Electron App",
 				body: "应用已启动，准备好为您服务！",
 			}).show();
 		}
@@ -87,7 +87,7 @@ function createTray() {
 	}
 
 	tray = new Tray(trayIcon);
-	tray.setToolTip("A股股票查询");
+	tray.setToolTip("Electron App");
 
 	const contextMenu = Menu.buildFromTemplate([
 		{
@@ -96,20 +96,14 @@ function createTray() {
 				mainWindow?.show();
 			},
 		},
-		{
-			label: "刷新数据",
-			click: () => {
-				mainWindow?.webContents.send("refresh-data");
-			},
-		},
 		{ type: "separator" },
 		{
 			label: "关于",
 			click: () => {
 				if (Notification.isSupported()) {
 					new Notification({
-						title: "A股股票查询系统",
-						body: `版本: ${app.getVersion()}\n基于 Electron + React + Supabase`,
+						title: "Electron App",
+						body: `版本: ${app.getVersion()}\n基于 Electron + React`,
 					}).show();
 				}
 			},
@@ -146,11 +140,6 @@ function registerShortcuts() {
 			mainWindow?.show();
 		}
 	});
-
-	// Cmd+R: 刷新数据
-	globalShortcut.register("CommandOrControl+R", () => {
-		mainWindow?.webContents.send("refresh-data");
-	});
 }
 
 // 设置 IPC 通信处理器
@@ -168,49 +157,6 @@ function setupIPC() {
 	// 获取应用版本
 	ipcMain.handle("get-app-version", async () => {
 		return app.getVersion();
-	});
-
-	// 代理 Tushare 请求（解决跨域问题）
-	ipcMain.handle("tushare-request", async (_event, url: string, body: any) => {
-		try {
-			// 在主进程直接请求 Tushare 接口
-			const response = await fetch(url, {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-				},
-				body: JSON.stringify(body),
-			});
-
-			if (!response.ok) {
-				return {
-					ok: false,
-					status: response.status,
-					statusText: response.statusText,
-					data: null,
-				};
-			}
-
-			const data = await response.json();
-			return {
-				ok: true,
-				status: response.status,
-				data,
-			};
-		} catch (error) {
-			console.error("[Main] Tushare request failed:", error);
-			return {
-				ok: false,
-				status: 500,
-				statusText: error instanceof Error ? error.message : "Unknown error",
-				data: null,
-			};
-		}
-	});
-
-	// 刷新数据（从渲染进程触发）
-	ipcMain.on("refresh-data", () => {
-		mainWindow?.webContents.send("refresh-data");
 	});
 }
 

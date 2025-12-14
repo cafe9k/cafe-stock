@@ -11,25 +11,4 @@ contextBridge.exposeInMainWorld("electronAPI", {
 	getAppVersion: () => {
 		return ipcRenderer.invoke("get-app-version");
 	},
-
-	// 代理 Tushare 请求
-	tushareRequest: (url: string, body: any) => {
-		return ipcRenderer.invoke("tushare-request", url, body);
-	},
-
-	// 触发刷新数据
-	refreshData: () => {
-		ipcRenderer.send("refresh-data");
-	},
-
-	// 监听刷新数据事件（从主进程发送）
-	onRefreshData: (callback: () => void) => {
-		const subscription = (_event: Electron.IpcRendererEvent) => callback();
-		ipcRenderer.on("refresh-data", subscription);
-
-		// 返回清理函数
-		return () => {
-			ipcRenderer.removeListener("refresh-data", subscription);
-		};
-	},
 });
