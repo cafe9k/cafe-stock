@@ -439,8 +439,15 @@ export async function refreshToken(): Promise<RestResponse<{ user: any; session:
 	if (!response.ok) {
 		const errorData = await response.json();
 		console.error(`[Supabase Auth] Error:`, errorData);
-		// 清除无效的 token
-		signOut();
+
+		// 只有在 refresh token 无效时才清除本地存储
+		// error_description: "Invalid Refresh Token: Refresh Token Not Found"
+		// error: "invalid_grant"
+		if (errorData.error === "invalid_grant" || errorData.code === 400 || errorData.code === 401) {
+			console.log("[Supabase Auth] Refresh Token 无效，清除登录状态");
+			signOut();
+		}
+
 		return {
 			data: null,
 			error: { message: errorData.error_description || errorData.message || "刷新令牌失败" },

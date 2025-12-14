@@ -8,6 +8,10 @@ contextBridge.exposeInMainWorld("electronAPI", {
   getAppVersion: () => {
     return ipcRenderer.invoke("get-app-version");
   },
+  // 代理 Tushare 请求
+  tushareRequest: (url, body) => {
+    return ipcRenderer.invoke("tushare-request", url, body);
+  },
   // 触发刷新数据
   refreshData: () => {
     ipcRenderer.send("refresh-data");

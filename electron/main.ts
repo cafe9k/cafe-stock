@@ -170,6 +170,44 @@ function setupIPC() {
 		return app.getVersion();
 	});
 
+	// 代理 Tushare 请求（解决跨域问题）
+	ipcMain.handle("tushare-request", async (_event, url: string, body: any) => {
+		try {
+			// 在主进程直接请求 Tushare 接口
+			const response = await fetch(url, {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify(body),
+			});
+
+			if (!response.ok) {
+				return {
+					ok: false,
+					status: response.status,
+					statusText: response.statusText,
+					data: null,
+				};
+			}
+
+			const data = await response.json();
+			return {
+				ok: true,
+				status: response.status,
+				data,
+			};
+		} catch (error) {
+			console.error("[Main] Tushare request failed:", error);
+			return {
+				ok: false,
+				status: 500,
+				statusText: error instanceof Error ? error.message : "Unknown error",
+				data: null,
+			};
+		}
+	});
+
 	// 刷新数据（从渲染进程触发）
 	ipcMain.on("refresh-data", () => {
 		mainWindow?.webContents.send("refresh-data");

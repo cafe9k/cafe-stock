@@ -130,6 +130,39 @@ function setupIPC() {
   ipcMain.handle("get-app-version", async () => {
     return app.getVersion();
   });
+  ipcMain.handle("tushare-request", async (_event, url, body) => {
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(body)
+      });
+      if (!response.ok) {
+        return {
+          ok: false,
+          status: response.status,
+          statusText: response.statusText,
+          data: null
+        };
+      }
+      const data = await response.json();
+      return {
+        ok: true,
+        status: response.status,
+        data
+      };
+    } catch (error) {
+      console.error("[Main] Tushare request failed:", error);
+      return {
+        ok: false,
+        status: 500,
+        statusText: error instanceof Error ? error.message : "Unknown error",
+        data: null
+      };
+    }
+  });
   ipcMain.on("refresh-data", () => {
     mainWindow == null ? void 0 : mainWindow.webContents.send("refresh-data");
   });

@@ -52,9 +52,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 				// 尝试刷新 token
 				const { data, error } = await refreshToken();
 				if (error) {
-					console.log("[AuthContext] Token 刷新失败，清除会话");
-					setUser(null);
-					setSession(null);
+					console.log("[AuthContext] Token 刷新失败:", error.message);
+
+					// 如果是网络错误，或者是服务器错误但不是认证错误，也许应该保留用户状态？
+					// 但目前安全起见，只要刷新失败（且 supabaseRestClient 内部判定为需要登出），这里就会同步状态
+					// 检查 token 是否还存在于 storage 中，如果不在了，说明在 refreshToken 中被 signOut 了
+					const token = localStorage.getItem("cafe_stock_access_token");
+					if (!token) {
+						console.log("[AuthContext] 本地 Token 已清除，确认登出");
+						setUser(null);
+						setSession(null);
+					} else {
+						console.log("[AuthContext] 本地 Token 仍存在，可能是网络问题，暂时保留用户状态");
+						// 这种情况下，我们可能需要一个机制来重试，或者让用户在使用需要 auth 的功能时再报错
+						// 但为了简单，如果刷新失败但没被清除，我们假设原来的 token 可能还能用（虽然大概率过期了）
+						// 或者我们可以选择信任 cachedUser
+						setUser(cachedUser);
+						// session 可能为空，但这可能导致后续请求失败
+					}
 				} else if (data) {
 					console.log("[AuthContext] Token 刷新成功");
 					setUser(data.user);
