@@ -13,17 +13,20 @@ function fixPreloadPlugin(): Plugin {
 			if (preloadFile && preloadFile.type === "chunk") {
 				let code = preloadFile.code;
 
-				// 移除 export default 语句
-				code = code.replace(/export\s+default\s+require_preload\(\);?/g, "");
-				code = code.replace(/export\s*\{[^}]*\};?/g, "");
+				// 移除所有 export 语句
+				code = code.replace(/export\s+default\s+[^;]+;?\s*$/gm, "");
+				code = code.replace(/export\s*\{[^}]*\};?\s*$/gm, "");
 
-				// 确保在末尾调用 require_preload()
-				if (code.includes("var require_preload =") && !code.endsWith("require_preload();\n")) {
+				// 查找 IIFE 函数名（如 var u = i(() => {...})）
+				const iifeMatch = code.match(/var\s+(\w+)\s*=\s*\w+\(/);
+				if (iifeMatch) {
+					const funcName = iifeMatch[1];
+					// 在末尾添加函数调用
 					code = code.trim();
 					if (!code.endsWith(";")) {
 						code += ";";
 					}
-					code += "\nrequire_preload();\n";
+					code += `\n${funcName}();\n`;
 				}
 
 				preloadFile.code = code;
