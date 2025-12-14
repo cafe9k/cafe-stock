@@ -9,10 +9,10 @@
 
 ## 接口分类
 
-- [数据查询接口](#数据查询接口)
-- [数据同步接口](#数据同步接口)
-- [自动更新接口](#自动更新接口)
-- [系统信息接口](#系统信息接口)
+-   [数据查询接口](#数据查询接口)
+-   [数据同步接口](#数据同步接口)
+-   [自动更新接口](#自动更新接口)
+-   [系统信息接口](#系统信息接口)
 
 ---
 
@@ -26,40 +26,42 @@
 
 ```json
 {
-  "page": 1,
-  "pageSize": 200
+	"page": 1,
+	"pageSize": 200
 }
 ```
 
 **参数说明**:
-- `page` (number): 页码，从 1 开始
-- `pageSize` (number): 每页数量，建议 200
+
+-   `page` (number): 页码，从 1 开始
+-   `pageSize` (number): 每页数量，建议 200
 
 #### 响应参数
 
 ```json
 {
-  "announcements": [
-    {
-      "ann_date": "20231214",
-      "ts_code": "000001.SZ",
-      "title": "关于XXX的公告",
-      "chn_name": "平安银行",
-      "content": "公告内容..."
-    }
-  ],
-  "total": 5000
+	"announcements": [
+		{
+			"ann_date": "20231214",
+			"ts_code": "000001.SZ",
+			"title": "关于XXX的公告",
+			"chn_name": "平安银行",
+			"content": "公告内容..."
+		}
+	],
+	"total": 5000
 }
 ```
 
 **响应字段说明**:
-- `announcements` (array): 公告列表
-  - `ann_date` (string): 公告日期，格式 YYYYMMDD
-  - `ts_code` (string): 股票代码，如 000001.SZ
-  - `title` (string): 公告标题
-  - `chn_name` (string): 公司中文名称
-  - `content` (string): 公告内容（HTML 格式）
-- `total` (number): 总记录数
+
+-   `announcements` (array): 公告列表
+    -   `ann_date` (string): 公告日期，格式 YYYYMMDD
+    -   `ts_code` (string): 股票代码，如 000001.SZ
+    -   `title` (string): 公告标题
+    -   `chn_name` (string): 公司中文名称
+    -   `content` (string): 公告内容（HTML 格式）
+-   `total` (number): 总记录数
 
 #### 示例代码
 
@@ -80,41 +82,43 @@ console.log(result.announcements);
 
 ```json
 {
-  "src": "sina",
-  "startDate": "20231201",
-  "endDate": "20231214"
+	"src": "sina",
+	"startDate": "20231201",
+	"endDate": "20231214"
 }
 ```
 
 **参数说明**:
-- `src` (string): 新闻源，可选值：
-  - `sina` - 新浪财经
-  - `wallstreetcn` - 华尔街见闻
-  - `10jqka` - 同花顺
-  - `eastmoney` - 东方财富
-  - `yuncaijing` - 云财经
-- `startDate` (string): 开始日期，格式 YYYYMMDD
-- `endDate` (string): 结束日期，格式 YYYYMMDD
+
+-   `src` (string): 新闻源，可选值：
+    -   `sina` - 新浪财经
+    -   `wallstreetcn` - 华尔街见闻
+    -   `10jqka` - 同花顺
+    -   `eastmoney` - 东方财富
+    -   `yuncaijing` - 云财经
+-   `startDate` (string): 开始日期，格式 YYYYMMDD
+-   `endDate` (string): 结束日期，格式 YYYYMMDD
 
 #### 响应参数
 
 ```json
 {
-  "items": [
-    {
-      "datetime": "2023-12-14 10:30:00",
-      "content": "【标题】新闻内容摘要...",
-      "channels": "国内,股市"
-    }
-  ]
+	"items": [
+		{
+			"datetime": "2023-12-14 10:30:00",
+			"content": "【标题】新闻内容摘要...",
+			"channels": "国内,股市"
+		}
+	]
 }
 ```
 
 **响应字段说明**:
-- `items` (array): 资讯列表
-  - `datetime` (string): 发布时间
-  - `content` (string): 资讯内容
-  - `channels` (string): 资讯分类标签
+
+-   `items` (array): 资讯列表
+    -   `datetime` (string): 发布时间
+    -   `content` (string): 资讯内容
+    -   `channels` (string): 资讯分类标签
 
 #### 示例代码
 
@@ -124,9 +128,9 @@ const today = new Date();
 const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
 
 const result = await window.electron.getNews(
-  'sina',
-  weekAgo.toISOString().slice(0, 10).replace(/-/g, ''),
-  today.toISOString().slice(0, 10).replace(/-/g, '')
+	"sina",
+	weekAgo.toISOString().slice(0, 10).replace(/-/g, ""),
+	today.toISOString().slice(0, 10).replace(/-/g, "")
 );
 
 console.log(result.items);
@@ -148,23 +152,24 @@ console.log(result.items);
 
 ```json
 {
-  "success": true,
-  "message": "同步完成",
-  "synced": 150
+	"success": true,
+	"message": "同步完成",
+	"synced": 150
 }
 ```
 
 **响应字段说明**:
-- `success` (boolean): 是否成功
-- `message` (string): 同步消息
-- `synced` (number): 本次同步的记录数
+
+-   `success` (boolean): 是否成功
+-   `message` (string): 同步消息
+-   `synced` (number): 本次同步的记录数
 
 #### 示例代码
 
 ```typescript
 const result = await window.electron.syncAnnouncements();
 if (result.success) {
-  console.log(`同步成功，新增 ${result.synced} 条公告`);
+	console.log(`同步成功，新增 ${result.synced} 条公告`);
 }
 ```
 
@@ -192,11 +197,11 @@ window.electron.checkForUpdates();
 
 // 监听检查结果
 window.electron.onUpdateAvailable((info) => {
-  console.log('发现新版本:', info.version);
+	console.log("发现新版本:", info.version);
 });
 
 window.electron.onUpdateNotAvailable(() => {
-  console.log('已是最新版本');
+	console.log("已是最新版本");
 });
 ```
 
@@ -222,12 +227,12 @@ window.electron.downloadUpdate();
 
 // 监听下载进度
 window.electron.onUpdateDownloadProgress((progress) => {
-  console.log(`下载进度: ${progress.percent}%`);
+	console.log(`下载进度: ${progress.percent}%`);
 });
 
 // 监听下载完成
 window.electron.onUpdateDownloaded(() => {
-  console.log('下载完成，可以安装了');
+	console.log("下载完成，可以安装了");
 });
 ```
 
@@ -260,7 +265,7 @@ window.electron.installUpdate();
 
 ```typescript
 window.electron.onUpdateChecking(() => {
-  console.log('正在检查更新...');
+	console.log("正在检查更新...");
 });
 ```
 
@@ -268,8 +273,8 @@ window.electron.onUpdateChecking(() => {
 
 ```typescript
 window.electron.onUpdateAvailable((info) => {
-  console.log('发现新版本:', info);
-  // info 包含: version, releaseDate, releaseNotes 等
+	console.log("发现新版本:", info);
+	// info 包含: version, releaseDate, releaseNotes 等
 });
 ```
 
@@ -277,7 +282,7 @@ window.electron.onUpdateAvailable((info) => {
 
 ```typescript
 window.electron.onUpdateNotAvailable((info) => {
-  console.log('当前已是最新版本:', info.version);
+	console.log("当前已是最新版本:", info.version);
 });
 ```
 
@@ -285,10 +290,10 @@ window.electron.onUpdateNotAvailable((info) => {
 
 ```typescript
 window.electron.onUpdateDownloadProgress((progress) => {
-  const { percent, transferred, total } = progress;
-  console.log(`下载进度: ${percent.toFixed(2)}%`);
-  console.log(`已下载: ${(transferred / 1024 / 1024).toFixed(2)}MB`);
-  console.log(`总大小: ${(total / 1024 / 1024).toFixed(2)}MB`);
+	const { percent, transferred, total } = progress;
+	console.log(`下载进度: ${percent.toFixed(2)}%`);
+	console.log(`已下载: ${(transferred / 1024 / 1024).toFixed(2)}MB`);
+	console.log(`总大小: ${(total / 1024 / 1024).toFixed(2)}MB`);
 });
 ```
 
@@ -296,7 +301,7 @@ window.electron.onUpdateDownloadProgress((progress) => {
 
 ```typescript
 window.electron.onUpdateDownloaded((info) => {
-  console.log('更新下载完成:', info.version);
+	console.log("更新下载完成:", info.version);
 });
 ```
 
@@ -304,7 +309,7 @@ window.electron.onUpdateDownloaded((info) => {
 
 ```typescript
 window.electron.onUpdateError((error) => {
-  console.error('更新失败:', error.message);
+	console.error("更新失败:", error.message);
 });
 ```
 
@@ -324,12 +329,13 @@ window.electron.onUpdateError((error) => {
 
 ```json
 {
-  "version": "1.0.0"
+	"version": "1.0.0"
 }
 ```
 
 **响应字段说明**:
-- `version` (string): 应用版本号（语义化版本）
+
+-   `version` (string): 应用版本号（语义化版本）
 
 #### 示例代码
 
@@ -346,10 +352,10 @@ console.log(`当前版本: v${version}`);
 
 ```typescript
 try {
-  const result = await window.electron.getAnnouncements(1, 200);
-  console.log(result);
+	const result = await window.electron.getAnnouncements(1, 200);
+	console.log(result);
 } catch (error) {
-  console.error('获取公告失败:', error.message);
+	console.error("获取公告失败:", error.message);
 }
 ```
 
@@ -359,24 +365,24 @@ try {
 
 ```typescript
 interface ElectronAPI {
-  getAnnouncements: (page: number, pageSize: number) => Promise<AnnouncementsResult>;
-  syncAnnouncements: () => Promise<SyncResult>;
-  getNews: (src: string, startDate: string, endDate: string) => Promise<NewsResult>;
-  getAppVersion: () => Promise<string>;
-  checkForUpdates: () => void;
-  downloadUpdate: () => void;
-  installUpdate: () => void;
-  onUpdateChecking: (callback: () => void) => void;
-  onUpdateAvailable: (callback: (info: UpdateInfo) => void) => void;
-  onUpdateNotAvailable: (callback: (info: UpdateInfo) => void) => void;
-  onUpdateDownloadProgress: (callback: (progress: ProgressInfo) => void) => void;
-  onUpdateDownloaded: (callback: (info: UpdateInfo) => void) => void;
-  onUpdateError: (callback: (error: Error) => void) => void;
+	getAnnouncements: (page: number, pageSize: number) => Promise<AnnouncementsResult>;
+	syncAnnouncements: () => Promise<SyncResult>;
+	getNews: (src: string, startDate: string, endDate: string) => Promise<NewsResult>;
+	getAppVersion: () => Promise<string>;
+	checkForUpdates: () => void;
+	downloadUpdate: () => void;
+	installUpdate: () => void;
+	onUpdateChecking: (callback: () => void) => void;
+	onUpdateAvailable: (callback: (info: UpdateInfo) => void) => void;
+	onUpdateNotAvailable: (callback: (info: UpdateInfo) => void) => void;
+	onUpdateDownloadProgress: (callback: (progress: ProgressInfo) => void) => void;
+	onUpdateDownloaded: (callback: (info: UpdateInfo) => void) => void;
+	onUpdateError: (callback: (error: Error) => void) => void;
 }
 ```
 
 ## 相关文档
 
-- [数据库接口文档](./database-api.md)
-- [Tushare API 文档](./tushare-api.md)
-- [开发指南](../development/development-guide.md)
+-   [数据库接口文档](./database-api.md)
+-   [Tushare API 文档](./tushare-api.md)
+-   [开发指南](../development/development-guide.md)
