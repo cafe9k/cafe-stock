@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Tray, Menu, globalShortcut, ipcMain, Notification, nativeImage, NativeImage, session } from "electron";
+import { app, BrowserWindow, Tray, Menu, globalShortcut, ipcMain, Notification, nativeImage, NativeImage, session, shell } from "electron";
 import path from "path";
 import { fileURLToPath } from "url";
 import windowStateKeeper from "electron-window-state";
@@ -78,6 +78,7 @@ function createWindow() {
 			nodeIntegration: false,
 			sandbox: false,
 			webSecurity: true,
+			webviewTag: true, // 启用 webview 标签
 		},
 		show: false,
 		backgroundColor: "#ffffff",
@@ -603,6 +604,66 @@ function setupIPC() {
 			console.error("Failed to get latest trade date:", error);
 			// 出错时返回今天
 			return new Date().toISOString().slice(0, 10).replace(/-/g, "");
+		}
+	});
+
+	// 获取公告 PDF 文件信息
+	ipcMain.handle("get-announcement-pdf", async (_event, tsCode: string, annDate: string, title: string) => {
+		try {
+			console.log(`[IPC] get-announcement-pdf: tsCode=${tsCode}, annDate=${annDate}, title=${title}`);
+
+			// 从 Tushare 获取公告原文信息（使用 anns_d 接口）
+			const files = await TushareClient.getAnnouncementFiles(tsCode, annDate);
+
+			console.log(`[IPC] Found ${files.length} announcements for ${tsCode} on ${annDate}`);
+
+			// 查找匹配的公告
+			// 尝试精确匹配标题
+			let matchedFile = files.find((file: any) => file.title === title);
+
+			// 如果精确匹配失败，尝试模糊匹配
+			if (!matchedFile) {
+				matchedFile = files.find((file: any) => {
+					const fileTitle = file.title || "";
+					const searchTitle = title || "";
+					return fileTitle.includes(searchTitle) || searchTitle.includes(fileTitle);
+				});
+			}
+
+			if (matchedFile && matchedFile.url) {
+				console.log(`[IPC] Found PDF URL: ${matchedFile.url}`);
+				return {
+					success: true,
+					url: matchedFile.url,
+				};
+			}
+
+			console.log(`[IPC] No PDF found for announcement: ${title}`);
+			return {
+				success: false,
+				message: "该公告暂无 PDF 文件",
+			};
+		} catch (error: any) {
+			console.error("Failed to get announcement PDF:", error);
+			return {
+				success: false,
+				message: error.message || "获取 PDF 失败",
+			};
+		}
+	});
+
+	// 在浏览器中打开 URL
+	ipcMain.handle("open-external", async (_event, url: string) => {
+		try {
+			console.log(`[IPC] open-external: ${url}`);
+			await shell.openExternal(url);
+			return { success: true };
+		} catch (error: any) {
+			console.error("Failed to open external URL:", error);
+			return {
+				success: false,
+				message: error.message || "打开链接失败",
+			};
 		}
 	});
 

@@ -1,8 +1,9 @@
 import { useEffect, useState, useCallback } from "react";
 import { Table, Card, Tag, Typography, message, Badge, Space, Button, Input, DatePicker, Radio } from "antd";
-import { FileTextOutlined, ReloadOutlined, SearchOutlined, HistoryOutlined, CalendarOutlined } from "@ant-design/icons";
+import { FileTextOutlined, ReloadOutlined, SearchOutlined, HistoryOutlined, CalendarOutlined, FilePdfOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import dayjs, { Dayjs } from "dayjs";
+import { PDFWebViewer } from "./PDFWebViewer";
 
 const { Text: AntText } = Typography;
 const { Search } = Input;
@@ -25,6 +26,7 @@ interface Announcement {
 	title: string;
 	content: string;
 	pub_time: string;
+	file_path?: string;
 }
 
 const PAGE_SIZE = 20;
@@ -44,6 +46,11 @@ export function AnnouncementList() {
 	const [dateRange, setDateRange] = useState<[string, string] | null>(null);
 	const [dateRangeDisplay, setDateRangeDisplay] = useState<[Dayjs, Dayjs] | null>(null);
 	const [quickSelectValue, setQuickSelectValue] = useState<string>("all");
+
+	// PDF 预览相关状态
+	const [pdfViewerOpen, setPdfViewerOpen] = useState(false);
+	const [currentPdfUrl, setCurrentPdfUrl] = useState("");
+	const [currentPdfTitle, setCurrentPdfTitle] = useState("");
 
 	// 加载股票聚合数据
 	const fetchGroupedData = useCallback(
@@ -201,6 +208,39 @@ export function AnnouncementList() {
 		}
 	};
 
+	// 处理 PDF 预览
+	const handlePdfPreview = async (announcement: Announcement) => {
+		try {
+			message.loading({ content: "正在加载 PDF...", key: "pdf-loading" });
+
+			// 调用 Electron API 获取 PDF URL
+			const result = await window.electronAPI.getAnnouncementPdf(announcement.ts_code, announcement.ann_date, announcement.title);
+
+			message.destroy("pdf-loading");
+
+			if (result.success && result.url) {
+				// 在控制台打印 PDF URL
+				console.log("PDF URL:", result.url);
+				console.log("公告信息:", {
+					股票代码: announcement.ts_code,
+					公告日期: announcement.ann_date,
+					公告标题: announcement.title,
+					PDF链接: result.url,
+				});
+
+				setCurrentPdfUrl(result.url);
+				setCurrentPdfTitle(announcement.title);
+				setPdfViewerOpen(true);
+			} else {
+				message.warning(result.message || "该公告暂无 PDF 文件");
+			}
+		} catch (error: any) {
+			message.destroy("pdf-loading");
+			console.error("加载 PDF 失败:", error);
+			message.error("加载 PDF 失败，请稍后重试");
+		}
+	};
+
 	// 监听数据更新
 	useEffect(() => {
 		console.log("AnnouncementList mounted. Checking API:", !!window.electronAPI);
@@ -344,12 +384,15 @@ export function AnnouncementList() {
 			dataIndex: "title",
 			key: "title",
 			ellipsis: true,
-			render: (title: string) => (
+			render: (title: string, record: Announcement) => (
 				<div style={{ display: "flex", alignItems: "center", gap: 8 }}>
 					<FileTextOutlined style={{ color: "#1890ff", fontSize: 12 }} />
-					<AntText style={{ cursor: "pointer", fontSize: 12 }} title={title}>
+					<AntText style={{ cursor: "pointer", fontSize: 12, flex: 1 }} title={title} onClick={() => handlePdfPreview(record)}>
 						{title}
 					</AntText>
+					<Button type="link" size="small" icon={<FilePdfOutlined />} onClick={() => handlePdfPreview(record)} style={{ padding: 0 }}>
+						预览
+					</Button>
 				</div>
 			),
 		},
@@ -508,6 +551,9 @@ export function AnnouncementList() {
 					</div>
 				)}
 			</Card>
+
+			{/* PDF 预览弹窗 */}
+			<PDFWebViewer open={pdfViewerOpen} onClose={() => setPdfViewerOpen(false)} pdfUrl={currentPdfUrl} title={currentPdfTitle} />
 		</div>
 	);
 }

@@ -82,6 +82,16 @@ contextBridge.exposeInMainWorld("electronAPI", {
 		return ipcRenderer.invoke("get-latest-trade-date");
 	},
 
+	// 获取公告 PDF 文件信息
+	getAnnouncementPdf: (tsCode: string, annDate: string, title: string) => {
+		return ipcRenderer.invoke("get-announcement-pdf", tsCode, annDate, title);
+	},
+
+	// 在浏览器中打开 URL
+	openExternal: (url: string) => {
+		return ipcRenderer.invoke("open-external", url);
+	},
+
 	// 自动更新相关
 	checkForUpdates: () => {
 		return ipcRenderer.invoke("check-for-updates");

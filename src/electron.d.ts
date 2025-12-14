@@ -92,6 +92,23 @@ export interface ElectronAPI {
 	// 获取最近交易日
 	getLatestTradeDate: () => Promise<string>;
 
+	// 获取公告 PDF 文件信息
+	getAnnouncementPdf: (
+		tsCode: string,
+		annDate: string,
+		title: string
+	) => Promise<{
+		success: boolean;
+		url?: string;
+		message?: string;
+	}>;
+
+	// 在浏览器中打开 URL
+	openExternal: (url: string) => Promise<{
+		success: boolean;
+		message?: string;
+	}>;
+
 	// 自动更新相关
 	checkForUpdates: () => Promise<{ available: boolean; updateInfo?: any; error?: string; message?: string }>;
 	downloadUpdate: () => Promise<{ success: boolean; error?: string }>;
@@ -107,6 +124,20 @@ export interface ElectronAPI {
 declare global {
 	interface Window {
 		electronAPI: ElectronAPI;
+	}
+
+	// WebView 标签类型定义
+	namespace JSX {
+		interface IntrinsicElements {
+			webview: React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement>, HTMLElement> & {
+				src?: string;
+				allowpopups?: string;
+				plugins?: string;
+				partition?: string;
+				preload?: string;
+				useragent?: string;
+			};
+		}
 	}
 }
 

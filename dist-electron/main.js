@@ -1,4 +1,4 @@
-import require$$1$4, { app, BrowserWindow, globalShortcut, session, Notification, nativeImage, Tray, Menu, ipcMain } from "electron";
+import require$$1$4, { app, BrowserWindow, globalShortcut, session, Notification, nativeImage, Tray, Menu, ipcMain, shell } from "electron";
 import require$$1$1 from "path";
 import require$$4$1, { fileURLToPath } from "url";
 import require$$1 from "fs";
@@ -13823,6 +13823,15 @@ NsisUpdater$1.NsisUpdater = NsisUpdater;
 const pkg = /* @__PURE__ */ getDefaultExportFromCjs(main$1);
 const dbPath = require$$1$1.join(app.getPath("userData"), "cafe_stock.db");
 const db = new Database(dbPath);
+function runMigrations() {
+  const tableInfo = db.pragma("table_info(announcements)");
+  const hasFilePath = tableInfo.some((col) => col.name === "file_path");
+  if (!hasFilePath) {
+    console.log("Running migration: Adding file_path column to announcements table");
+    db.exec("ALTER TABLE announcements ADD COLUMN file_path TEXT");
+    console.log("Migration completed: file_path column added");
+  }
+}
 db.exec(`
   CREATE TABLE IF NOT EXISTS announcements (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -13832,6 +13841,7 @@ db.exec(`
     title TEXT,
     content TEXT,
     pub_time TEXT,
+    file_path TEXT,
     UNIQUE(ts_code, ann_date, title)
   );
 
@@ -13869,10 +13879,11 @@ db.exec(`
     updated_at TEXT NOT NULL
   );
 `);
+runMigrations();
 const insertAnnouncements = (items) => {
   const insert = db.prepare(`
-    INSERT OR IGNORE INTO announcements (ts_code, ann_date, ann_type, title, content, pub_time)
-    VALUES (@ts_code, @ann_date, @ann_type, @title, @content, @pub_time)
+    INSERT OR IGNORE INTO announcements (ts_code, ann_date, ann_type, title, content, pub_time, file_path)
+    VALUES (@ts_code, @ann_date, @ann_type, @title, @content, @pub_time, @file_path)
   `);
   const insertMany = db.transaction((announcements) => {
     for (const ann of announcements) {
@@ -13882,7 +13893,8 @@ const insertAnnouncements = (items) => {
         ann_type: ann.ann_type || null,
         title: ann.title || null,
         content: ann.content || null,
-        pub_time: ann.pub_time || null
+        pub_time: ann.pub_time || null,
+        file_path: ann.file_path || null
       });
     }
   });
@@ -14256,6 +14268,36 @@ const _TushareClient = class _TushareClient {
       is_open: isOpen
     });
   }
+  /**
+   * 获取公告原文 URL
+   * 文档: https://tushare.pro/document/2?doc_id=176
+   * 接口：anns_d
+   * 描述：获取全量公告数据，提供 PDF 下载 URL
+   * 限量：单次最大 2000 条
+   * 权限：本接口为单独权限
+   *
+   * 输入参数：
+   * ts_code: str, 股票代码
+   * ann_date: str, 公告日期（YYYYMMDD格式）
+   * start_date: str, 公告开始日期
+   * end_date: str, 公告结束日期
+   *
+   * 输出参数：
+   * ann_date: str, 公告日期
+   * ts_code: str, 股票代码
+   * name: str, 股票名称
+   * title: str, 标题
+   * url: str, URL，原文下载链接
+   * rec_time: datetime, 发布时间
+   */
+  static async getAnnouncementFiles(tsCode, annDate, startDate, endDate) {
+    return this.request("anns_d", {
+      ts_code: tsCode,
+      ann_date: annDate,
+      start_date: startDate,
+      end_date: endDate
+    });
+  }
 };
 _TushareClient.TOKEN = "834c0133bb912100b3cdacaeb7b5741523839fd9f8932d9e24c0aa1d";
 _TushareClient.BASE_URL = "http://api.tushare.pro";
@@ -14296,7 +14338,9 @@ function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false,
-      webSecurity: true
+      webSecurity: true,
+      webviewTag: true
+      // 启用 webview 标签
     },
     show: false,
     backgroundColor: "#ffffff"
@@ -14708,6 +14752,52 @@ function setupIPC() {
     } catch (error2) {
       console.error("Failed to get latest trade date:", error2);
       return (/* @__PURE__ */ new Date()).toISOString().slice(0, 10).replace(/-/g, "");
+    }
+  });
+  ipcMain.handle("get-announcement-pdf", async (_event, tsCode, annDate, title) => {
+    try {
+      console.log(`[IPC] get-announcement-pdf: tsCode=${tsCode}, annDate=${annDate}, title=${title}`);
+      const files = await TushareClient.getAnnouncementFiles(tsCode, annDate);
+      console.log(`[IPC] Found ${files.length} announcements for ${tsCode} on ${annDate}`);
+      let matchedFile = files.find((file2) => file2.title === title);
+      if (!matchedFile) {
+        matchedFile = files.find((file2) => {
+          const fileTitle = file2.title || "";
+          const searchTitle = title || "";
+          return fileTitle.includes(searchTitle) || searchTitle.includes(fileTitle);
+        });
+      }
+      if (matchedFile && matchedFile.url) {
+        console.log(`[IPC] Found PDF URL: ${matchedFile.url}`);
+        return {
+          success: true,
+          url: matchedFile.url
+        };
+      }
+      console.log(`[IPC] No PDF found for announcement: ${title}`);
+      return {
+        success: false,
+        message: "该公告暂无 PDF 文件"
+      };
+    } catch (error2) {
+      console.error("Failed to get announcement PDF:", error2);
+      return {
+        success: false,
+        message: error2.message || "获取 PDF 失败"
+      };
+    }
+  });
+  ipcMain.handle("open-external", async (_event, url) => {
+    try {
+      console.log(`[IPC] open-external: ${url}`);
+      await shell.openExternal(url);
+      return { success: true };
+    } catch (error2) {
+      console.error("Failed to open external URL:", error2);
+      return {
+        success: false,
+        message: error2.message || "打开链接失败"
+      };
     }
   });
   ipcMain.handle("check-for-updates", async () => {

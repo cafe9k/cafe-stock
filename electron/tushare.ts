@@ -190,4 +190,35 @@ export class TushareClient {
 			is_open: isOpen,
 		});
 	}
+
+	/**
+	 * 获取公告原文 URL
+	 * 文档: https://tushare.pro/document/2?doc_id=176
+	 * 接口：anns_d
+	 * 描述：获取全量公告数据，提供 PDF 下载 URL
+	 * 限量：单次最大 2000 条
+	 * 权限：本接口为单独权限
+	 *
+	 * 输入参数：
+	 * ts_code: str, 股票代码
+	 * ann_date: str, 公告日期（YYYYMMDD格式）
+	 * start_date: str, 公告开始日期
+	 * end_date: str, 公告结束日期
+	 *
+	 * 输出参数：
+	 * ann_date: str, 公告日期
+	 * ts_code: str, 股票代码
+	 * name: str, 股票名称
+	 * title: str, 标题
+	 * url: str, URL，原文下载链接
+	 * rec_time: datetime, 发布时间
+	 */
+	static async getAnnouncementFiles(tsCode?: string, annDate?: string, startDate?: string, endDate?: string) {
+		return this.request("anns_d", {
+			ts_code: tsCode,
+			ann_date: annDate,
+			start_date: startDate,
+			end_date: endDate,
+		});
+	}
 }

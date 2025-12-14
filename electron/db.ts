@@ -5,6 +5,19 @@ import { app } from "electron";
 const dbPath = path.join(app.getPath("userData"), "cafe_stock.db");
 const db = new Database(dbPath);
 
+// 运行数据库迁移
+function runMigrations() {
+	// 检查 announcements 表是否有 file_path 列
+	const tableInfo = db.pragma("table_info(announcements)");
+	const hasFilePath = tableInfo.some((col: any) => col.name === "file_path");
+
+	if (!hasFilePath) {
+		console.log("Running migration: Adding file_path column to announcements table");
+		db.exec("ALTER TABLE announcements ADD COLUMN file_path TEXT");
+		console.log("Migration completed: file_path column added");
+	}
+}
+
 // Initialize tables
 db.exec(`
   CREATE TABLE IF NOT EXISTS announcements (
@@ -15,6 +28,7 @@ db.exec(`
     title TEXT,
     content TEXT,
     pub_time TEXT,
+    file_path TEXT,
     UNIQUE(ts_code, ann_date, title)
   );
 
@@ -53,10 +67,13 @@ db.exec(`
   );
 `);
 
+// 运行迁移
+runMigrations();
+
 export const insertAnnouncements = (items: any[]) => {
 	const insert = db.prepare(`
-    INSERT OR IGNORE INTO announcements (ts_code, ann_date, ann_type, title, content, pub_time)
-    VALUES (@ts_code, @ann_date, @ann_type, @title, @content, @pub_time)
+    INSERT OR IGNORE INTO announcements (ts_code, ann_date, ann_type, title, content, pub_time, file_path)
+    VALUES (@ts_code, @ann_date, @ann_type, @title, @content, @pub_time, @file_path)
   `);
 
 	const insertMany = db.transaction((announcements) => {
@@ -68,6 +85,7 @@ export const insertAnnouncements = (items: any[]) => {
 				title: ann.title || null,
 				content: ann.content || null,
 				pub_time: ann.pub_time || null,
+				file_path: ann.file_path || null,
 			});
 		}
 	});
