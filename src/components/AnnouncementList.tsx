@@ -436,6 +436,9 @@ export function AnnouncementList() {
 					/>
 				);
 			},
+			onCell: (record) => ({
+				className: favoriteStocks.has(record.ts_code) ? "favorite-stock-row-cell" : "",
+			}),
 		},
 		{
 			title: "股票名称",
@@ -444,6 +447,9 @@ export function AnnouncementList() {
 			width: 150,
 			fixed: "left",
 			render: (text) => <AntText strong>{text}</AntText>,
+			onCell: (record) => ({
+				className: favoriteStocks.has(record.ts_code) ? "favorite-stock-row-cell" : "",
+			}),
 		},
 		{
 			title: "市场",
@@ -552,6 +558,22 @@ export function AnnouncementList() {
 
 	return (
 		<div style={{ padding: "24px" }}>
+			<style>
+				{`
+					.favorite-stock-row > td {
+						background-color: #e6f7ff !important;
+					}
+					.ant-table-cell-fix-left.favorite-stock-row-cell {
+						background-color: #e6f7ff !important;
+					}
+					.ant-table-tbody > tr:hover > td {
+						background-color: #bae7ff !important;
+					}
+					.ant-table-tbody > tr:hover .ant-table-cell-fix-left {
+						background-color: #bae7ff !important;
+					}
+				`}
+			</style>
 			{/* 操作栏 */}
 			<div style={{ marginBottom: 16 }}>
 				{/* 第一行：搜索、市场选择、我的关注和刷新 */}
@@ -652,6 +674,7 @@ export function AnnouncementList() {
 						onExpandedRowsChange: (keys) => setExpandedRowKeys(keys as string[]),
 						showExpandColumn: false,
 					}}
+					rowClassName={(record) => (favoriteStocks.has(record.ts_code) ? "favorite-stock-row" : "")}
 					onRow={(record) => ({
 						onClick: () => {
 							const key = record.ts_code;
@@ -665,7 +688,6 @@ export function AnnouncementList() {
 						},
 						style: {
 							cursor: "pointer",
-							backgroundColor: favoriteStocks.has(record.ts_code) ? "#e6f7ff" : undefined,
 						},
 					})}
 					scroll={{ x: 800 }}
