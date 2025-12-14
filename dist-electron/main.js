@@ -14135,105 +14135,6 @@ const countSearchedStocksWithAnnouncements = (keyword, startDate, endDate, marke
   const row = db.prepare(sql).get(...params);
   return row.count;
 };
-const upsertStocks = (items) => {
-  const now = (/* @__PURE__ */ new Date()).toISOString();
-  const upsert = db.prepare(`
-    INSERT INTO stocks (
-      ts_code, symbol, name, area, industry, fullname, enname, cnspell,
-      market, exchange, curr_type, list_status, list_date, delist_date, is_hs, updated_at
-    )
-    VALUES (
-      @ts_code, @symbol, @name, @area, @industry, @fullname, @enname, @cnspell,
-      @market, @exchange, @curr_type, @list_status, @list_date, @delist_date, @is_hs, @updated_at
-    )
-    ON CONFLICT(ts_code) DO UPDATE SET
-      symbol = excluded.symbol,
-      name = excluded.name,
-      area = excluded.area,
-      industry = excluded.industry,
-      fullname = excluded.fullname,
-      enname = excluded.enname,
-      cnspell = excluded.cnspell,
-      market = excluded.market,
-      exchange = excluded.exchange,
-      curr_type = excluded.curr_type,
-      list_status = excluded.list_status,
-      list_date = excluded.list_date,
-      delist_date = excluded.delist_date,
-      is_hs = excluded.is_hs,
-      updated_at = excluded.updated_at
-  `);
-  const upsertMany = db.transaction((stocks) => {
-    for (const stock of stocks) {
-      upsert.run({
-        ts_code: stock.ts_code || null,
-        symbol: stock.symbol || null,
-        name: stock.name || null,
-        area: stock.area || null,
-        industry: stock.industry || null,
-        fullname: stock.fullname || null,
-        enname: stock.enname || null,
-        cnspell: stock.cnspell || null,
-        market: stock.market || null,
-        exchange: stock.exchange || null,
-        curr_type: stock.curr_type || null,
-        list_status: stock.list_status || null,
-        list_date: stock.list_date || null,
-        delist_date: stock.delist_date || null,
-        is_hs: stock.is_hs || null,
-        updated_at: now
-      });
-    }
-  });
-  upsertMany(items);
-};
-const getAllStocks = () => {
-  return db.prepare("SELECT * FROM stocks ORDER BY ts_code").all();
-};
-const countStocks = () => {
-  const row = db.prepare("SELECT COUNT(*) as count FROM stocks").get();
-  return row.count;
-};
-const searchStocks = (keyword, limit = 50) => {
-  const likePattern = `%${keyword}%`;
-  return db.prepare(
-    `
-    SELECT * FROM stocks 
-    WHERE name LIKE ? OR ts_code LIKE ? OR symbol LIKE ? OR cnspell LIKE ?
-    ORDER BY 
-      CASE 
-        WHEN ts_code = ? THEN 1
-        WHEN symbol = ? THEN 2
-        WHEN name = ? THEN 3
-        ELSE 4
-      END,
-      ts_code
-    LIMIT ?
-  `
-  ).all(likePattern, likePattern, likePattern, likePattern, keyword, keyword, keyword, limit);
-};
-const getLastSyncDate = (syncType) => {
-  const row = db.prepare("SELECT last_sync_date FROM sync_flags WHERE sync_type = ?").get(syncType);
-  return (row == null ? void 0 : row.last_sync_date) || null;
-};
-const updateSyncFlag = (syncType, syncDate) => {
-  const now = (/* @__PURE__ */ new Date()).toISOString();
-  db.prepare(
-    `
-    INSERT INTO sync_flags (sync_type, last_sync_date, updated_at)
-    VALUES (?, ?, ?)
-    ON CONFLICT(sync_type) DO UPDATE SET
-      last_sync_date = excluded.last_sync_date,
-      updated_at = excluded.updated_at
-  `
-  ).run(syncType, syncDate, now);
-};
-const isSyncedToday = (syncType) => {
-  const lastSync = getLastSyncDate(syncType);
-  if (!lastSync) return false;
-  const today = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10).replace(/-/g, "");
-  return lastSync === today;
-};
 const addFavoriteStock = (tsCode) => {
   const now = (/* @__PURE__ */ new Date()).toISOString();
   try {
@@ -14591,7 +14492,6 @@ let tray = null;
 const extendedApp = app;
 let isSyncing = false;
 let isLoadingHistory = false;
-let isSyncingStocks = false;
 autoUpdater.autoDownload = false;
 autoUpdater.autoInstallOnAppQuit = true;
 function createWindow() {
@@ -14855,61 +14755,6 @@ async function loadHistoricalData() {
     isLoadingHistory = false;
   }
 }
-async function syncStockList() {
-  const SYNC_TYPE = "stock_list";
-  if (isSyncedToday(SYNC_TYPE)) {
-    console.log("Stock list already synced today.");
-    return { status: "skipped", message: "Already synced today", totalStocks: countStocks() };
-  }
-  if (isSyncingStocks) {
-    console.log("Stock sync already in progress");
-    return { status: "skipped", message: "Sync already in progress" };
-  }
-  isSyncingStocks = true;
-  console.log("Starting stock list sync...");
-  let totalSynced = 0;
-  try {
-    console.log("Fetching listed stocks...");
-    const listedStocks = await TushareClient.getStockList(void 0, void 0, void 0, void 0, void 0, "L", 5e3, 0);
-    if (listedStocks.length > 0) {
-      upsertStocks(listedStocks);
-      totalSynced += listedStocks.length;
-      console.log(`Synced ${listedStocks.length} listed stocks.`);
-    }
-    console.log("Fetching delisted stocks...");
-    const delistedStocks = await TushareClient.getStockList(void 0, void 0, void 0, void 0, void 0, "D", 5e3, 0);
-    if (delistedStocks.length > 0) {
-      upsertStocks(delistedStocks);
-      totalSynced += delistedStocks.length;
-      console.log(`Synced ${delistedStocks.length} delisted stocks.`);
-    }
-    console.log("Fetching paused stocks...");
-    const pausedStocks = await TushareClient.getStockList(void 0, void 0, void 0, void 0, void 0, "P", 5e3, 0);
-    if (pausedStocks.length > 0) {
-      upsertStocks(pausedStocks);
-      totalSynced += pausedStocks.length;
-      console.log(`Synced ${pausedStocks.length} paused stocks.`);
-    }
-    const today = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10).replace(/-/g, "");
-    updateSyncFlag(SYNC_TYPE, today);
-    console.log(`Stock list sync completed. Total synced: ${totalSynced}, Total in DB: ${countStocks()}`);
-    mainWindow == null ? void 0 : mainWindow.webContents.send("stocks-updated", {
-      totalSynced,
-      totalInDB: countStocks()
-    });
-    return {
-      status: "success",
-      message: "Stock list synced successfully",
-      totalSynced,
-      totalInDB: countStocks()
-    };
-  } catch (error2) {
-    console.error("Stock list sync failed:", error2);
-    return { status: "failed", message: error2.message || "Unknown error" };
-  } finally {
-    isSyncingStocks = false;
-  }
-}
 function setupIPC() {
   ipcMain.handle("show-notification", async (_event, title, body) => {
     if (Notification.isSupported()) {
@@ -14937,28 +14782,6 @@ function setupIPC() {
   });
   ipcMain.handle("load-historical-data", async () => {
     return await loadHistoricalData();
-  });
-  ipcMain.handle("sync-stock-list", async () => {
-    return await syncStockList();
-  });
-  ipcMain.handle("get-all-stocks", async () => {
-    return getAllStocks();
-  });
-  ipcMain.handle("count-stocks", async () => {
-    return countStocks();
-  });
-  ipcMain.handle("search-stocks", async (_event, keyword, limit) => {
-    return searchStocks(keyword, limit);
-  });
-  ipcMain.handle("get-stock-sync-status", async () => {
-    const lastSync = getLastSyncDate("stock_list");
-    const syncedToday = isSyncedToday("stock_list");
-    const totalStocks = countStocks();
-    return {
-      lastSync,
-      syncedToday,
-      totalStocks
-    };
   });
   ipcMain.handle(
     "get-announcements-grouped",
@@ -15254,7 +15077,6 @@ if (!gotTheLock) {
     setupIPC();
     setupAutoUpdater();
     performIncrementalSync().catch((err) => console.error("Auto sync failed:", err));
-    syncStockList().catch((err) => console.error("Stock sync failed:", err));
     if (!isDev) {
       setTimeout(() => {
         autoUpdater.checkForUpdates();

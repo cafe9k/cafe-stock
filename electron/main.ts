@@ -11,13 +11,6 @@ import {
 	hasDataInDateRange,
 	insertAnnouncements,
 	countAnnouncements,
-	upsertStocks,
-	getAllStocks,
-	countStocks,
-	searchStocks,
-	getLastSyncDate,
-	updateSyncFlag,
-	isSyncedToday,
 	getAnnouncementsGroupedByStock,
 	getAnnouncementsByStock,
 	countStocksWithAnnouncements,
@@ -51,7 +44,6 @@ const extendedApp = app as typeof app & ExtendedApp;
 // Sync State
 let isSyncing = false;
 let isLoadingHistory = false;
-let isSyncingStocks = false;
 
 // 配置自动更新
 autoUpdater.autoDownload = false; // 不自动下载，让用户选择
@@ -372,83 +364,6 @@ async function loadHistoricalData() {
 	}
 }
 
-// 同步A股股票列表（每天仅一次）
-async function syncStockList() {
-	const SYNC_TYPE = "stock_list";
-
-	// 检查今天是否已同步
-	if (isSyncedToday(SYNC_TYPE)) {
-		console.log("Stock list already synced today.");
-		return { status: "skipped", message: "Already synced today", totalStocks: countStocks() };
-	}
-
-	if (isSyncingStocks) {
-		console.log("Stock sync already in progress");
-		return { status: "skipped", message: "Sync already in progress" };
-	}
-
-	isSyncingStocks = true;
-	console.log("Starting stock list sync...");
-
-	let totalSynced = 0;
-
-	try {
-		// 获取上市股票（L）
-		console.log("Fetching listed stocks...");
-		const listedStocks = await TushareClient.getStockList(undefined, undefined, undefined, undefined, undefined, "L", 5000, 0);
-
-		if (listedStocks.length > 0) {
-			upsertStocks(listedStocks);
-			totalSynced += listedStocks.length;
-			console.log(`Synced ${listedStocks.length} listed stocks.`);
-		}
-
-		// 获取退市股票（D）
-		console.log("Fetching delisted stocks...");
-		const delistedStocks = await TushareClient.getStockList(undefined, undefined, undefined, undefined, undefined, "D", 5000, 0);
-
-		if (delistedStocks.length > 0) {
-			upsertStocks(delistedStocks);
-			totalSynced += delistedStocks.length;
-			console.log(`Synced ${delistedStocks.length} delisted stocks.`);
-		}
-
-		// 获取暂停上市股票（P）
-		console.log("Fetching paused stocks...");
-		const pausedStocks = await TushareClient.getStockList(undefined, undefined, undefined, undefined, undefined, "P", 5000, 0);
-
-		if (pausedStocks.length > 0) {
-			upsertStocks(pausedStocks);
-			totalSynced += pausedStocks.length;
-			console.log(`Synced ${pausedStocks.length} paused stocks.`);
-		}
-
-		// 更新同步标志位
-		const today = new Date().toISOString().slice(0, 10).replace(/-/g, "");
-		updateSyncFlag(SYNC_TYPE, today);
-
-		console.log(`Stock list sync completed. Total synced: ${totalSynced}, Total in DB: ${countStocks()}`);
-
-		// 通知前端
-		mainWindow?.webContents.send("stocks-updated", {
-			totalSynced,
-			totalInDB: countStocks(),
-		});
-
-		return {
-			status: "success",
-			message: "Stock list synced successfully",
-			totalSynced,
-			totalInDB: countStocks(),
-		};
-	} catch (error: any) {
-		console.error("Stock list sync failed:", error);
-		return { status: "failed", message: error.message || "Unknown error" };
-	} finally {
-		isSyncingStocks = false;
-	}
-}
-
 function setupIPC() {
 	ipcMain.handle("show-notification", async (_event, title: string, body: string) => {
 		if (Notification.isSupported()) {
@@ -485,35 +400,6 @@ function setupIPC() {
 	// 触发历史数据加载
 	ipcMain.handle("load-historical-data", async () => {
 		return await loadHistoricalData();
-	});
-
-	// 股票相关 IPC
-	ipcMain.handle("sync-stock-list", async () => {
-		return await syncStockList();
-	});
-
-	ipcMain.handle("get-all-stocks", async () => {
-		return getAllStocks();
-	});
-
-	ipcMain.handle("count-stocks", async () => {
-		return countStocks();
-	});
-
-	ipcMain.handle("search-stocks", async (_event, keyword: string, limit?: number) => {
-		return searchStocks(keyword, limit);
-	});
-
-	ipcMain.handle("get-stock-sync-status", async () => {
-		const lastSync = getLastSyncDate("stock_list");
-		const syncedToday = isSyncedToday("stock_list");
-		const totalStocks = countStocks();
-
-		return {
-			lastSync,
-			syncedToday,
-			totalStocks,
-		};
 	});
 
 	// 获取按股票聚合的公告列表
@@ -887,9 +773,6 @@ if (!gotTheLock) {
 
 		// 启动时自动执行增量同步（异步，不阻塞）
 		performIncrementalSync().catch((err) => console.error("Auto sync failed:", err));
-
-		// 启动时自动同步股票列表（如果今天还没同步）
-		syncStockList().catch((err) => console.error("Stock sync failed:", err));
 
 		// 启动时检查更新（生产环境）
 		if (!isDev) {

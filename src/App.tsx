@@ -2,7 +2,6 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { Layout } from "./components/Layout";
 import { Announcements } from "./pages/Announcements";
 import { News } from "./pages/News";
-import Stocks from "./pages/Stocks";
 import DataInsights from "./pages/DataInsights";
 
 function App() {
@@ -10,7 +9,6 @@ function App() {
 		<Routes>
 			<Route path="/" element={<Layout />}>
 				<Route index element={<Navigate to="/announcements" replace />} />
-				<Route path="stocks" element={<Stocks />} />
 				<Route path="announcements" element={<Announcements />} />
 				<Route path="news" element={<News />} />
 				<Route path="data-insights" element={<DataInsights />} />

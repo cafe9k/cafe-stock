@@ -75,6 +75,23 @@ db.exec(`
   );
 
   CREATE INDEX IF NOT EXISTS idx_favorite_ts_code ON favorite_stocks (ts_code);
+
+  CREATE TABLE IF NOT EXISTS top10_holders (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ts_code TEXT NOT NULL,
+    ann_date TEXT NOT NULL,
+    end_date TEXT NOT NULL,
+    holder_name TEXT NOT NULL,
+    hold_amount REAL,
+    hold_ratio REAL,
+    updated_at TEXT NOT NULL,
+    UNIQUE(ts_code, end_date, holder_name)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_top10_ts_code ON top10_holders (ts_code);
+  CREATE INDEX IF NOT EXISTS idx_top10_end_date ON top10_holders (end_date DESC);
+  CREATE INDEX IF NOT EXISTS idx_top10_holder_name ON top10_holders (holder_name);
+  CREATE INDEX IF NOT EXISTS idx_top10_ts_end_date ON top10_holders (ts_code, end_date DESC);
 `);
 
 // 运行迁移
