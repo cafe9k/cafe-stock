@@ -1,6 +1,15 @@
 import { useEffect, useState, useCallback } from "react";
-import { Table, Card, Tag, Typography, message, Badge, Space, Button, Input, DatePicker, Radio } from "antd";
-import { FileTextOutlined, ReloadOutlined, SearchOutlined, HistoryOutlined, CalendarOutlined, FilePdfOutlined } from "@ant-design/icons";
+import { Table, Card, Tag, Typography, message, Badge, Space, Button, Input, DatePicker, Radio, Select } from "antd";
+import {
+	FileTextOutlined,
+	ReloadOutlined,
+	SearchOutlined,
+	HistoryOutlined,
+	CalendarOutlined,
+	FilePdfOutlined,
+	StarOutlined,
+	StarFilled,
+} from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import dayjs, { Dayjs } from "dayjs";
 import { PDFWebViewer } from "./PDFWebViewer";
@@ -48,6 +57,13 @@ export function AnnouncementList() {
 	const [dateRangeDisplay, setDateRangeDisplay] = useState<[Dayjs, Dayjs] | null>(null);
 	const [quickSelectValue, setQuickSelectValue] = useState<string>("all");
 
+	// 市场筛选状态
+	const [selectedMarket, setSelectedMarket] = useState<string>("all");
+
+	// 我的关注筛选状态
+	const [showFavoriteOnly, setShowFavoriteOnly] = useState<boolean>(false);
+	const [favoriteStocks, setFavoriteStocks] = useState<Set<string>>(new Set());
+
 	// PDF 预览相关状态
 	const [pdfViewerOpen, setPdfViewerOpen] = useState(false);
 	const [currentPdfUrl, setCurrentPdfUrl] = useState("");
@@ -62,7 +78,21 @@ export function AnnouncementList() {
 					throw new Error("Electron API not available");
 				}
 
-				const result = await window.electronAPI.getAnnouncementsGrouped(pageNum, PAGE_SIZE, dateRange?.[0], dateRange?.[1]);
+				let result;
+				if (showFavoriteOnly) {
+					// 加载关注的股票
+					result = await window.electronAPI.getFavoriteStocksAnnouncementsGrouped(pageNum, PAGE_SIZE, dateRange?.[0], dateRange?.[1]);
+				} else {
+					// 加载所有股票
+					result = await window.electronAPI.getAnnouncementsGrouped(
+						pageNum,
+						PAGE_SIZE,
+						dateRange?.[0],
+						dateRange?.[1],
+						selectedMarket === "all" ? undefined : selectedMarket
+					);
+				}
+
 				setStockGroups(result.items);
 				setTotal(result.total);
 			} catch (err: any) {
@@ -72,7 +102,7 @@ export function AnnouncementList() {
 				setLoading(false);
 			}
 		},
-		[dateRange]
+		[dateRange, selectedMarket, showFavoriteOnly]
 	);
 
 	// 展开行时加载该股票的公告
@@ -91,6 +121,54 @@ export function AnnouncementList() {
 		}
 	};
 
+	// 加载关注股票列表
+	const loadFavoriteStocks = useCallback(async () => {
+		try {
+			const favorites = await window.electronAPI.getAllFavoriteStocks();
+			setFavoriteStocks(new Set(favorites));
+		} catch (err: any) {
+			console.error("Load favorite stocks error:", err);
+		}
+	}, []);
+
+	// 关注/取消关注股票
+	const toggleFavorite = async (tsCode: string, stockName: string, event: React.MouseEvent) => {
+		event.stopPropagation(); // 阻止事件冒泡，避免触发行展开
+
+		const isFavorite = favoriteStocks.has(tsCode);
+		try {
+			if (isFavorite) {
+				const result = await window.electronAPI.removeFavoriteStock(tsCode);
+				if (result.success) {
+					setFavoriteStocks((prev) => {
+						const newSet = new Set(prev);
+						newSet.delete(tsCode);
+						return newSet;
+					});
+					message.success(`已取消关注 ${stockName}`);
+
+					// 如果当前正在查看"我的关注"，刷新列表
+					if (showFavoriteOnly) {
+						fetchGroupedData(page);
+					}
+				} else {
+					message.error(result.message || "取消关注失败");
+				}
+			} else {
+				const result = await window.electronAPI.addFavoriteStock(tsCode);
+				if (result.success) {
+					setFavoriteStocks((prev) => new Set(prev).add(tsCode));
+					message.success(`已关注 ${stockName}`);
+				} else {
+					message.error(result.message || "关注失败");
+				}
+			}
+		} catch (err: any) {
+			console.error("Toggle favorite error:", err);
+			message.error("操作失败");
+		}
+	};
+
 	// 搜索功能
 	const handleSearch = async (value: string) => {
 		setSearchKeyword(value);
@@ -101,9 +179,23 @@ export function AnnouncementList() {
 			return;
 		}
 
+		// 搜索时不支持"我的关注"过滤
+		if (showFavoriteOnly) {
+			message.info('搜索时暂不支持"我的关注"过滤，已切换到全部股票');
+			setShowFavoriteOnly(false);
+		}
+
 		setLoading(true);
 		try {
-			const result = await window.electronAPI.searchAnnouncementsGrouped(value, 1, PAGE_SIZE, dateRange?.[0], dateRange?.[1]);
+			const result = await window.electronAPI.searchAnnouncementsGrouped(
+				value,
+				1,
+				PAGE_SIZE,
+				dateRange?.[0],
+				dateRange?.[1],
+				selectedMarket === "all" ? undefined : selectedMarket
+			);
+
 			setStockGroups(result.items);
 			setTotal(result.total);
 		} catch (err: any) {
@@ -120,6 +212,22 @@ export function AnnouncementList() {
 			handleSearch(searchKeyword);
 		} else {
 			fetchGroupedData(page);
+		}
+	};
+
+	// 市场选择变化处理
+	const handleMarketChange = (value: string) => {
+		setSelectedMarket(value);
+		setPage(1); // 重置到第一页
+	};
+
+	// 我的关注过滤变化处理
+	const handleFavoriteFilterChange = (checked: boolean) => {
+		setShowFavoriteOnly(checked);
+		setPage(1); // 重置到第一页
+		if (searchKeyword && checked) {
+			// 如果有搜索关键词，清空搜索
+			setSearchKeyword("");
 		}
 	};
 
@@ -246,6 +354,9 @@ export function AnnouncementList() {
 	useEffect(() => {
 		console.log("AnnouncementList mounted. Checking API:", !!window.electronAPI);
 
+		// 加载关注股票列表
+		loadFavoriteStocks();
+
 		const unsubscribe = window.electronAPI.onDataUpdated((data) => {
 			console.log("Data updated:", data);
 			if (data.type === "incremental") {
@@ -261,7 +372,7 @@ export function AnnouncementList() {
 		return () => {
 			unsubscribe();
 		};
-	}, [page, searchKeyword, fetchGroupedData]);
+	}, [page, searchKeyword, fetchGroupedData, loadFavoriteStocks]);
 
 	// 初始加载数据
 	useEffect(() => {
@@ -274,8 +385,10 @@ export function AnnouncementList() {
 						page,
 						PAGE_SIZE,
 						dateRange?.[0],
-						dateRange?.[1]
+						dateRange?.[1],
+						selectedMarket === "all" ? undefined : selectedMarket
 					);
+
 					setStockGroups(result.items);
 					setTotal(result.total);
 				} catch (err: any) {
@@ -290,7 +403,7 @@ export function AnnouncementList() {
 		};
 		loadData();
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [page, dateRange, searchKeyword]);
+	}, [page, dateRange, searchKeyword, selectedMarket, showFavoriteOnly]);
 
 	const handlePrevPage = () => {
 		if (page > 1) {
@@ -307,6 +420,23 @@ export function AnnouncementList() {
 
 	// 主表格列定义
 	const columns: ColumnsType<StockGroup> = [
+		{
+			title: "",
+			key: "favorite",
+			width: 50,
+			fixed: "left",
+			render: (_, record) => {
+				const isFavorite = favoriteStocks.has(record.ts_code);
+				return (
+					<Button
+						type="text"
+						icon={isFavorite ? <StarFilled style={{ color: "#faad14" }} /> : <StarOutlined />}
+						onClick={(e) => toggleFavorite(record.ts_code, record.stock_name, e)}
+						title={isFavorite ? "取消关注" : "关注"}
+					/>
+				);
+			},
+		},
 		{
 			title: "股票名称",
 			dataIndex: "stock_name",
@@ -329,17 +459,6 @@ export function AnnouncementList() {
 				};
 				return <Tag color={colorMap[text] || "default"}>{text || "-"}</Tag>;
 			},
-		},
-		{
-			title: "股票代码",
-			dataIndex: "ts_code",
-			key: "ts_code",
-			width: 120,
-			render: (text) => (
-				<Tag color="blue" style={{ fontFamily: "monospace" }}>
-					{text}
-				</Tag>
-			),
 		},
 		{
 			title: "行业",
@@ -435,7 +554,7 @@ export function AnnouncementList() {
 		<div style={{ padding: "24px" }}>
 			{/* 操作栏 */}
 			<div style={{ marginBottom: 16 }}>
-				{/* 第一行：搜索和刷新 */}
+				{/* 第一行：搜索、市场选择、我的关注和刷新 */}
 				<Space style={{ marginBottom: 12 }} align="start">
 					<Search
 						placeholder="搜索股票名称或代码"
@@ -451,6 +570,29 @@ export function AnnouncementList() {
 						style={{ width: 300 }}
 						value={searchKeyword}
 					/>
+
+					<Select
+						value={selectedMarket}
+						onChange={handleMarketChange}
+						style={{ width: 120 }}
+						disabled={showFavoriteOnly}
+						options={[
+							{ value: "all", label: "全部市场" },
+							{ value: "主板", label: "主板" },
+							{ value: "创业板", label: "创业板" },
+							{ value: "科创板", label: "科创板" },
+							{ value: "CDR", label: "CDR" },
+						]}
+					/>
+
+					<Button
+						type={showFavoriteOnly ? "primary" : "default"}
+						icon={<StarOutlined />}
+						onClick={() => handleFavoriteFilterChange(!showFavoriteOnly)}
+						disabled={!!searchKeyword}
+					>
+						我的关注
+					</Button>
 
 					<Button icon={<ReloadOutlined />} onClick={handleRefresh} loading={loading}>
 						刷新
@@ -521,7 +663,10 @@ export function AnnouncementList() {
 								onExpand(true, record);
 							}
 						},
-						style: { cursor: "pointer" },
+						style: {
+							cursor: "pointer",
+							backgroundColor: favoriteStocks.has(record.ts_code) ? "#e6f7ff" : undefined,
+						},
 					})}
 					scroll={{ x: 800 }}
 					size="small"

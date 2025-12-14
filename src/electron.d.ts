@@ -41,7 +41,8 @@ export interface ElectronAPI {
 		page: number,
 		pageSize: number,
 		startDate?: string,
-		endDate?: string
+		endDate?: string,
+		market?: string
 	) => Promise<{
 		items: Array<{
 			ts_code: string;
@@ -74,7 +75,8 @@ export interface ElectronAPI {
 		page: number,
 		pageSize: number,
 		startDate?: string,
-		endDate?: string
+		endDate?: string,
+		market?: string
 	) => Promise<{
 		items: Array<{
 			ts_code: string;
@@ -107,6 +109,32 @@ export interface ElectronAPI {
 	openExternal: (url: string) => Promise<{
 		success: boolean;
 		message?: string;
+	}>;
+
+	// 关注股票相关
+	addFavoriteStock: (tsCode: string) => Promise<{ success: boolean; message?: string }>;
+	removeFavoriteStock: (tsCode: string) => Promise<{ success: boolean; message?: string }>;
+	isFavoriteStock: (tsCode: string) => Promise<boolean>;
+	getAllFavoriteStocks: () => Promise<string[]>;
+	countFavoriteStocks: () => Promise<number>;
+	getFavoriteStocksAnnouncementsGrouped: (
+		page: number,
+		pageSize: number,
+		startDate?: string,
+		endDate?: string
+	) => Promise<{
+		items: Array<{
+			ts_code: string;
+			stock_name: string;
+			industry: string;
+			market: string;
+			announcement_count: number;
+			latest_ann_date: string;
+			latest_ann_title?: string;
+		}>;
+		total: number;
+		page: number;
+		pageSize: number;
 	}>;
 
 	// 自动更新相关

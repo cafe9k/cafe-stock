@@ -23,6 +23,13 @@ import {
 	countStocksWithAnnouncements,
 	searchAnnouncementsGroupedByStock,
 	countSearchedStocksWithAnnouncements,
+	addFavoriteStock,
+	removeFavoriteStock,
+	isFavoriteStock,
+	getAllFavoriteStocks,
+	countFavoriteStocks,
+	getFavoriteStocksAnnouncementsGrouped,
+	countFavoriteStocksWithAnnouncements,
 } from "./db.js";
 import { TushareClient } from "./tushare.js";
 
@@ -510,27 +517,30 @@ function setupIPC() {
 	});
 
 	// 获取按股票聚合的公告列表
-	ipcMain.handle("get-announcements-grouped", async (_event, page: number, pageSize: number, startDate?: string, endDate?: string) => {
-		try {
-			const offset = (page - 1) * pageSize;
-			const items = getAnnouncementsGroupedByStock(pageSize, offset, startDate, endDate);
-			const total = countStocksWithAnnouncements(startDate, endDate);
+	ipcMain.handle(
+		"get-announcements-grouped",
+		async (_event, page: number, pageSize: number, startDate?: string, endDate?: string, market?: string) => {
+			try {
+				const offset = (page - 1) * pageSize;
+				const items = getAnnouncementsGroupedByStock(pageSize, offset, startDate, endDate, market);
+				const total = countStocksWithAnnouncements(startDate, endDate, market);
 
-			console.log(
-				`[IPC] get-announcements-grouped: page=${page}, offset=${offset}, items=${items.length}, total=${total}, dateRange=${startDate}-${endDate}`
-			);
+				console.log(
+					`[IPC] get-announcements-grouped: page=${page}, offset=${offset}, items=${items.length}, total=${total}, dateRange=${startDate}-${endDate}, market=${market}`
+				);
 
-			return {
-				items,
-				total,
-				page,
-				pageSize,
-			};
-		} catch (error: any) {
-			console.error("Failed to get grouped announcements:", error);
-			throw error;
+				return {
+					items,
+					total,
+					page,
+					pageSize,
+				};
+			} catch (error: any) {
+				console.error("Failed to get grouped announcements:", error);
+				throw error;
+			}
 		}
-	});
+	);
 
 	// 获取特定股票的公告列表
 	ipcMain.handle("get-stock-announcements", async (_event, tsCode: string, limit: number = 100) => {
@@ -546,14 +556,14 @@ function setupIPC() {
 	// 搜索按股票聚合的公告数据
 	ipcMain.handle(
 		"search-announcements-grouped",
-		async (_event, keyword: string, page: number, pageSize: number, startDate?: string, endDate?: string) => {
+		async (_event, keyword: string, page: number, pageSize: number, startDate?: string, endDate?: string, market?: string) => {
 			try {
 				const offset = (page - 1) * pageSize;
-				const items = searchAnnouncementsGroupedByStock(keyword, pageSize, offset, startDate, endDate);
-				const total = countSearchedStocksWithAnnouncements(keyword, startDate, endDate);
+				const items = searchAnnouncementsGroupedByStock(keyword, pageSize, offset, startDate, endDate, market);
+				const total = countSearchedStocksWithAnnouncements(keyword, startDate, endDate, market);
 
 				console.log(
-					`[IPC] search-announcements-grouped: keyword=${keyword}, page=${page}, items=${items.length}, total=${total}, dateRange=${startDate}-${endDate}`
+					`[IPC] search-announcements-grouped: keyword=${keyword}, page=${page}, items=${items.length}, total=${total}, dateRange=${startDate}-${endDate}, market=${market}`
 				);
 
 				return {
@@ -694,6 +704,79 @@ function setupIPC() {
 	ipcMain.handle("install-update", async () => {
 		autoUpdater.quitAndInstall();
 	});
+
+	// 关注股票相关 IPC
+	ipcMain.handle("add-favorite-stock", async (_event, tsCode: string) => {
+		try {
+			console.log(`[IPC] add-favorite-stock: tsCode=${tsCode}`);
+			const result = addFavoriteStock(tsCode);
+			return { success: result };
+		} catch (error: any) {
+			console.error("Failed to add favorite stock:", error);
+			return { success: false, message: error.message };
+		}
+	});
+
+	ipcMain.handle("remove-favorite-stock", async (_event, tsCode: string) => {
+		try {
+			console.log(`[IPC] remove-favorite-stock: tsCode=${tsCode}`);
+			const result = removeFavoriteStock(tsCode);
+			return { success: result };
+		} catch (error: any) {
+			console.error("Failed to remove favorite stock:", error);
+			return { success: false, message: error.message };
+		}
+	});
+
+	ipcMain.handle("is-favorite-stock", async (_event, tsCode: string) => {
+		try {
+			return isFavoriteStock(tsCode);
+		} catch (error: any) {
+			console.error("Failed to check favorite stock:", error);
+			return false;
+		}
+	});
+
+	ipcMain.handle("get-all-favorite-stocks", async () => {
+		try {
+			return getAllFavoriteStocks();
+		} catch (error: any) {
+			console.error("Failed to get favorite stocks:", error);
+			return [];
+		}
+	});
+
+	ipcMain.handle("count-favorite-stocks", async () => {
+		try {
+			return countFavoriteStocks();
+		} catch (error: any) {
+			console.error("Failed to count favorite stocks:", error);
+			return 0;
+		}
+	});
+
+	ipcMain.handle(
+		"get-favorite-stocks-announcements-grouped",
+		async (_event, page: number, pageSize: number, startDate?: string, endDate?: string) => {
+			try {
+				const offset = (page - 1) * pageSize;
+				const items = getFavoriteStocksAnnouncementsGrouped(pageSize, offset, startDate, endDate);
+				const total = countFavoriteStocksWithAnnouncements(startDate, endDate);
+
+				console.log(`[IPC] get-favorite-stocks-announcements-grouped: page=${page}, items=${items.length}, total=${total}`);
+
+				return {
+					items,
+					total,
+					page,
+					pageSize,
+				};
+			} catch (error: any) {
+				console.error("Failed to get favorite stocks announcements:", error);
+				throw error;
+			}
+		}
+	);
 }
 
 // 设置自动更新事件监听

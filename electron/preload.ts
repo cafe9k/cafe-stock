@@ -65,16 +65,16 @@ contextBridge.exposeInMainWorld("electronAPI", {
 	},
 
 	// 聚合公告相关
-	getAnnouncementsGrouped: (page: number, pageSize: number, startDate?: string, endDate?: string) => {
-		return ipcRenderer.invoke("get-announcements-grouped", page, pageSize, startDate, endDate);
+	getAnnouncementsGrouped: (page: number, pageSize: number, startDate?: string, endDate?: string, market?: string) => {
+		return ipcRenderer.invoke("get-announcements-grouped", page, pageSize, startDate, endDate, market);
 	},
 
 	getStockAnnouncements: (tsCode: string, limit?: number) => {
 		return ipcRenderer.invoke("get-stock-announcements", tsCode, limit);
 	},
 
-	searchAnnouncementsGrouped: (keyword: string, page: number, pageSize: number, startDate?: string, endDate?: string) => {
-		return ipcRenderer.invoke("search-announcements-grouped", keyword, page, pageSize, startDate, endDate);
+	searchAnnouncementsGrouped: (keyword: string, page: number, pageSize: number, startDate?: string, endDate?: string, market?: string) => {
+		return ipcRenderer.invoke("search-announcements-grouped", keyword, page, pageSize, startDate, endDate, market);
 	},
 
 	// 获取最近交易日
@@ -90,6 +90,31 @@ contextBridge.exposeInMainWorld("electronAPI", {
 	// 在浏览器中打开 URL
 	openExternal: (url: string) => {
 		return ipcRenderer.invoke("open-external", url);
+	},
+
+	// 关注股票相关
+	addFavoriteStock: (tsCode: string) => {
+		return ipcRenderer.invoke("add-favorite-stock", tsCode);
+	},
+
+	removeFavoriteStock: (tsCode: string) => {
+		return ipcRenderer.invoke("remove-favorite-stock", tsCode);
+	},
+
+	isFavoriteStock: (tsCode: string) => {
+		return ipcRenderer.invoke("is-favorite-stock", tsCode);
+	},
+
+	getAllFavoriteStocks: () => {
+		return ipcRenderer.invoke("get-all-favorite-stocks");
+	},
+
+	countFavoriteStocks: () => {
+		return ipcRenderer.invoke("count-favorite-stocks");
+	},
+
+	getFavoriteStocksAnnouncementsGrouped: (page: number, pageSize: number, startDate?: string, endDate?: string) => {
+		return ipcRenderer.invoke("get-favorite-stocks-announcements-grouped", page, pageSize, startDate, endDate);
 	},
 
 	// 自动更新相关
