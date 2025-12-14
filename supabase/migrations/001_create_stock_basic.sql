@@ -46,3 +46,5 @@ CREATE POLICY "Allow authenticated users to update stock_basic" ON stock_basic
     USING (true)
     WITH CHECK (true);
 
+
+

@@ -1,11 +1,15 @@
 {
   "name": "cafe-stock",
   "version": "1.0.0",
-  "description": "咖啡店库存管理系统",
+  "description": "A股股票数据查询系统 - Electron 桌面版",
+  "main": "dist-electron/main.js",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "electron:dev": "tsc -p electron/tsconfig.json && electron .",
+    "electron:preview": "npm run build && electron .",
+    "build": "tsc && vite build && tsc -p electron/tsconfig.json && electron-builder --mac",
+    "build:dir": "tsc && vite build && tsc -p electron/tsconfig.json && electron-builder --mac --dir",
     "preview": "vite preview",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0"
   },
@@ -23,10 +27,34 @@
     "@typescript-eslint/parser": "^6.14.0",
     "@vitejs/plugin-react": "^4.2.1",
     "dotenv": "^17.2.3",
+    "electron": "^28.0.0",
+    "electron-builder": "^24.0.0",
     "eslint": "^8.55.0",
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.4.5",
     "typescript": "^5.2.2",
-    "vite": "^5.0.8"
+    "vite": "^5.0.8",
+    "vite-plugin-electron": "^0.28.0",
+    "vite-plugin-electron-renderer": "^0.14.0"
+  },
+  "build": {
+    "appId": "com.cafestock.app",
+    "productName": "A股股票查询",
+    "mac": {
+      "category": "public.app-category.finance",
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "icon": "build/icon.icns"
+    },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*"
+    ],
+    "directories": {
+      "buildResources": "build",
+      "output": "release"
+    }
   }
 }

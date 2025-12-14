@@ -51,6 +51,21 @@ export default function DashboardPage() {
         deleteAlert
     } = useStockAlerts()
 
+    // Electron 原生功能集成
+    useEffect(() => {
+        // 检查是否在 Electron 环境中
+        if (window.electronAPI) {
+            // 监听主进程的刷新数据事件
+            const cleanup = window.electronAPI.onRefreshData(() => {
+                console.log('收到来自主进程的刷新数据请求')
+                handleRefreshQuotes()
+            })
+
+            // 组件卸载时清理监听器
+            return cleanup
+        }
+    }, [])
+
     // 计算每个分组的股票数量
     const stockCounts = useMemo(() => {
         const counts = new Map<string, number>()

@@ -401,6 +401,14 @@ export function useStockAlerts() {
 
             console.log(`[AlertScan] 保存了 ${savedCount} 条新消息`)
 
+            // 如果在 Electron 环境中，显示系统通知
+            if (savedCount > 0 && window.electronAPI) {
+                window.electronAPI.showNotification(
+                    '股票消息提醒',
+                    `发现 ${savedCount} 条新消息，请查看`
+                )
+            }
+
             // 刷新消息列表
             await fetchAlerts()
         } catch (err) {
