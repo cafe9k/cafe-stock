@@ -206,6 +206,11 @@ export const getAnnouncementsGroupedByStock = (limit: number, offset: number, st
     LIMIT ? OFFSET ?
   `;
 
+	// 为第二个 CTE 添加相同的日期参数
+	if (startDate && endDate) {
+		params.push(startDate, endDate);
+	}
+	
 	params.push(limit, offset);
 
 	return db.prepare(sql).all(...params);
