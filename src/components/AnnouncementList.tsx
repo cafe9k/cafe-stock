@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { Table, Card, Tag, Typography, message, Badge, Space, Button, Input, DatePicker, Radio, Select } from "antd";
+import { Table, Card, Tag, Typography, Badge, Space, Button, Input, DatePicker, Radio, Select, App } from "antd";
 import {
 	FileTextOutlined,
 	ReloadOutlined,
@@ -42,6 +42,7 @@ interface Announcement {
 const PAGE_SIZE = 20;
 
 export function AnnouncementList() {
+	const { message } = App.useApp();
 	const [stockGroups, setStockGroups] = useState<StockGroup[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [page, setPage] = useState(1);

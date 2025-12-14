@@ -1,7 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { HashRouter } from "react-router-dom";
-import { ConfigProvider, theme } from "antd";
+import { ConfigProvider, theme, App as AntApp } from "antd";
 import zhCN from "antd/locale/zh_CN";
 import "./index.css";
 import App from "./App.tsx";
@@ -19,9 +19,11 @@ createRoot(document.getElementById("root")!).render(
 				algorithm: theme.defaultAlgorithm,
 			}}
 		>
-			<HashRouter>
-				<App />
-			</HashRouter>
+			<AntApp>
+				<HashRouter>
+					<App />
+				</HashRouter>
+			</AntApp>
 		</ConfigProvider>
 	</StrictMode>
 );
