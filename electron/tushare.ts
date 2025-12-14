@@ -1,4 +1,4 @@
-// Tushare API Client
+// Tushare API Client for Node.js (Main Process)
 // 文档: https://tushare.pro/document/1?doc_id=130
 
 interface TushareParams {
@@ -25,16 +25,8 @@ interface TushareResponse {
 
 export class TushareClient {
 	private static readonly TOKEN = "834c0133bb912100b3cdacaeb7b5741523839fd9f8932d9e24c0aa1d";
-	// Electron 环境禁用 webSecurity 后，可直接访问完整 URL
 	private static readonly BASE_URL = "http://api.tushare.pro";
 
-	/**
-	 * 通用 Tushare API 请求方法
-	 * @param apiName 接口名称，如 'stock_basic', 'daily'
-	 * @param params 接口参数
-	 * @param fields 返回字段，支持字符串数组或逗号分隔字符串
-	 * @returns Promise<T[]> 返回对象数组
-	 */
 	static async request<T = any>(apiName: string, params: TushareParams = {}, fields: string[] | string = ""): Promise<T[]> {
 		const requestBody: TushareRequest = {
 			api_name: apiName,
@@ -56,7 +48,7 @@ export class TushareClient {
 				throw new Error(`HTTP Error: ${response.status}`);
 			}
 
-			const res: TushareResponse = await response.json();
+			const res = (await response.json()) as TushareResponse;
 
 			if (res.code !== 0) {
 				throw new Error(`Tushare Error [${res.code}]: ${res.msg}`);
@@ -66,7 +58,6 @@ export class TushareClient {
 				return [];
 			}
 
-			// Tushare 返回的是 fields 和 items 的分离格式，将其转换为对象数组
 			const { fields: columns, items } = res.data;
 			return items.map((item) => {
 				const obj: any = {};
@@ -82,33 +73,35 @@ export class TushareClient {
 	}
 
 	/**
-	 * 示例：获取股票列表
-	 */
-	static async getStockBasic(exchange: string = "", listStatus: string = "L") {
-		return this.request("stock_basic", { exchange, list_status: listStatus });
-	}
-
-	/**
-	 * 示例：获取日线行情
-	 */
-	static async getDaily(tsCode: string, startDate?: string, endDate?: string) {
-		return this.request("daily", {
-			ts_code: tsCode,
-			start_date: startDate,
-			end_date: endDate,
-		});
-	}
-
-	/**
 	 * 获取全量公告数据
 	 * 文档: https://tushare.pro/document/2?doc_id=176
+	 * 接口：anns_d
+	 * 描述：获取上市公司公告数据
+	 * 限量：单次最大2000，总量不限制
+	 * 权限：用户需要至少2000积分才可以调取，5000积分以上频次相对较高，具体请参阅积分获取办法
+	 *
+	 * 输入参数：
+	 * ts_code: str, 股票代码（支持多个股票同时提取，逗号分隔）
+	 * ann_date: str, 公告日期（YYYYMMDD格式，支持单日和多日）
+	 * start_date: str, 公告开始日期
+	 * end_date: str, 公告结束日期
+	 *
+	 * 输出参数：
+	 * ts_code: str, 股票代码
+	 * ann_date: str, 公告日期
+	 * ann_type: str, 公告类型
+	 * title: str, 公告标题
+	 * content: str, 公告内容
+	 * pub_time: str, 公告发布时间
 	 */
-	static async getAnnouncements(tsCode?: string, annDate?: string, startDate?: string, endDate?: string) {
+	static async getAnnouncements(tsCode?: string, annDate?: string, startDate?: string, endDate?: string, limit: number = 2000, offset: number = 0) {
 		return this.request("anns_d", {
 			ts_code: tsCode,
 			ann_date: annDate,
 			start_date: startDate,
 			end_date: endDate,
+			limit, // Internal support for pagination if API allows, or wrapper logic
+			offset,
 		});
 	}
 }

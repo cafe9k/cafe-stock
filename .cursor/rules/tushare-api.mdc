@@ -1,0 +1,10 @@
+---
+description: Tushare API 调用入参规范
+globs: **/*.{ts,tsx}
+---
+
+# Tushare API 开发规范
+
+- **文档遵循**: 所有 Tushare API (参考 https://tushare.pro/document/2) 的调用必须严格严格遵循官方文档的入参说明。
+- **参数限制**: 禁止增加文档中不存在的输入参数。任何 API 请求的 body 或 query 参数必须与文档中列出的字段完全一致。
+- **入参检查**: 在编写或修改调用 Tushare 接口的代码时，请务必核对官方文档，确认参数名和类型准确无误。

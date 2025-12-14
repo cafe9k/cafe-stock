@@ -6,14 +6,17 @@
 	"type": "module",
 	"scripts": {
 		"dev": "vite",
+		"postbuild:electron": "node scripts/fix-preload.js",
 		"electron:dev": "tsc -p electron/tsconfig.json && electron .",
 		"electron:preview": "npm run build && electron .",
-		"build": "tsc && vite build && tsc -p electron/tsconfig.json && electron-builder --mac",
+		"start": "npm run dev",
+		"build": "tsc && tsc -p electron/tsconfig.json --noEmit && vite build && electron-builder --mac",
 		"build:dir": "tsc && vite build && tsc -p electron/tsconfig.json && electron-builder --mac --dir",
 		"preview": "vite preview",
 		"lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0"
 	},
 	"dependencies": {
+		"better-sqlite3": "^12.5.0",
 		"clsx": "^2.1.1",
 		"lucide-react": "^0.561.0",
 		"react": "^18.2.0",
@@ -23,6 +26,7 @@
 	},
 	"devDependencies": {
 		"@tailwindcss/postcss": "^4.1.18",
+		"@types/better-sqlite3": "^7.6.13",
 		"@types/react": "^18.2.43",
 		"@types/react-dom": "^18.2.17",
 		"@typescript-eslint/eslint-plugin": "^6.14.0",

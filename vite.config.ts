@@ -2,6 +2,10 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import electron from "vite-plugin-electron";
 import renderer from "vite-plugin-electron-renderer";
+import { exec } from "child_process";
+import { promisify } from "util";
+
+const execAsync = promisify(exec);
 
 export default defineConfig({
 	plugins: [
@@ -11,13 +15,14 @@ export default defineConfig({
 				// 主进程入口
 				entry: "electron/main.ts",
 				onstart(options) {
+					// Vite 插件会自动启动 Electron，无需手动运行 electron:dev
 					options.startup();
 				},
 				vite: {
 					build: {
 						outDir: "dist-electron",
 						rollupOptions: {
-							external: ["electron"],
+							external: ["electron", "better-sqlite3"],
 						},
 					},
 				},
@@ -32,14 +37,28 @@ export default defineConfig({
 				vite: {
 					build: {
 						outDir: "dist-electron",
+						lib: {
+							entry: "electron/preload.ts",
+							formats: ["cjs"],
+							fileName: () => "preload.cjs",
+						},
 						rollupOptions: {
-							output: {
-								format: "cjs",
-								entryFileNames: "[name].cjs",
-								inlineDynamicImports: true,
-							},
+							external: ["electron"],
 						},
 					},
+					plugins: [
+						{
+							name: "fix-preload-cjs",
+							closeBundle: async () => {
+								try {
+									await execAsync("node scripts/fix-preload.js");
+									console.log("✅ Fixed preload.cjs");
+								} catch (error) {
+									console.error("❌ Failed to fix preload.cjs:", error);
+								}
+							},
+						},
+					],
 				},
 			},
 		]),

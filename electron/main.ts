@@ -1,6 +1,8 @@
 import { app, BrowserWindow, Tray, Menu, globalShortcut, ipcMain, Notification, nativeImage, NativeImage } from "electron";
 import path from "path";
 import { fileURLToPath } from "url";
+import { getAnnouncements, getLatestAnnDate, insertAnnouncements, countAnnouncements } from "./db.js";
+import { TushareClient } from "./tushare.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -17,39 +19,69 @@ let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 const extendedApp = app as typeof app & ExtendedApp;
 
-// 创建主窗口
+// Sync State
+let isSyncing = false;
+
+// Create Window
 function createWindow() {
 	mainWindow = new BrowserWindow({
 		width: 1280,
 		height: 800,
 		minWidth: 800,
 		minHeight: 600,
-		title: "股神助手",
+		title: "酷咖啡",
 		webPreferences: {
 			preload: path.join(__dirname, "preload.cjs"),
 			contextIsolation: true,
 			nodeIntegration: false,
 			sandbox: false,
-			webSecurity: false, // 禁用同源策略
+			webSecurity: true,
 		},
 		show: false,
 		backgroundColor: "#ffffff",
 	});
 
-	// 窗口准备好后再显示，避免闪烁
+	// Forward console logs to terminal with detailed information
+	mainWindow.webContents.on("console-message", (event, level, message, line, sourceId) => {
+		const levelMap: Record<number, string> = {
+			0: "LOG",
+			1: "INFO",
+			2: "WARN",
+			3: "ERROR",
+		};
+		const levelName = levelMap[level] || "UNKNOWN";
+		const source = sourceId ? `[${sourceId}]` : "";
+		const location = line ? `:${line}` : "";
+
+		// 使用不同颜色和格式输出不同级别的日志
+		switch (level) {
+			case 0: // log
+				console.log(`[Renderer ${levelName}]${source}${location} ${message}`);
+				break;
+			case 1: // info
+				console.info(`[Renderer ${levelName}]${source}${location} ${message}`);
+				break;
+			case 2: // warn
+				console.warn(`[Renderer ${levelName}]${source}${location} ${message}`);
+				break;
+			case 3: // error
+				console.error(`[Renderer ${levelName}]${source}${location} ${message}`);
+				break;
+			default:
+				console.log(`[Renderer ${levelName}]${source}${location} ${message}`);
+		}
+	});
+
 	mainWindow.once("ready-to-show", () => {
 		mainWindow?.show();
-
-		// 显示启动通知
 		if (Notification.isSupported()) {
 			new Notification({
-				title: "股神助手",
+				title: "酷咖啡",
 				body: "应用已启动，准备好为您服务！",
 			}).show();
 		}
 	});
 
-	// 加载应用
 	if (isDev) {
 		mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL || "http://localhost:5173");
 		mainWindow.webContents.openDevTools();
@@ -57,7 +89,6 @@ function createWindow() {
 		mainWindow.loadFile(path.join(__dirname, "../dist/index.html"));
 	}
 
-	// 窗口关闭时隐藏而不是退出（macOS 风格）
 	mainWindow.on("close", (event) => {
 		if (!extendedApp.isQuitting) {
 			event.preventDefault();
@@ -70,16 +101,12 @@ function createWindow() {
 	});
 }
 
-// 创建系统托盘
 function createTray() {
-	// 创建托盘图标（使用模板图片）
 	const iconPath = isDev ? path.join(__dirname, "../build/tray-icon.png") : path.join(process.resourcesPath, "build/tray-icon.png");
-
 	let trayIcon: NativeImage;
 	try {
 		trayIcon = nativeImage.createFromPath(iconPath);
 		if (trayIcon.isEmpty()) {
-			// 如果图标不存在，创建一个简单的占位图标
 			trayIcon = nativeImage.createEmpty();
 		}
 	} catch (error) {
@@ -88,7 +115,7 @@ function createTray() {
 	}
 
 	tray = new Tray(trayIcon);
-	tray.setToolTip("股神助手");
+	tray.setToolTip("酷咖啡");
 
 	const contextMenu = Menu.buildFromTemplate([
 		{
@@ -103,7 +130,7 @@ function createTray() {
 			click: () => {
 				if (Notification.isSupported()) {
 					new Notification({
-						title: "股神助手",
+						title: "酷咖啡",
 						body: `版本: ${app.getVersion()}\n基于 Electron + React`,
 					}).show();
 				}
@@ -120,8 +147,6 @@ function createTray() {
 	]);
 
 	tray.setContextMenu(contextMenu);
-
-	// 点击托盘图标显示/隐藏窗口
 	tray.on("click", () => {
 		if (mainWindow?.isVisible()) {
 			mainWindow.hide();
@@ -131,9 +156,7 @@ function createTray() {
 	});
 }
 
-// 注册全局快捷键
 function registerShortcuts() {
-	// Cmd+Shift+S: 显示/隐藏窗口
 	globalShortcut.register("CommandOrControl+Shift+S", () => {
 		if (mainWindow?.isVisible()) {
 			mainWindow.hide();
@@ -143,33 +166,119 @@ function registerShortcuts() {
 	});
 }
 
-// 设置 IPC 通信处理器
+// Sync Logic
+async function performSync() {
+	if (isSyncing) return { status: "skipped", message: "Sync already in progress" };
+	isSyncing = true;
+	console.log("Starting sync...");
+
+	let totalSynced = 0;
+	let startDate = "";
+	let endDate = "";
+
+	try {
+		const lastDate = getLatestAnnDate();
+		const now = new Date();
+		const today = now.toISOString().slice(0, 10).replace(/-/g, "");
+
+		const pastDate = new Date(now);
+		pastDate.setMonth(pastDate.getMonth() - 1);
+		const oneMonthAgo = pastDate.toISOString().slice(0, 10).replace(/-/g, "");
+
+		startDate = lastDate && lastDate > oneMonthAgo ? lastDate : oneMonthAgo;
+		endDate = today;
+
+		if (lastDate === today) {
+			console.log("Already synced to today.");
+			isSyncing = false;
+			return { status: "success", message: "Already up to date", startDate, endDate, totalSynced: 0 };
+		}
+
+		console.log(`Syncing from ${startDate} to ${today}`);
+
+		let offset = 0;
+		const limit = 2000;
+		let hasMore = true;
+
+		while (hasMore) {
+			// Fetch in batches
+			const data = await TushareClient.getAnnouncements(undefined, undefined, startDate, today, limit, offset);
+
+			if (data.length > 0) {
+				insertAnnouncements(data);
+				console.log(`Synced ${data.length} items.`);
+				totalSynced += data.length;
+
+				// Send progress update
+				mainWindow?.webContents.send("sync-progress", {
+					status: "syncing",
+					totalSynced,
+					currentBatchSize: data.length,
+				});
+
+				if (data.length < limit) {
+					hasMore = false;
+				} else {
+					offset += limit;
+				}
+			} else {
+				hasMore = false;
+			}
+
+			// Safety break to prevent infinite loops during dev
+			if (offset > 100000) {
+				console.warn("Sync limit reached (safety break).");
+				break;
+			}
+		}
+
+		return { status: "success", message: "Sync completed", startDate, endDate, totalSynced };
+	} catch (error: any) {
+		console.error("Sync failed:", error);
+		return { status: "failed", message: error.message || "Unknown error" };
+	} finally {
+		isSyncing = false;
+		console.log("Sync finished.");
+	}
+}
+
 function setupIPC() {
-	// 显示通知
 	ipcMain.handle("show-notification", async (_event, title: string, body: string) => {
 		if (Notification.isSupported()) {
-			new Notification({
-				title,
-				body,
-			}).show();
+			new Notification({ title, body }).show();
 		}
 	});
 
-	// 获取应用版本
 	ipcMain.handle("get-app-version", async () => {
 		return app.getVersion();
 	});
+
+	ipcMain.handle("get-announcements", async (_event, page: number, pageSize: number) => {
+		const offset = (page - 1) * pageSize;
+		const items = getAnnouncements(pageSize, offset);
+		const total = countAnnouncements();
+		console.log(`[IPC] get-announcements: page=${page}, offset=${offset}, items=${items.length}, total=${total}`);
+		return {
+			items,
+			total,
+		};
+	});
+
+	ipcMain.handle("sync-announcements", async () => {
+		return await performSync();
+	});
 }
 
-// 应用准备就绪
 app.whenReady().then(() => {
 	createWindow();
 	createTray();
 	registerShortcuts();
 	setupIPC();
 
+	// Auto sync on startup
+	performSync();
+
 	app.on("activate", () => {
-		// macOS: 点击 Dock 图标时重新创建窗口
 		if (BrowserWindow.getAllWindows().length === 0) {
 			createWindow();
 		} else {
@@ -178,20 +287,16 @@ app.whenReady().then(() => {
 	});
 });
 
-// 所有窗口关闭时退出应用（Windows & Linux）
 app.on("window-all-closed", () => {
 	if (process.platform !== "darwin") {
 		app.quit();
 	}
 });
 
-// 在应用退出前设置 isQuitting 为 true，确保窗口可以正常关闭
 app.on("before-quit", () => {
 	extendedApp.isQuitting = true;
 });
 
-// 应用退出前清理
 app.on("will-quit", () => {
-	// 注销所有快捷键
 	globalShortcut.unregisterAll();
 });
