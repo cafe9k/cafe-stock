@@ -1,11 +1,36 @@
-import { defineConfig } from "vite";
+import { defineConfig, Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import electron from "vite-plugin-electron";
 import renderer from "vite-plugin-electron-renderer";
-import { exec } from "child_process";
-import { promisify } from "util";
 
-const execAsync = promisify(exec);
+// 修复 preload.cjs 的 Rollup 插件
+function fixPreloadPlugin(): Plugin {
+	return {
+		name: "fix-preload-cjs",
+		// 在生成阶段处理输出
+		generateBundle(_options, bundle) {
+			const preloadFile = bundle["preload.cjs"];
+			if (preloadFile && preloadFile.type === "chunk") {
+				let code = preloadFile.code;
+				
+				// 移除 export default 语句
+				code = code.replace(/export\s+default\s+require_preload\(\);?/g, "");
+				code = code.replace(/export\s*\{[^}]*\};?/g, "");
+				
+				// 确保在末尾调用 require_preload()
+				if (code.includes("var require_preload =") && !code.endsWith("require_preload();\n")) {
+					code = code.trim();
+					if (!code.endsWith(";")) {
+						code += ";";
+					}
+					code += "\nrequire_preload();\n";
+				}
+				
+				preloadFile.code = code;
+			}
+		},
+	};
+}
 
 export default defineConfig({
 	plugins: [
@@ -37,28 +62,16 @@ export default defineConfig({
 				vite: {
 					build: {
 						outDir: "dist-electron",
-						lib: {
-							entry: "electron/preload.ts",
-							formats: ["cjs"],
-							fileName: () => "preload.cjs",
-						},
+						emptyOutDir: false,
 						rollupOptions: {
 							external: ["electron"],
-						},
-					},
-					plugins: [
-						{
-							name: "fix-preload-cjs",
-							closeBundle: async () => {
-								try {
-									await execAsync("node scripts/fix-preload.js");
-									console.log("✅ Fixed preload.cjs");
-								} catch (error) {
-									console.error("❌ Failed to fix preload.cjs:", error);
-								}
+							output: {
+								format: "cjs",
+								entryFileNames: "preload.cjs",
 							},
 						},
-					],
+					},
+					plugins: [fixPreloadPlugin()],
 				},
 			},
 		]),

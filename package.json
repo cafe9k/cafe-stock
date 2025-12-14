@@ -6,7 +6,6 @@
 	"type": "module",
 	"scripts": {
 		"dev": "vite",
-		"postbuild:electron": "node scripts/fix-preload.js",
 		"electron:dev": "tsc -p electron/tsconfig.json && electron .",
 		"electron:preview": "npm run build && electron .",
 		"start": "npm run dev",
