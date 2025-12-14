@@ -51,7 +51,7 @@ function createWindow() {
 
 	// 加载应用
 	if (isDev) {
-		mainWindow.loadURL("http://localhost:5173");
+		mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL || "http://localhost:5173");
 		mainWindow.webContents.openDevTools();
 	} else {
 		mainWindow.loadFile(path.join(__dirname, "../dist/index.html"));
