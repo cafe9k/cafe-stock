@@ -17,6 +17,8 @@
 	"dependencies": {
 		"better-sqlite3": "^12.5.0",
 		"clsx": "^2.1.1",
+		"electron-updater": "^6.6.2",
+		"electron-window-state": "^5.0.3",
 		"lucide-react": "^0.561.0",
 		"react": "^18.2.0",
 		"react-dom": "^18.2.0",
@@ -47,15 +49,26 @@
 	},
 	"build": {
 		"appId": "com.cafestock.app",
-		"productName": "Electron App",
+		"productName": "酷咖啡",
 		"mac": {
 			"category": "public.app-category.finance",
 			"target": [
 				"dmg",
 				"zip"
 			],
-			"icon": "build/icon.icns"
+			"icon": "build/icon.icns",
+			"hardenedRuntime": true,
+			"entitlements": "build/entitlements.mac.plist",
+			"entitlementsInherit": "build/entitlements.mac.plist",
+			"gatekeeperAssess": false
 		},
+		"publish": [
+			{
+				"provider": "github",
+				"owner": "cafe9k",
+				"repo": "cafe-stock"
+			}
+		],
 		"files": [
 			"dist/**/*",
 			"dist-electron/**/*"

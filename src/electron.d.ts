@@ -11,6 +11,17 @@ export interface ElectronAPI {
 		totalSynced?: number;
 	}>;
 	onSyncProgress: (callback: (data: { status: string; totalSynced: number; currentBatchSize: number }) => void) => () => void;
+
+	// 自动更新相关
+	checkForUpdates: () => Promise<{ available: boolean; updateInfo?: any; error?: string; message?: string }>;
+	downloadUpdate: () => Promise<{ success: boolean; error?: string }>;
+	installUpdate: () => Promise<void>;
+	onUpdateChecking: (callback: () => void) => () => void;
+	onUpdateAvailable: (callback: (info: { version: string; releaseDate: string; releaseNotes?: string }) => void) => () => void;
+	onUpdateNotAvailable: (callback: (info: any) => void) => () => void;
+	onUpdateDownloadProgress: (callback: (progress: { percent: number; transferred: number; total: number }) => void) => () => void;
+	onUpdateDownloaded: (callback: (info: { version: string }) => void) => () => void;
+	onUpdateError: (callback: (error: string) => void) => () => void;
 }
 
 declare global {

@@ -1,0 +1,8 @@
+# electron-updater 开发环境配置
+# 用于测试自动更新功能
+
+# 指向本地更新服务器或 GitHub Release
+# 在实际发布时，应该配置为真实的 GitHub 仓库
+provider=github
+owner=your-github-username
+repo=cafe-stock
