@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
-import { Download, RefreshCw, CheckCircle, AlertCircle } from "lucide-react";
+import { Button, Card, Progress, Alert, Space, Typography, Divider } from "antd";
+import { DownloadOutlined, ReloadOutlined, CheckCircleOutlined, ExclamationCircleOutlined } from "@ant-design/icons";
+
+const { Title, Text, Paragraph } = Typography;
 
 interface UpdateInfo {
 	version: string;
@@ -94,99 +97,99 @@ export function UpdateChecker() {
 	};
 
 	return (
-		<div className="p-4 space-y-4">
-			<div className="flex items-center justify-between">
-				<h3 className="text-lg font-semibold">软件更新</h3>
-				<button
-					onClick={handleCheckUpdate}
-					disabled={checking || downloading}
-					className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-				>
-					<RefreshCw className={`w-4 h-4 ${checking ? "animate-spin" : ""}`} />
-					{checking ? "检查中..." : "检查更新"}
-				</button>
-			</div>
-
-			{error && (
-				<div className="flex items-start gap-2 p-4 bg-red-50 border border-red-200 rounded-lg">
-					<AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
-					<div className="flex-1">
-						<p className="text-sm text-red-800">{error}</p>
-					</div>
-				</div>
-			)}
-
-			{updateAvailable && !downloaded && (
-				<div className="p-4 bg-blue-50 border border-blue-200 rounded-lg space-y-3">
-					<div className="flex items-start gap-2">
-						<Download className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
-						<div className="flex-1">
-							<p className="font-medium text-blue-900">发现新版本 {updateInfo?.version}</p>
-							{updateInfo?.releaseDate && (
-								<p className="text-sm text-blue-700 mt-1">发布日期: {new Date(updateInfo.releaseDate).toLocaleDateString("zh-CN")}</p>
-							)}
-							{updateInfo?.releaseNotes && (
-								<div className="mt-2 text-sm text-blue-800">
-									<p className="font-medium">更新内容:</p>
-									<div className="mt-1 whitespace-pre-wrap">{updateInfo.releaseNotes}</div>
-								</div>
-							)}
-						</div>
-					</div>
-
-					{downloading ? (
-						<div className="space-y-2">
-							<div className="flex items-center justify-between text-sm text-blue-700">
-								<span>下载中...</span>
-								<span>{downloadProgress?.percent.toFixed(1)}%</span>
-							</div>
-							<div className="w-full h-2 bg-blue-200 rounded-full overflow-hidden">
-								<div
-									className="h-full bg-blue-500 transition-all duration-300"
-									style={{ width: `${downloadProgress?.percent || 0}%` }}
-								/>
-							</div>
-							{downloadProgress && (
-								<p className="text-xs text-blue-600">
-									{(downloadProgress.transferred / 1024 / 1024).toFixed(2)} MB / {(downloadProgress.total / 1024 / 1024).toFixed(2)}{" "}
-									MB
-								</p>
-							)}
-						</div>
-					) : (
-						<button
-							onClick={handleDownload}
-							className="w-full px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-						>
-							立即下载
-						</button>
-					)}
-				</div>
-			)}
-
-			{downloaded && (
-				<div className="p-4 bg-green-50 border border-green-200 rounded-lg space-y-3">
-					<div className="flex items-start gap-2">
-						<CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
-						<div className="flex-1">
-							<p className="font-medium text-green-900">更新已下载完成</p>
-							<p className="text-sm text-green-700 mt-1">版本 {updateInfo?.version} 已准备就绪</p>
-						</div>
-					</div>
-					<button
-						onClick={handleInstall}
-						className="w-full px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+		<Card>
+			<Space vertical size="large" style={{ width: "100%" }}>
+				<div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+					<Title level={4} style={{ margin: 0 }}>
+						软件更新
+					</Title>
+					<Button
+						icon={<ReloadOutlined spin={checking} />}
+						onClick={handleCheckUpdate}
+						loading={checking}
+						disabled={downloading}
+						type="primary"
 					>
-						立即安装并重启
-					</button>
+						{checking ? "检查中..." : "检查更新"}
+					</Button>
 				</div>
-			)}
 
-			{!checking && !updateAvailable && !error && (
-				<div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
-					<p className="text-sm text-gray-600">当前已是最新版本</p>
-				</div>
-			)}
-		</div>
+				<Divider style={{ margin: 0 }} />
+
+				{error && (
+					<Alert
+						message="错误"
+						description={error}
+						type="error"
+						showIcon
+						icon={<ExclamationCircleOutlined />}
+						closable
+						onClose={() => setError(null)}
+					/>
+				)}
+
+				{updateAvailable && !downloaded && (
+					<Alert
+						message={`发现新版本 ${updateInfo?.version}`}
+						description={
+							<Space vertical size="small" style={{ width: "100%" }}>
+								{updateInfo?.releaseDate && (
+									<Text type="secondary">发布日期: {new Date(updateInfo.releaseDate).toLocaleDateString("zh-CN")}</Text>
+								)}
+								{updateInfo?.releaseNotes && (
+									<div>
+										<Text strong>更新内容:</Text>
+										<Paragraph style={{ marginTop: 8, whiteSpace: "pre-wrap" }}>{updateInfo.releaseNotes}</Paragraph>
+									</div>
+								)}
+								{downloading ? (
+									<div style={{ marginTop: 16 }}>
+										<div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+											<Text>下载中...</Text>
+											<Text strong>{downloadProgress?.percent.toFixed(1)}%</Text>
+										</div>
+										<Progress percent={downloadProgress?.percent || 0} status="active" />
+										{downloadProgress && (
+											<Text type="secondary" style={{ fontSize: 12 }}>
+												{(downloadProgress.transferred / 1024 / 1024).toFixed(2)} MB /{" "}
+												{(downloadProgress.total / 1024 / 1024).toFixed(2)} MB
+											</Text>
+										)}
+									</div>
+								) : (
+									<Button type="primary" icon={<DownloadOutlined />} onClick={handleDownload} block style={{ marginTop: 16 }}>
+										立即下载
+									</Button>
+								)}
+							</Space>
+						}
+						type="info"
+						showIcon
+						icon={<DownloadOutlined />}
+					/>
+				)}
+
+				{downloaded && (
+					<Alert
+						message="更新已下载完成"
+						description={
+							<Space vertical size="middle" style={{ width: "100%" }}>
+								<Text>版本 {updateInfo?.version} 已准备就绪</Text>
+								<Button type="primary" icon={<CheckCircleOutlined />} onClick={handleInstall} block>
+									立即安装并重启
+								</Button>
+							</Space>
+						}
+						type="success"
+						showIcon
+						icon={<CheckCircleOutlined />}
+					/>
+				)}
+
+				{!checking && !updateAvailable && !error && (
+					<Alert message="当前已是最新版本" type="success" showIcon icon={<CheckCircleOutlined />} />
+				)}
+			</Space>
+		</Card>
 	);
 }

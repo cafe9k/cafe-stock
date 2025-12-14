@@ -1,5 +1,9 @@
 import { useEffect, useState, useCallback } from "react";
-import { RefreshCw, AlertCircle, Loader2, ChevronLeft, ChevronRight, FileText } from "lucide-react";
+import { Table, Button, Card, Space, Alert, Tag, Typography, message } from "antd";
+import { ReloadOutlined, FileTextOutlined, LeftOutlined, RightOutlined, LoadingOutlined, ExclamationCircleOutlined } from "@ant-design/icons";
+import type { ColumnsType } from "antd/es/table";
+
+const { Text } = Typography;
 
 interface Announcement {
 	ts_code: string;
@@ -18,7 +22,7 @@ export function AnnouncementList() {
 	const [syncing, setSyncing] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [page, setPage] = useState(1);
-	const [total, setTotal] = useState(0); // 保留用于未来分页显示总数
+	const [total, setTotal] = useState(0);
 
 	const fetchData = useCallback(async (pageNum: number) => {
 		setLoading(true);
@@ -34,7 +38,7 @@ export function AnnouncementList() {
 			setTotal(result.total);
 		} catch (err: any) {
 			console.error("Fetch error:", err);
-			setError(err.message || "Failed to load announcements");
+			setError(err.message || "加载公告失败");
 		} finally {
 			setLoading(false);
 		}
@@ -51,7 +55,6 @@ export function AnnouncementList() {
 		if (window.electronAPI?.onSyncProgress) {
 			removeListener = window.electronAPI.onSyncProgress((data) => {
 				console.log("Sync progress:", data);
-				// You can update a state here to show progress bar if needed
 			});
 		}
 
@@ -67,10 +70,12 @@ export function AnnouncementList() {
 			}
 
 			console.log("Sync Result:", syncResult);
+			message.success(`同步成功！共同步 ${syncResult.totalSynced || 0} 条公告`);
 			setPage(1);
 			await fetchData(1);
 		} catch (err: any) {
-			setError(err.message || "Sync failed");
+			setError(err.message || "同步失败");
+			message.error(err.message || "同步失败");
 		} finally {
 			if (removeListener) {
 				removeListener();
@@ -94,130 +99,145 @@ export function AnnouncementList() {
 		}
 	};
 
-	return (
-		<div className="max-w-7xl mx-auto p-6 space-y-6">
-			{/* Header */}
-			<div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-				<button
-					onClick={handleSyncAndRefresh}
-					disabled={syncing || loading}
-					className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2"
-					title="Sync & Refresh"
-				>
-					<RefreshCw size={20} className={syncing || loading ? "animate-spin" : ""} />
-					{syncing ? <span className="text-sm">Syncing...</span> : null}
-				</button>
-			</div>
+	// 为每条记录生成唯一 key
+	const getRowKey = (record: Announcement) => {
+		// 使用多个字段组合确保唯一性
+		// 使用标题的哈希值来避免 key 过长
+		const titleHash = record.title.split("").reduce((acc, char) => {
+			return ((acc << 5) - acc + char.charCodeAt(0)) | 0;
+		}, 0);
+		return `${record.ts_code}-${record.ann_date}-${record.pub_time || titleHash}`;
+	};
 
-			{/* Content */}
-			<div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden min-h-[400px]">
-				<div className="overflow-x-auto">
-					<table className="w-full text-sm text-left">
-						<thead className="bg-gray-50 text-gray-600 font-medium border-b border-gray-200">
-							<tr>
-								<th className="py-3 px-6 w-32 whitespace-nowrap">Date</th>
-								<th className="py-3 px-6 w-32 whitespace-nowrap">Code</th>
-								<th className="py-3 px-6">Title</th>
-								<th className="py-3 px-6 w-48 whitespace-nowrap">Type</th>
-							</tr>
-						</thead>
-						<tbody className="divide-y divide-gray-100">
-							{loading ? (
-								<tr>
-									<td colSpan={4} className="py-20">
-										<div className="flex flex-col items-center justify-center gap-3 text-gray-400">
-											<Loader2 size={32} className="animate-spin text-blue-500" />
-											<span>Loading announcements...</span>
-										</div>
-									</td>
-								</tr>
-							) : error ? (
-								<tr>
-									<td colSpan={4} className="py-20">
-										<div className="flex flex-col items-center justify-center gap-2 text-red-500">
-											<AlertCircle size={32} />
-											<span>{error}</span>
-											<button
-												onClick={() => {
-													console.log("Retrying fetch...");
-													fetchData(page);
-												}}
-												className="text-blue-600 hover:underline mt-2"
-											>
-												Try Again
-											</button>
-										</div>
-									</td>
-								</tr>
-							) : announcements.length === 0 ? (
-								<tr>
-									<td colSpan={4} className="py-20 text-center text-gray-500">
-										No announcements found in this period.
-									</td>
-								</tr>
-							) : (
-								announcements.map((item, index) => (
-									<tr key={`${item.ts_code}-${index}`} className="hover:bg-gray-50 transition-colors group">
-										<td className="py-3 px-6 text-gray-500 font-mono whitespace-nowrap">{item.ann_date}</td>
-										<td className="py-3 px-6">
-											<span className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 text-xs font-medium font-mono">
-												{item.ts_code}
-											</span>
-										</td>
-										<td className="py-3 px-6">
-											<div className="flex items-start gap-3">
-												<FileText
-													size={16}
-													className="mt-0.5 text-gray-400 group-hover:text-blue-500 transition-colors flex-shrink-0"
-												/>
-												<span
-													className="font-medium text-gray-900 group-hover:text-blue-600 transition-colors cursor-pointer line-clamp-1"
-													title={item.title}
-												>
-													{item.title}
-												</span>
-											</div>
-										</td>
-										<td className="py-3 px-6 text-gray-500 whitespace-nowrap">{item.ann_type || "-"}</td>
-									</tr>
-								))
-							)}
-						</tbody>
-					</table>
+	const columns: ColumnsType<Announcement> = [
+		{
+			title: "日期",
+			dataIndex: "ann_date",
+			key: "ann_date",
+			width: 120,
+			fixed: "left",
+			render: (date: string) => (
+				<Text type="secondary" style={{ fontFamily: "monospace" }}>
+					{date}
+				</Text>
+			),
+		},
+		{
+			title: "代码",
+			dataIndex: "ts_code",
+			key: "ts_code",
+			width: 120,
+			render: (code: string) => (
+				<Tag color="blue" style={{ fontFamily: "monospace" }}>
+					{code}
+				</Tag>
+			),
+		},
+		{
+			title: "标题",
+			dataIndex: "title",
+			key: "title",
+			ellipsis: true,
+			render: (title: string) => (
+				<Space>
+					<FileTextOutlined style={{ color: "#1890ff" }} />
+					<Text strong style={{ cursor: "pointer" }} title={title}>
+						{title}
+					</Text>
+				</Space>
+			),
+		},
+		{
+			title: "类型",
+			dataIndex: "ann_type",
+			key: "ann_type",
+			width: 180,
+			render: (type: string) => <Text type="secondary">{type || "-"}</Text>,
+		},
+	];
+
+	return (
+		<div style={{ maxWidth: 1400, margin: "0 auto" }}>
+			<Space vertical size="large" style={{ width: "100%" }}>
+				{/* Header with Sync Button */}
+				<div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+					<Button
+						icon={syncing || loading ? <LoadingOutlined spin /> : <ReloadOutlined />}
+						onClick={handleSyncAndRefresh}
+						loading={syncing || loading}
+						type="default"
+					>
+						{syncing ? "同步中..." : "同步并刷新"}
+					</Button>
 				</div>
 
-				{/* Pagination */}
-				{!loading && !error && announcements.length > 0 && (
-					<div className="flex items-center justify-between px-6 py-4 border-t border-gray-200 bg-gray-50">
-						<div className="text-sm text-gray-500">
-							Showing page <span className="font-medium text-gray-900">{page}</span>
-							{total > 0 && (
-								<span className="ml-2">
-									of <span className="font-medium text-gray-900">{Math.ceil(total / PAGE_SIZE)}</span> ({total} total)
-								</span>
-							)}
-						</div>
-						<div className="flex items-center gap-2">
-							<button
-								onClick={handlePrevPage}
-								disabled={page === 1}
-								className="flex items-center gap-1 px-3 py-1.5 rounded-md bg-white border border-gray-200 text-gray-600 text-sm hover:bg-gray-50 hover:text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
-							>
-								<ChevronLeft size={16} />
-								Previous
-							</button>
-							<button
-								onClick={handleNextPage}
-								disabled={announcements.length < PAGE_SIZE}
-								className="flex items-center gap-1 px-3 py-1.5 rounded-md bg-white border border-gray-200 text-gray-600 text-sm hover:bg-gray-50 hover:text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
-							>
-								Next
-								<ChevronRight size={16} />
-							</button>
-						</div>
-					</div>
+				{/* Error Alert */}
+				{error && (
+					<Alert
+						message="错误"
+						description={error}
+						type="error"
+						showIcon
+						icon={<ExclamationCircleOutlined />}
+						closable
+						onClose={() => setError(null)}
+						action={
+							<Button size="small" danger onClick={() => fetchData(page)}>
+								重试
+							</Button>
+						}
+					/>
 				)}
-			</div>
+
+				{/* Table */}
+				<Card>
+					<Table
+						columns={columns}
+						dataSource={announcements}
+						rowKey={getRowKey}
+						loading={loading}
+						pagination={false}
+						scroll={{ x: 1000 }}
+						size="middle"
+						locale={{
+							emptyText: loading ? "加载中..." : "暂无公告数据",
+						}}
+					/>
+
+					{/* Custom Pagination */}
+					{!loading && !error && announcements.length > 0 && (
+						<div
+							style={{
+								marginTop: 16,
+								display: "flex",
+								justifyContent: "space-between",
+								alignItems: "center",
+								padding: "16px 0",
+								borderTop: "1px solid #f0f0f0",
+							}}
+						>
+							<Text type="secondary">
+								显示第 <Text strong>{page}</Text> 页
+								{total > 0 && (
+									<>
+										{" "}
+										共 <Text strong>{Math.ceil(total / PAGE_SIZE)}</Text> 页 (总计 <Text strong>{total.toLocaleString()}</Text>{" "}
+										条)
+									</>
+								)}
+							</Text>
+							<Space>
+								<Button icon={<LeftOutlined />} onClick={handlePrevPage} disabled={page === 1}>
+									上一页
+								</Button>
+								<Button onClick={handleNextPage} disabled={announcements.length < PAGE_SIZE}>
+									下一页 <RightOutlined />
+								</Button>
+							</Space>
+						</div>
+					)}
+				</Card>
+			</Space>
 		</div>
 	);
 }

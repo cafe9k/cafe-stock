@@ -1,11 +1,14 @@
 import { Outlet } from "react-router-dom";
+import { Layout as AntLayout } from "antd";
+
+const { Content } = AntLayout;
 
 export function Layout() {
 	return (
-		<div className="min-h-screen bg-gray-50">
-			<main className="p-8 h-screen overflow-y-auto">
+		<AntLayout style={{ minHeight: "100vh", background: "#f0f2f5" }}>
+			<Content style={{ padding: "32px" }}>
 				<Outlet />
-			</main>
-		</div>
+			</Content>
+		</AntLayout>
 	);
 }
