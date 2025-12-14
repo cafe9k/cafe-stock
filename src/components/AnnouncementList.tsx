@@ -275,24 +275,6 @@ export function AnnouncementList() {
 			render: (text) => <AntText strong>{text}</AntText>,
 		},
 		{
-			title: "股票代码",
-			dataIndex: "ts_code",
-			key: "ts_code",
-			width: 120,
-			fixed: "left",
-			render: (text) => (
-				<Tag color="blue" style={{ fontFamily: "monospace" }}>
-					{text}
-				</Tag>
-			),
-		},
-		{
-			title: "行业",
-			dataIndex: "industry",
-			key: "industry",
-			width: 120,
-		},
-		{
 			title: "市场",
 			dataIndex: "market",
 			key: "market",
@@ -306,6 +288,23 @@ export function AnnouncementList() {
 				};
 				return <Tag color={colorMap[text] || "default"}>{text || "-"}</Tag>;
 			},
+		},
+		{
+			title: "股票代码",
+			dataIndex: "ts_code",
+			key: "ts_code",
+			width: 120,
+			render: (text) => (
+				<Tag color="blue" style={{ fontFamily: "monospace" }}>
+					{text}
+				</Tag>
+			),
+		},
+		{
+			title: "行业",
+			dataIndex: "industry",
+			key: "industry",
+			width: 120,
 		},
 		{
 			title: "公告数量",
