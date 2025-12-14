@@ -12,11 +12,11 @@ function fixPreloadPlugin(): Plugin {
 			const preloadFile = bundle["preload.cjs"];
 			if (preloadFile && preloadFile.type === "chunk") {
 				let code = preloadFile.code;
-				
+
 				// 移除 export default 语句
 				code = code.replace(/export\s+default\s+require_preload\(\);?/g, "");
 				code = code.replace(/export\s*\{[^}]*\};?/g, "");
-				
+
 				// 确保在末尾调用 require_preload()
 				if (code.includes("var require_preload =") && !code.endsWith("require_preload();\n")) {
 					code = code.trim();
@@ -25,7 +25,7 @@ function fixPreloadPlugin(): Plugin {
 					}
 					code += "\nrequire_preload();\n";
 				}
-				
+
 				preloadFile.code = code;
 			}
 		},
