@@ -11,6 +11,10 @@ import {
 	hasDataInDateRange,
 	insertAnnouncements,
 	countAnnouncements,
+	upsertStocks,
+	getAllStocks,
+	countStocks,
+	searchStocks,
 	getAnnouncementsGroupedByStock,
 	getAnnouncementsByStock,
 	countStocksWithAnnouncements,
@@ -29,6 +33,8 @@ import {
 	getStocksWithTop10Holders,
 	countStocksWithTop10Holders,
 	deleteTop10HoldersByStock,
+	getTop10HoldersEndDates,
+	getTop10HoldersByStockAndEndDate,
 } from "./db.js";
 import { TushareClient } from "./tushare.js";
 
@@ -51,6 +57,7 @@ const extendedApp = app as typeof app & ExtendedApp;
 let isSyncing = false;
 let isLoadingHistory = false;
 let isSyncingHolders = false;
+let isPausedHolders = false;
 
 // 配置自动更新
 autoUpdater.autoDownload = false; // 不自动下载，让用户选择
@@ -746,11 +753,12 @@ function setupIPC() {
 		}
 
 		isSyncingHolders = true;
+		isPausedHolders = false;
 		console.log("[IPC] Starting sync all top10 holders...");
 
 		try {
 			// 获取所有股票
-			const stocks = getAllStocks();
+			const stocks = getAllStocks() as Array<{ ts_code: string; name: string; [key: string]: any }>;
 			const totalStocks = stocks.length;
 
 			if (totalStocks === 0) {
@@ -765,6 +773,24 @@ function setupIPC() {
 
 			// 逐个股票同步
 			for (let i = 0; i < stocks.length; i++) {
+				// 检查是否被暂停
+				while (isPausedHolders && isSyncingHolders) {
+					await new Promise((resolve) => setTimeout(resolve, 500));
+				}
+
+				// 检查是否被停止
+				if (!isSyncingHolders) {
+					console.log("[IPC] Sync stopped by user");
+					return {
+						status: "stopped",
+						message: `同步已停止。成功：${successCount}，跳过：${skipCount}，失败：${failCount}`,
+						successCount,
+						skipCount,
+						failCount,
+						totalStocks,
+					};
+				}
+
 				const stock = stocks[i];
 
 				// 检查是否已经有数据
@@ -854,7 +880,35 @@ function setupIPC() {
 			return { status: "failed", message: error.message || "同步失败" };
 		} finally {
 			isSyncingHolders = false;
+			isPausedHolders = false;
 		}
+	});
+
+	// 暂停/恢复同步
+	ipcMain.handle("toggle-pause-top10-holders-sync", async () => {
+		if (!isSyncingHolders) {
+			return { status: "failed", message: "没有正在进行的同步任务" };
+		}
+
+		isPausedHolders = !isPausedHolders;
+		const status = isPausedHolders ? "paused" : "resumed";
+		const message = isPausedHolders ? "同步已暂停" : "同步已恢复";
+		console.log(`[IPC] Sync ${status}`);
+
+		return { status, message, isPaused: isPausedHolders };
+	});
+
+	// 停止同步
+	ipcMain.handle("stop-top10-holders-sync", async () => {
+		if (!isSyncingHolders) {
+			return { status: "failed", message: "没有正在进行的同步任务" };
+		}
+
+		isSyncingHolders = false;
+		isPausedHolders = false;
+		console.log("[IPC] Sync stopped by user");
+
+		return { status: "success", message: "同步已停止" };
 	});
 
 	// 同步单个股票的十大股东数据
@@ -929,6 +983,28 @@ function setupIPC() {
 		} catch (error: any) {
 			console.error("Failed to get top10 holders sync stats:", error);
 			throw error;
+		}
+	});
+
+	// 获取股票的所有报告期
+	ipcMain.handle("get-top10-holders-end-dates", async (_event, tsCode: string) => {
+		try {
+			console.log(`[IPC] get-top10-holders-end-dates: tsCode=${tsCode}`);
+			return getTop10HoldersEndDates(tsCode);
+		} catch (error: any) {
+			console.error("Failed to get top10 holders end dates:", error);
+			return [];
+		}
+	});
+
+	// 根据报告期获取十大股东
+	ipcMain.handle("get-top10-holders-by-end-date", async (_event, tsCode: string, endDate: string) => {
+		try {
+			console.log(`[IPC] get-top10-holders-by-end-date: tsCode=${tsCode}, endDate=${endDate}`);
+			return getTop10HoldersByStockAndEndDate(tsCode, endDate);
+		} catch (error: any) {
+			console.error("Failed to get top10 holders by end date:", error);
+			return [];
 		}
 	});
 }

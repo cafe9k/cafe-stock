@@ -181,12 +181,25 @@ export interface ElectronAPI {
 
 	// 同步所有股票的十大股东
 	syncAllTop10Holders: () => Promise<{
-		status: "success" | "failed" | "skipped";
+		status: "success" | "failed" | "skipped" | "stopped";
 		message: string;
 		successCount?: number;
 		skipCount?: number;
 		failCount?: number;
 		totalStocks?: number;
+	}>;
+
+	// 暂停/恢复同步
+	togglePauseTop10HoldersSync: () => Promise<{
+		status: "paused" | "resumed" | "failed";
+		message: string;
+		isPaused?: boolean;
+	}>;
+
+	// 停止同步
+	stopTop10HoldersSync: () => Promise<{
+		status: "success" | "failed";
+		message: string;
 	}>;
 
 	// 同步单个股票的十大股东
@@ -221,6 +234,24 @@ export interface ElectronAPI {
 		syncedStockCodes: string[];
 		syncRate: string;
 	}>;
+
+	// 获取股票的所有报告期
+	getTop10HoldersEndDates: (tsCode: string) => Promise<string[]>;
+
+	// 根据报告期获取十大股东
+	getTop10HoldersByEndDate: (
+		tsCode: string,
+		endDate: string
+	) => Promise<
+		Array<{
+			ts_code: string;
+			ann_date: string;
+			end_date: string;
+			holder_name: string;
+			hold_amount: number;
+			hold_ratio: number;
+		}>
+	>;
 
 	// 监听十大股东同步进度
 	onTop10HoldersSyncProgress: (

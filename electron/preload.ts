@@ -110,6 +110,16 @@ contextBridge.exposeInMainWorld("electronAPI", {
 		return ipcRenderer.invoke("sync-all-top10-holders");
 	},
 
+	// 暂停/恢复同步
+	togglePauseTop10HoldersSync: () => {
+		return ipcRenderer.invoke("toggle-pause-top10-holders-sync");
+	},
+
+	// 停止同步
+	stopTop10HoldersSync: () => {
+		return ipcRenderer.invoke("stop-top10-holders-sync");
+	},
+
 	// 同步单个股票的十大股东
 	syncStockTop10Holders: (tsCode: string) => {
 		return ipcRenderer.invoke("sync-stock-top10-holders", tsCode);
@@ -128,6 +138,16 @@ contextBridge.exposeInMainWorld("electronAPI", {
 	// 获取同步统计信息
 	getTop10HoldersSyncStats: () => {
 		return ipcRenderer.invoke("get-top10-holders-sync-stats");
+	},
+
+	// 获取股票的所有报告期
+	getTop10HoldersEndDates: (tsCode: string) => {
+		return ipcRenderer.invoke("get-top10-holders-end-dates", tsCode);
+	},
+
+	// 根据报告期获取十大股东
+	getTop10HoldersByEndDate: (tsCode: string, endDate: string) => {
+		return ipcRenderer.invoke("get-top10-holders-by-end-date", tsCode, endDate);
 	},
 
 	// 监听十大股东同步进度

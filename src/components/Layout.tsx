@@ -14,14 +14,14 @@ const items: MenuItem[] = [
 		label: "公告列表",
 	},
 	{
-		key: "/news",
-		icon: <ReadOutlined />,
-		label: "资讯",
-	},
-	{
 		key: "/data-insights",
 		icon: <FundOutlined />,
 		label: "数据洞察",
+	},
+	{
+		key: "/news",
+		icon: <ReadOutlined />,
+		label: "资讯",
 	},
 ];
 

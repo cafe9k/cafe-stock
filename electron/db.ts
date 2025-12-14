@@ -771,6 +771,38 @@ export const getTop10HoldersByStock = (tsCode: string, limit: number = 100) => {
 };
 
 /**
+ * 获取股票的所有报告期列表
+ */
+export const getTop10HoldersEndDates = (tsCode: string): string[] => {
+	const rows = db
+		.prepare(
+			`
+    SELECT DISTINCT end_date 
+    FROM top10_holders 
+    WHERE ts_code = ?
+    ORDER BY end_date DESC
+  `
+		)
+		.all(tsCode) as Array<{ end_date: string }>;
+	return rows.map((row) => row.end_date);
+};
+
+/**
+ * 根据报告期获取十大股东
+ */
+export const getTop10HoldersByStockAndEndDate = (tsCode: string, endDate: string) => {
+	return db
+		.prepare(
+			`
+    SELECT * FROM top10_holders 
+    WHERE ts_code = ? AND end_date = ?
+    ORDER BY hold_ratio DESC
+  `
+		)
+		.all(tsCode, endDate);
+};
+
+/**
  * 检查股票是否已有十大股东数据
  */
 export const hasTop10HoldersData = (tsCode: string): boolean => {

@@ -1,0 +1,142 @@
+# 开发环境启动规范
+
+## 启动命令
+
+开发时仅使用以下命令：
+
+```bash
+npm run dev
+```
+
+## 自动完成的步骤
+
+该命令会通过 `vite-plugin-electron` 自动完成：
+
+1. **启动 Vite 开发服务器**
+   - 端口: 5173
+   - 功能: 前端热重载
+
+2. **编译 TypeScript**
+   - 监听 `electron/` 目录
+   - 自动编译到 `dist-electron/`
+
+3. **启动 Electron 应用**
+   - 自动启动主进程
+   - 自动打开 DevTools
+
+4. **监听文件变化**
+   - 前端代码变化: 页面自动刷新
+   - Electron 代码变化: 应用自动重启
+
+## 热重载机制
+
+### 前端 (src/)
+- 修改后立即生效
+- 页面自动刷新
+- 无需重启应用
+
+### Electron 主进程 (electron/main.ts)
+- 自动重新编译
+- 自动重启 Electron
+- 保持窗口状态
+
+### 预加载脚本 (electron/preload.ts)
+- 自动重新编译
+- 自动重新加载页面
+
+### 数据库模块 (electron/db.ts)
+- 自动重新编译
+- 自动重启 Electron
+
+## 注意事项
+
+### 不需要的操作
+- ❌ 不需要单独运行 `npm run electron:dev`
+- ❌ 不需要手动启动 Vite
+- ❌ 不需要手动重启 Electron（文件变化时）
+- ❌ 不需要手动刷新页面（前端变化时）
+
+### 需要手动操作的情况
+- 修改 `package.json` 依赖后需重新运行
+- 修改 `vite.config.ts` 后需重新运行
+- 遇到端口占用需要清理进程
+
+## 常见问题处理
+
+### 端口被占用
+```bash
+# 清理 5173 端口
+lsof -ti:5173 | xargs kill -9
+
+# 重新启动
+npm run dev
+```
+
+### Electron 进程未关闭
+```bash
+# 清理所有 Electron 进程
+killall -9 Electron
+
+# 重新启动
+npm run dev
+```
+
+### 编译错误
+```bash
+# 清理编译产物
+rm -rf dist-electron dist
+
+# 重新启动
+npm run dev
+```
+
+### 数据库锁定
+```bash
+# 关闭所有实例
+killall -9 Electron
+
+# 清理数据库临时文件
+rm -f ~/Library/Application\ Support/cafe-stock/*.db-wal
+rm -f ~/Library/Application\ Support/cafe-stock/*.db-shm
+
+# 重新启动
+npm run dev
+```
+
+## 停止应用
+
+### 正常退出
+- macOS: `Cmd + Q`
+- 窗口关闭按钮
+
+### 强制退出
+```bash
+# 终端按 Ctrl + C
+# 或
+killall -9 Electron
+```
+
+## 开发建议
+
+1. **始终使用 `npm run dev`**
+   - 集成了所有必要的启动步骤
+   - 提供最佳的开发体验
+
+2. **观察终端日志**
+   - 主进程日志在终端显示
+   - 渲染进程日志在 DevTools Console
+
+3. **善用 DevTools**
+   - 应用启动时自动打开
+   - 可用于调试和性能分析
+
+4. **文件修改策略**
+   - 前端代码: 随意修改，即时生效
+   - Electron 代码: 修改后等待自动重启
+   - 配置文件: 修改后需手动重启
+
+## 相关配置
+
+- `vite.config.ts`: Vite 和 Electron 集成配置
+- `electron/tsconfig.json`: Electron TypeScript 配置
+- `package.json`: 脚本命令定义
