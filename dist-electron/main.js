@@ -15,7 +15,7 @@ function createWindow() {
     minHeight: 600,
     title: "股神助手",
     webPreferences: {
-      preload: path.join(__dirname$1, "preload.js"),
+      preload: path.join(__dirname$1, "preload.cjs"),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false,
