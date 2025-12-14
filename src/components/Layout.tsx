@@ -1,12 +1,47 @@
-import { Outlet } from "react-router-dom";
-import { Layout as AntLayout } from "antd";
+import { Outlet, useNavigate, useLocation } from "react-router-dom";
+import { Layout as AntLayout, Menu } from "antd";
+import { StockOutlined, NotificationOutlined } from "@ant-design/icons";
+import type { MenuProps } from "antd";
 
-const { Content } = AntLayout;
+const { Header, Content } = AntLayout;
+
+type MenuItem = Required<MenuProps>["items"][number];
+
+const items: MenuItem[] = [
+	{
+		key: "/stocks",
+		icon: <StockOutlined />,
+		label: "股票列表",
+	},
+	{
+		key: "/announcements",
+		icon: <NotificationOutlined />,
+		label: "公告列表",
+	},
+];
 
 export function Layout() {
+	const navigate = useNavigate();
+	const location = useLocation();
+
+	const handleMenuClick: MenuProps["onClick"] = (e) => {
+		navigate(e.key);
+	};
+
 	return (
-		<AntLayout style={{ minHeight: "100vh", background: "#f0f2f5" }}>
-			<Content style={{ padding: "32px" }}>
+		<AntLayout style={{ minHeight: "100vh" }}>
+			<Header style={{ display: "flex", alignItems: "center", background: "#001529" }}>
+				<div style={{ color: "white", fontSize: "20px", fontWeight: "bold", marginRight: "40px" }}>酷咖啡</div>
+				<Menu
+					theme="dark"
+					mode="horizontal"
+					selectedKeys={[location.pathname]}
+					items={items}
+					onClick={handleMenuClick}
+					style={{ flex: 1, minWidth: 0 }}
+				/>
+			</Header>
+			<Content style={{ background: "#f0f2f5" }}>
 				<Outlet />
 			</Content>
 		</AntLayout>

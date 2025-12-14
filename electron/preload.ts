@@ -37,6 +37,33 @@ contextBridge.exposeInMainWorld("electronAPI", {
 		return () => ipcRenderer.removeListener("data-updated", subscription);
 	},
 
+	// 股票相关
+	syncStockList: () => {
+		return ipcRenderer.invoke("sync-stock-list");
+	},
+
+	getAllStocks: () => {
+		return ipcRenderer.invoke("get-all-stocks");
+	},
+
+	countStocks: () => {
+		return ipcRenderer.invoke("count-stocks");
+	},
+
+	searchStocks: (keyword: string, limit?: number) => {
+		return ipcRenderer.invoke("search-stocks", keyword, limit);
+	},
+
+	getStockSyncStatus: () => {
+		return ipcRenderer.invoke("get-stock-sync-status");
+	},
+
+	onStocksUpdated: (callback: (data: any) => void) => {
+		const subscription = (_event: any, data: any) => callback(data);
+		ipcRenderer.on("stocks-updated", subscription);
+		return () => ipcRenderer.removeListener("stocks-updated", subscription);
+	},
+
 	// 自动更新相关
 	checkForUpdates: () => {
 		return ipcRenderer.invoke("check-for-updates");

@@ -19,6 +19,37 @@ db.exec(`
   );
 
   CREATE INDEX IF NOT EXISTS idx_ann_date_pub_time ON announcements (ann_date DESC, pub_time DESC);
+
+  CREATE TABLE IF NOT EXISTS stocks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ts_code TEXT NOT NULL UNIQUE,
+    symbol TEXT,
+    name TEXT,
+    area TEXT,
+    industry TEXT,
+    fullname TEXT,
+    enname TEXT,
+    cnspell TEXT,
+    market TEXT,
+    exchange TEXT,
+    curr_type TEXT,
+    list_status TEXT,
+    list_date TEXT,
+    delist_date TEXT,
+    is_hs TEXT,
+    updated_at TEXT NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_stock_name ON stocks (name);
+  CREATE INDEX IF NOT EXISTS idx_stock_industry ON stocks (industry);
+  CREATE INDEX IF NOT EXISTS idx_stock_list_status ON stocks (list_status);
+
+  CREATE TABLE IF NOT EXISTS sync_flags (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    sync_type TEXT NOT NULL UNIQUE,
+    last_sync_date TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
 `);
 
 export const insertAnnouncements = (items: any[]) => {
@@ -80,6 +111,142 @@ export const getAnnouncements = (limit: number, offset: number) => {
 export const countAnnouncements = () => {
 	const row = db.prepare("SELECT COUNT(*) as count FROM announcements").get() as { count: number };
 	return row.count;
+};
+
+// ============= 股票数据相关操作 =============
+
+/**
+ * 批量插入或更新股票数据
+ */
+export const upsertStocks = (items: any[]) => {
+	const now = new Date().toISOString();
+	const upsert = db.prepare(`
+    INSERT INTO stocks (
+      ts_code, symbol, name, area, industry, fullname, enname, cnspell,
+      market, exchange, curr_type, list_status, list_date, delist_date, is_hs, updated_at
+    )
+    VALUES (
+      @ts_code, @symbol, @name, @area, @industry, @fullname, @enname, @cnspell,
+      @market, @exchange, @curr_type, @list_status, @list_date, @delist_date, @is_hs, @updated_at
+    )
+    ON CONFLICT(ts_code) DO UPDATE SET
+      symbol = excluded.symbol,
+      name = excluded.name,
+      area = excluded.area,
+      industry = excluded.industry,
+      fullname = excluded.fullname,
+      enname = excluded.enname,
+      cnspell = excluded.cnspell,
+      market = excluded.market,
+      exchange = excluded.exchange,
+      curr_type = excluded.curr_type,
+      list_status = excluded.list_status,
+      list_date = excluded.list_date,
+      delist_date = excluded.delist_date,
+      is_hs = excluded.is_hs,
+      updated_at = excluded.updated_at
+  `);
+
+	const upsertMany = db.transaction((stocks) => {
+		for (const stock of stocks) {
+			upsert.run({
+				ts_code: stock.ts_code || null,
+				symbol: stock.symbol || null,
+				name: stock.name || null,
+				area: stock.area || null,
+				industry: stock.industry || null,
+				fullname: stock.fullname || null,
+				enname: stock.enname || null,
+				cnspell: stock.cnspell || null,
+				market: stock.market || null,
+				exchange: stock.exchange || null,
+				curr_type: stock.curr_type || null,
+				list_status: stock.list_status || null,
+				list_date: stock.list_date || null,
+				delist_date: stock.delist_date || null,
+				is_hs: stock.is_hs || null,
+				updated_at: now,
+			});
+		}
+	});
+
+	upsertMany(items);
+};
+
+/**
+ * 获取所有股票列表
+ */
+export const getAllStocks = () => {
+	return db.prepare("SELECT * FROM stocks ORDER BY ts_code").all();
+};
+
+/**
+ * 统计股票数量
+ */
+export const countStocks = () => {
+	const row = db.prepare("SELECT COUNT(*) as count FROM stocks").get() as { count: number };
+	return row.count;
+};
+
+/**
+ * 根据关键词搜索股票（名称、代码、拼音）
+ */
+export const searchStocks = (keyword: string, limit: number = 50) => {
+	const likePattern = `%${keyword}%`;
+	return db
+		.prepare(
+			`
+    SELECT * FROM stocks 
+    WHERE name LIKE ? OR ts_code LIKE ? OR symbol LIKE ? OR cnspell LIKE ?
+    ORDER BY 
+      CASE 
+        WHEN ts_code = ? THEN 1
+        WHEN symbol = ? THEN 2
+        WHEN name = ? THEN 3
+        ELSE 4
+      END,
+      ts_code
+    LIMIT ?
+  `
+		)
+		.all(likePattern, likePattern, likePattern, likePattern, keyword, keyword, keyword, limit);
+};
+
+// ============= 同步标志位相关操作 =============
+
+/**
+ * 获取上次同步日期
+ */
+export const getLastSyncDate = (syncType: string): string | null => {
+	const row = db.prepare("SELECT last_sync_date FROM sync_flags WHERE sync_type = ?").get(syncType) as { last_sync_date: string } | undefined;
+	return row?.last_sync_date || null;
+};
+
+/**
+ * 更新同步标志位
+ */
+export const updateSyncFlag = (syncType: string, syncDate: string) => {
+	const now = new Date().toISOString();
+	db.prepare(
+		`
+    INSERT INTO sync_flags (sync_type, last_sync_date, updated_at)
+    VALUES (?, ?, ?)
+    ON CONFLICT(sync_type) DO UPDATE SET
+      last_sync_date = excluded.last_sync_date,
+      updated_at = excluded.updated_at
+  `
+	).run(syncType, syncDate, now);
+};
+
+/**
+ * 检查今天是否已同步
+ */
+export const isSyncedToday = (syncType: string): boolean => {
+	const lastSync = getLastSyncDate(syncType);
+	if (!lastSync) return false;
+
+	const today = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+	return lastSync === today;
 };
 
 export default db;

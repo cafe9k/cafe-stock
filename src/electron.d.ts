@@ -19,6 +19,23 @@ export interface ElectronAPI {
 		callback: (data: { type: "incremental" | "historical"; totalSynced?: number; totalLoaded?: number; currentBatchSize: number }) => void
 	) => () => void;
 
+	// 股票相关
+	syncStockList: () => Promise<{
+		status: "success" | "failed" | "skipped";
+		message: string;
+		totalSynced?: number;
+		totalInDB?: number;
+	}>;
+	getAllStocks: () => Promise<any[]>;
+	countStocks: () => Promise<number>;
+	searchStocks: (keyword: string, limit?: number) => Promise<any[]>;
+	getStockSyncStatus: () => Promise<{
+		lastSync: string | null;
+		syncedToday: boolean;
+		totalStocks: number;
+	}>;
+	onStocksUpdated: (callback: (data: { totalSynced: number; totalInDB: number }) => void) => () => void;
+
 	// 自动更新相关
 	checkForUpdates: () => Promise<{ available: boolean; updateInfo?: any; error?: string; message?: string }>;
 	downloadUpdate: () => Promise<{ success: boolean; error?: string }>;

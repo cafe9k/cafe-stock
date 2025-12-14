@@ -104,4 +104,61 @@ export class TushareClient {
 			offset,
 		});
 	}
+
+	/**
+	 * 获取A股股票列表
+	 * 文档: https://tushare.pro/document/2?doc_id=25
+	 * 接口：stock_basic
+	 * 描述：获取基础信息数据，包括股票代码、名称、上市日期、退市日期等
+	 * 限量：单次最大5000条
+	 * 权限：用户需要至少120积分才可以调取
+	 *
+	 * 输入参数：
+	 * ts_code: str, 股票代码
+	 * name: str, 股票名称
+	 * exchange: str, 交易所 SSE上交所 SZSE深交所 BSE北交所
+	 * market: str, 市场类别 主板 创业板 科创板 CDR
+	 * is_hs: str, 是否沪深港通标的，N否 H沪股通 S深股通
+	 * list_status: str, 上市状态 L上市 D退市 P暂停上市，默认L
+	 * limit: int, 单次返回数据长度
+	 * offset: int, 开始行数
+	 *
+	 * 输出参数：
+	 * ts_code: str, TS代码
+	 * symbol: str, 股票代码
+	 * name: str, 股票名称
+	 * area: str, 地域
+	 * industry: str, 所属行业
+	 * fullname: str, 股票全称
+	 * enname: str, 英文全称
+	 * cnspell: str, 拼音缩写
+	 * market: str, 市场类型（主板/创业板/科创板/CDR）
+	 * exchange: str, 交易所代码
+	 * curr_type: str, 交易货币
+	 * list_status: str, 上市状态 L上市 D退市 P暂停上市
+	 * list_date: str, 上市日期
+	 * delist_date: str, 退市日期
+	 * is_hs: str, 是否沪深港通标的，N否 H沪股通 S深股通
+	 */
+	static async getStockList(
+		tsCode?: string,
+		name?: string,
+		exchange?: string,
+		market?: string,
+		isHs?: string,
+		listStatus: string = "L",
+		limit: number = 5000,
+		offset: number = 0
+	) {
+		return this.request("stock_basic", {
+			ts_code: tsCode,
+			name,
+			exchange,
+			market,
+			is_hs: isHs,
+			list_status: listStatus,
+			limit,
+			offset,
+		});
+	}
 }

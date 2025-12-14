@@ -1,9 +1,10 @@
 import { useEffect, useState, useCallback, useRef } from "react";
-import { Table, Card, Tag, Typography, message, Badge } from "antd";
-import { FileTextOutlined, SyncOutlined } from "@ant-design/icons";
+import { Table, Card, Tag, Typography, message, Badge, Space, Button, Input, Row, Col, Statistic } from "antd";
+import { FileTextOutlined, SyncOutlined, ReloadOutlined, SearchOutlined, HistoryOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 
-const { Text } = Typography;
+const { Text, Title } = Typography;
+const { Search } = Input;
 
 interface Announcement {
 	ts_code: string;
@@ -18,11 +19,13 @@ const PAGE_SIZE = 200;
 
 export function AnnouncementList() {
 	const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+	const [filteredAnnouncements, setFilteredAnnouncements] = useState<Announcement[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [page, setPage] = useState(1);
 	const [total, setTotal] = useState(0);
 	const [syncing, setSyncing] = useState(false);
 	const [loadingHistory, setLoadingHistory] = useState(false);
+	const [searchKeyword, setSearchKeyword] = useState("");
 	const hasTriggeredHistoryLoad = useRef(false);
 
 	// 为每条记录生成唯一 key
@@ -45,6 +48,7 @@ export function AnnouncementList() {
 
 				const result = await window.electronAPI.getAnnouncements(pageNum, PAGE_SIZE);
 				setAnnouncements(result.items as Announcement[]);
+				setFilteredAnnouncements(result.items as Announcement[]);
 				setTotal(result.total);
 
 				// 如果建议加载历史数据且还没触发过
@@ -77,6 +81,62 @@ export function AnnouncementList() {
 			setLoadingHistory(false);
 			hasTriggeredHistoryLoad.current = false; // 重置标记，允许下次触发
 		}
+	};
+
+	// 手动触发增量同步
+	const handleSync = async () => {
+		setSyncing(true);
+		try {
+			const result = await window.electronAPI.triggerIncrementalSync();
+
+			if (result.status === "success") {
+				message.success(`同步成功！共同步 ${result.totalSynced || 0} 条公告`);
+				// 如果在第一页，刷新数据
+				if (page === 1) {
+					await fetchData(1);
+				}
+			} else if (result.status === "skipped") {
+				message.info(result.message);
+			} else {
+				message.error(`同步失败：${result.message}`);
+			}
+		} catch (error: any) {
+			console.error("Sync failed:", error);
+			message.error(`同步失败：${error.message || "未知错误"}`);
+		} finally {
+			setSyncing(false);
+		}
+	};
+
+	// 手动加载历史数据
+	const handleLoadHistory = async () => {
+		await triggerHistoryLoad();
+	};
+
+	// 搜索功能
+	const handleSearch = (value: string) => {
+		setSearchKeyword(value);
+
+		if (!value.trim()) {
+			setFilteredAnnouncements(announcements);
+			return;
+		}
+
+		const keyword = value.toLowerCase();
+		const filtered = announcements.filter(
+			(ann) =>
+				ann.title?.toLowerCase().includes(keyword) ||
+				ann.ts_code?.toLowerCase().includes(keyword) ||
+				ann.ann_type?.toLowerCase().includes(keyword) ||
+				ann.content?.toLowerCase().includes(keyword)
+		);
+
+		setFilteredAnnouncements(filtered);
+	};
+
+	// 刷新当前页
+	const handleRefresh = () => {
+		fetchData(page);
 	};
 
 	useEffect(() => {
@@ -112,13 +172,22 @@ export function AnnouncementList() {
 		}
 	}, [syncing]);
 
+	// 当搜索关键词变化时重新过滤
+	useEffect(() => {
+		handleSearch(searchKeyword);
+	}, [announcements]);
+
 	const handlePrevPage = () => {
-		if (page > 1) setPage((p) => p - 1);
+		if (page > 1) {
+			setPage((p) => p - 1);
+			setSearchKeyword(""); // 切页时清空搜索
+		}
 	};
 
 	const handleNextPage = () => {
 		if (announcements.length === PAGE_SIZE) {
 			setPage((p) => p + 1);
+			setSearchKeyword(""); // 切页时清空搜索
 		}
 	};
 
@@ -129,9 +198,16 @@ export function AnnouncementList() {
 			key: "ann_date",
 			width: 120,
 			fixed: "left",
-			render: (date: string) => (
-				<Text type="secondary" style={{ fontFamily: "monospace" }}>
-					{date}
+			render: (date: string) => <Text style={{ fontFamily: "monospace" }}>{date}</Text>,
+		},
+		{
+			title: "时间",
+			dataIndex: "pub_time",
+			key: "pub_time",
+			width: 100,
+			render: (time: string) => (
+				<Text type="secondary" style={{ fontFamily: "monospace", fontSize: 12 }}>
+					{time || "-"}
 				</Text>
 			),
 		},
@@ -147,31 +223,7 @@ export function AnnouncementList() {
 			),
 		},
 		{
-			title: (
-				<div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-					<span>标题</span>
-					{syncing && (
-						<Badge
-							status="processing"
-							text={
-								<Text type="secondary" style={{ fontSize: 12 }}>
-									同步中...
-								</Text>
-							}
-						/>
-					)}
-					{loadingHistory && (
-						<Badge
-							status="processing"
-							text={
-								<Text type="secondary" style={{ fontSize: 12 }}>
-									<SyncOutlined spin /> 加载历史数据...
-								</Text>
-							}
-						/>
-					)}
-				</div>
-			),
+			title: "标题",
 			dataIndex: "title",
 			key: "title",
 			ellipsis: true,
@@ -194,18 +246,108 @@ export function AnnouncementList() {
 	];
 
 	return (
-		<div style={{ maxWidth: 1400, margin: "0 auto" }}>
+		<div style={{ padding: "24px" }}>
+			<Title level={2}>公告列表</Title>
+
+			{/* 统计信息 */}
+			<Row gutter={16} style={{ marginBottom: 24 }}>
+				<Col span={6}>
+					<Card>
+						<Statistic title="公告总数" value={total} suffix="条" valueStyle={{ color: "#3f8600" }} loading={loading} />
+					</Card>
+				</Col>
+				<Col span={6}>
+					<Card>
+						<Statistic title="当前页数" value={page} suffix={`/ ${Math.ceil(total / PAGE_SIZE)}`} valueStyle={{ fontSize: 20 }} />
+					</Card>
+				</Col>
+				<Col span={6}>
+					<Card>
+						<Statistic
+							title="同步状态"
+							value={syncing ? "同步中" : loadingHistory ? "加载历史" : "正常"}
+							valueStyle={{
+								color: syncing || loadingHistory ? "#1890ff" : "#3f8600",
+								fontSize: 20,
+							}}
+						/>
+					</Card>
+				</Col>
+				<Col span={6}>
+					<Card>
+						<Statistic
+							title="显示结果"
+							value={filteredAnnouncements.length}
+							suffix={`/ ${announcements.length}`}
+							valueStyle={{ fontSize: 20 }}
+						/>
+					</Card>
+				</Col>
+			</Row>
+
+			{/* 操作栏 */}
+			<Space style={{ marginBottom: 16, width: "100%" }}>
+				<Search
+					placeholder="搜索标题、代码、类型或内容"
+					allowClear
+					enterButton={<SearchOutlined />}
+					onSearch={handleSearch}
+					onChange={(e) => handleSearch(e.target.value)}
+					style={{ width: 400 }}
+					value={searchKeyword}
+				/>
+
+				<Button type="primary" icon={<SyncOutlined spin={syncing} />} onClick={handleSync} loading={syncing} disabled={loadingHistory}>
+					增量同步
+				</Button>
+
+				<Button icon={<HistoryOutlined spin={loadingHistory} />} onClick={handleLoadHistory} loading={loadingHistory} disabled={syncing}>
+					加载历史
+				</Button>
+
+				<Button icon={<ReloadOutlined />} onClick={handleRefresh} loading={loading} disabled={syncing || loadingHistory}>
+					刷新
+				</Button>
+			</Space>
+
+			{/* 同步状态提示 */}
+			{(syncing || loadingHistory) && (
+				<div style={{ marginBottom: 16 }}>
+					{syncing && (
+						<Badge
+							status="processing"
+							text={
+								<Text type="secondary">
+									<SyncOutlined spin /> 正在同步最新公告...
+								</Text>
+							}
+						/>
+					)}
+					{loadingHistory && (
+						<Badge
+							status="processing"
+							text={
+								<Text type="secondary">
+									<HistoryOutlined spin /> 正在加载历史数据...
+								</Text>
+							}
+						/>
+					)}
+				</div>
+			)}
+
+			{/* 公告表格 */}
 			<Card>
 				<Table
 					columns={columns}
-					dataSource={announcements}
+					dataSource={filteredAnnouncements}
 					rowKey={getRowKey}
 					loading={loading}
 					pagination={false}
-					scroll={{ x: 1000 }}
-					size="middle"
+					scroll={{ x: 1000, y: "calc(100vh - 520px)" }}
+					size="small"
 					locale={{
-						emptyText: loading ? "加载中..." : "暂无公告数据",
+						emptyText: loading ? "加载中..." : searchKeyword ? "没有找到匹配的公告" : "暂无公告数据",
 					}}
 				/>
 
@@ -231,34 +373,12 @@ export function AnnouncementList() {
 							)}
 						</Text>
 						<div style={{ display: "flex", gap: 8 }}>
-							<button
-								onClick={handlePrevPage}
-								disabled={page === 1}
-								style={{
-									padding: "4px 15px",
-									border: "1px solid #d9d9d9",
-									borderRadius: 6,
-									background: page === 1 ? "#f5f5f5" : "#fff",
-									cursor: page === 1 ? "not-allowed" : "pointer",
-									opacity: page === 1 ? 0.6 : 1,
-								}}
-							>
+							<Button onClick={handlePrevPage} disabled={page === 1}>
 								上一页
-							</button>
-							<button
-								onClick={handleNextPage}
-								disabled={announcements.length < PAGE_SIZE}
-								style={{
-									padding: "4px 15px",
-									border: "1px solid #d9d9d9",
-									borderRadius: 6,
-									background: announcements.length < PAGE_SIZE ? "#f5f5f5" : "#fff",
-									cursor: announcements.length < PAGE_SIZE ? "not-allowed" : "pointer",
-									opacity: announcements.length < PAGE_SIZE ? 0.6 : 1,
-								}}
-							>
+							</Button>
+							<Button onClick={handleNextPage} disabled={announcements.length < PAGE_SIZE}>
 								下一页
-							</button>
+							</Button>
 						</div>
 					</div>
 				)}
