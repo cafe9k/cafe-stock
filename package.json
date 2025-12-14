@@ -21,10 +21,8 @@
 		"clsx": "^2.1.1",
 		"electron-updater": "^6.6.2",
 		"electron-window-state": "^5.0.3",
-		"pdfjs-dist": "^4.4.168",
 		"react": "^18.2.0",
 		"react-dom": "^18.2.0",
-		"react-pdf": "^9.1.1",
 		"react-router-dom": "^7.10.1",
 		"tailwind-merge": "^3.4.0"
 	},
