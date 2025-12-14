@@ -13,7 +13,7 @@ function createWindow() {
     height: 800,
     minWidth: 800,
     minHeight: 600,
-    title: "Electron App",
+    title: "股神助手",
     webPreferences: {
       preload: path.join(__dirname$1, "preload.js"),
       contextIsolation: true,
@@ -29,7 +29,7 @@ function createWindow() {
     mainWindow == null ? void 0 : mainWindow.show();
     if (Notification.isSupported()) {
       new Notification({
-        title: "Electron App",
+        title: "股神助手",
         body: "应用已启动，准备好为您服务！"
       }).show();
     }
@@ -63,7 +63,7 @@ function createTray() {
     trayIcon = nativeImage.createEmpty();
   }
   tray = new Tray(trayIcon);
-  tray.setToolTip("Electron App");
+  tray.setToolTip("股神助手");
   const contextMenu = Menu.buildFromTemplate([
     {
       label: "显示窗口",
@@ -77,7 +77,7 @@ function createTray() {
       click: () => {
         if (Notification.isSupported()) {
           new Notification({
-            title: "Electron App",
+            title: "股神助手",
             body: `版本: ${app.getVersion()}
 基于 Electron + React`
           }).show();
@@ -141,6 +141,9 @@ app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
     app.quit();
   }
+});
+app.on("before-quit", () => {
+  extendedApp.isQuitting = true;
 });
 app.on("will-quit", () => {
   globalShortcut.unregisterAll();

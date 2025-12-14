@@ -27,13 +27,33 @@ function App() {
 		}
 	};
 
+	const testAnnouncements = async () => {
+		setLoading(true);
+		setError("");
+		setStockData([]); // Clear previous data
+		try {
+			// 获取茅台(600519.SH) 2023年上半年的公告，取前5条
+			const data = await TushareClient.getAnnouncements("600519.SH", undefined, "20230101", "20230601");
+			// 只展示前5条
+			setStockData(data.slice(0, 5));
+		} catch (err: any) {
+			setError(err.message || "Request failed");
+			console.error(err);
+		} finally {
+			setLoading(false);
+		}
+	};
+
 	return (
 		<div className="container">
-			<h1>Electron Shell</h1>
+			<h1>股神助手</h1>
 			<div className="card">
 				<button onClick={() => setCount((count) => count + 1)}>count is {count}</button>
 				<button onClick={testTushare} disabled={loading} style={{ marginLeft: "10px" }}>
-					{loading ? "Testing..." : "Test Tushare Connection"}
+					{loading ? "Testing..." : "Test Stock List"}
+				</button>
+				<button onClick={testAnnouncements} disabled={loading} style={{ marginLeft: "10px" }}>
+					{loading ? "Testing..." : "Test Announcements"}
 				</button>
 				<p>
 					Edit <code>src/App.tsx</code> and save to test HMR

@@ -24,7 +24,7 @@ function createWindow() {
 		height: 800,
 		minWidth: 800,
 		minHeight: 600,
-		title: "Electron App",
+		title: "股神助手",
 		webPreferences: {
 			preload: path.join(__dirname, "preload.js"),
 			contextIsolation: true,
@@ -43,7 +43,7 @@ function createWindow() {
 		// 显示启动通知
 		if (Notification.isSupported()) {
 			new Notification({
-				title: "Electron App",
+				title: "股神助手",
 				body: "应用已启动，准备好为您服务！",
 			}).show();
 		}
@@ -88,7 +88,7 @@ function createTray() {
 	}
 
 	tray = new Tray(trayIcon);
-	tray.setToolTip("Electron App");
+	tray.setToolTip("股神助手");
 
 	const contextMenu = Menu.buildFromTemplate([
 		{
@@ -103,7 +103,7 @@ function createTray() {
 			click: () => {
 				if (Notification.isSupported()) {
 					new Notification({
-						title: "Electron App",
+						title: "股神助手",
 						body: `版本: ${app.getVersion()}\n基于 Electron + React`,
 					}).show();
 				}
@@ -183,6 +183,11 @@ app.on("window-all-closed", () => {
 	if (process.platform !== "darwin") {
 		app.quit();
 	}
+});
+
+// 在应用退出前设置 isQuitting 为 true，确保窗口可以正常关闭
+app.on("before-quit", () => {
+	extendedApp.isQuitting = true;
 });
 
 // 应用退出前清理

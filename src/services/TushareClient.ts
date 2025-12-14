@@ -98,4 +98,17 @@ export class TushareClient {
 			end_date: endDate,
 		});
 	}
+
+	/**
+	 * 获取全量公告数据
+	 * 文档: https://tushare.pro/document/2?doc_id=176
+	 */
+	static async getAnnouncements(tsCode?: string, annDate?: string, startDate?: string, endDate?: string) {
+		return this.request("anns_d", {
+			ts_code: tsCode,
+			ann_date: annDate,
+			start_date: startDate,
+			end_date: endDate,
+		});
+	}
 }
