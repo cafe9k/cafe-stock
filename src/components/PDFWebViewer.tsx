@@ -90,7 +90,7 @@ export function PDFWebViewer({ open, onClose, pdfUrl, title = "PDF 预览" }: PD
 						<Button icon={<DownloadOutlined />} onClick={handleDownload} type="primary">
 							下载
 						</Button>
-						{window.electronAPI?.openExternal && <Button onClick={handleOpenInBrowser}>在浏览器中打开</Button>}
+						{typeof window.electronAPI?.openExternal === 'function' && <Button onClick={handleOpenInBrowser}>在浏览器中打开</Button>}
 					</Space>
 				</div>
 
@@ -110,8 +110,8 @@ export function PDFWebViewer({ open, onClose, pdfUrl, title = "PDF 预览" }: PD
 							height: "100%",
 							border: "none",
 						}}
-						allowpopups="true"
-						plugins="true"
+						allowpopups={true as any}
+						plugins={true as any}
 					/>
 				</div>
 			</div>

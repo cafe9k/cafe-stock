@@ -8,8 +8,8 @@ const db = new Database(dbPath);
 // 运行数据库迁移
 function runMigrations() {
 	// 检查 announcements 表是否有 file_path 列
-	const tableInfo = db.pragma("table_info(announcements)");
-	const hasFilePath = tableInfo.some((col: any) => col.name === "file_path");
+	const tableInfo = db.pragma("table_info(announcements)") as Array<{ name: string }>;
+	const hasFilePath = tableInfo.some((col) => col.name === "file_path");
 
 	if (!hasFilePath) {
 		console.log("Running migration: Adding file_path column to announcements table");
