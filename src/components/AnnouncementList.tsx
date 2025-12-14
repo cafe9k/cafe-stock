@@ -267,13 +267,32 @@ export function AnnouncementList() {
 
 	// 初始加载数据
 	useEffect(() => {
-		if (searchKeyword) {
-			handleSearch(searchKeyword);
-		} else {
-			fetchGroupedData(page);
-		}
+		const loadData = async () => {
+			if (searchKeyword) {
+				setLoading(true);
+				try {
+					const result = await window.electronAPI.searchAnnouncementsGrouped(
+						searchKeyword,
+						page,
+						PAGE_SIZE,
+						dateRange?.[0],
+						dateRange?.[1]
+					);
+					setStockGroups(result.items);
+					setTotal(result.total);
+				} catch (err: any) {
+					console.error("Search error:", err);
+					message.error("搜索失败");
+				} finally {
+					setLoading(false);
+				}
+			} else {
+				fetchGroupedData(page);
+			}
+		};
+		loadData();
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [page, dateRange]);
+	}, [page, dateRange, searchKeyword]);
 
 	const handlePrevPage = () => {
 		if (page > 1) {
@@ -413,6 +432,7 @@ export function AnnouncementList() {
 						enterButton={<SearchOutlined />}
 						onSearch={handleSearch}
 						onChange={(e) => {
+							setSearchKeyword(e.target.value);
 							if (!e.target.value) {
 								handleSearch("");
 							}
