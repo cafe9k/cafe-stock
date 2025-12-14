@@ -54,14 +54,33 @@
 		"mac": {
 			"category": "public.app-category.finance",
 			"target": [
-				"dmg",
-				"zip"
+				"dmg"
 			],
 			"icon": "build/icon.icns",
 			"hardenedRuntime": true,
 			"entitlements": "build/entitlements.mac.plist",
 			"entitlementsInherit": "build/entitlements.mac.plist",
 			"gatekeeperAssess": false
+		},
+		"dmg": {
+			"format": "UDBZ",
+			"background": null,
+			"window": {
+				"width": 540,
+				"height": 380
+			},
+			"contents": [
+				{
+					"x": 140,
+					"y": 180
+				},
+				{
+					"x": 400,
+					"y": 180,
+					"type": "link",
+					"path": "/Applications"
+				}
+			]
 		},
 		"publish": [
 			{
