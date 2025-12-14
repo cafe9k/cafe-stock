@@ -162,6 +162,80 @@ export interface ElectronAPI {
 			hold_ratio: number;
 		}>
 	>;
+
+	// 搜索股票
+	searchStocks: (
+		keyword: string,
+		limit?: number
+	) => Promise<
+		Array<{
+			ts_code: string;
+			symbol: string;
+			name: string;
+			area: string;
+			industry: string;
+			market: string;
+			list_date: string;
+		}>
+	>;
+
+	// 同步所有股票的十大股东
+	syncAllTop10Holders: () => Promise<{
+		status: "success" | "failed" | "skipped";
+		message: string;
+		successCount?: number;
+		skipCount?: number;
+		failCount?: number;
+		totalStocks?: number;
+	}>;
+
+	// 同步单个股票的十大股东
+	syncStockTop10Holders: (tsCode: string) => Promise<{
+		status: "success" | "failed";
+		message: string;
+		count?: number;
+	}>;
+
+	// 从数据库获取十大股东数据
+	getTop10HoldersFromDb: (
+		tsCode: string,
+		limit?: number
+	) => Promise<
+		Array<{
+			ts_code: string;
+			ann_date: string;
+			end_date: string;
+			holder_name: string;
+			hold_amount: number;
+			hold_ratio: number;
+		}>
+	>;
+
+	// 检查是否已有十大股东数据
+	hasTop10HoldersData: (tsCode: string) => Promise<boolean>;
+
+	// 获取同步统计信息
+	getTop10HoldersSyncStats: () => Promise<{
+		totalStocks: number;
+		syncedStocks: number;
+		syncedStockCodes: string[];
+		syncRate: string;
+	}>;
+
+	// 监听十大股东同步进度
+	onTop10HoldersSyncProgress: (
+		callback: (progress: {
+			current: number;
+			total: number;
+			tsCode: string;
+			name: string;
+			status: "success" | "skipped" | "failed";
+			error?: string;
+			successCount: number;
+			skipCount: number;
+			failCount: number;
+		}) => void
+	) => () => void;
 }
 
 declare global {

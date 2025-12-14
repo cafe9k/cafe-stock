@@ -100,6 +100,43 @@ contextBridge.exposeInMainWorld("electronAPI", {
 		return ipcRenderer.invoke("get-top10-holders", tsCode, period, annDate, startDate, endDate);
 	},
 
+	// 搜索股票
+	searchStocks: (keyword: string, limit?: number) => {
+		return ipcRenderer.invoke("search-stocks", keyword, limit);
+	},
+
+	// 同步所有股票的十大股东
+	syncAllTop10Holders: () => {
+		return ipcRenderer.invoke("sync-all-top10-holders");
+	},
+
+	// 同步单个股票的十大股东
+	syncStockTop10Holders: (tsCode: string) => {
+		return ipcRenderer.invoke("sync-stock-top10-holders", tsCode);
+	},
+
+	// 从数据库获取十大股东数据
+	getTop10HoldersFromDb: (tsCode: string, limit?: number) => {
+		return ipcRenderer.invoke("get-top10-holders-from-db", tsCode, limit);
+	},
+
+	// 检查是否已有十大股东数据
+	hasTop10HoldersData: (tsCode: string) => {
+		return ipcRenderer.invoke("has-top10-holders-data", tsCode);
+	},
+
+	// 获取同步统计信息
+	getTop10HoldersSyncStats: () => {
+		return ipcRenderer.invoke("get-top10-holders-sync-stats");
+	},
+
+	// 监听十大股东同步进度
+	onTop10HoldersSyncProgress: (callback: (progress: any) => void) => {
+		const subscription = (_event: any, progress: any) => callback(progress);
+		ipcRenderer.on("top10-holders-sync-progress", subscription);
+		return () => ipcRenderer.removeListener("top10-holders-sync-progress", subscription);
+	},
+
 	// 自动更新相关
 	checkForUpdates: () => {
 		return ipcRenderer.invoke("check-for-updates");

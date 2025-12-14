@@ -23,6 +23,12 @@ import {
 	countFavoriteStocks,
 	getFavoriteStocksAnnouncementsGrouped,
 	countFavoriteStocksWithAnnouncements,
+	upsertTop10Holders,
+	getTop10HoldersByStock,
+	hasTop10HoldersData,
+	getStocksWithTop10Holders,
+	countStocksWithTop10Holders,
+	deleteTop10HoldersByStock,
 } from "./db.js";
 import { TushareClient } from "./tushare.js";
 
@@ -44,6 +50,7 @@ const extendedApp = app as typeof app & ExtendedApp;
 // Sync State
 let isSyncing = false;
 let isLoadingHistory = false;
+let isSyncingHolders = false;
 
 // 配置自动更新
 autoUpdater.autoDownload = false; // 不自动下载，让用户选择
@@ -361,6 +368,37 @@ async function loadHistoricalData() {
 		return { status: "failed", message: error.message || "Unknown error" };
 	} finally {
 		isLoadingHistory = false;
+	}
+}
+
+// 同步股票列表（首次启动或数据为空时）
+async function syncStocksIfNeeded() {
+	try {
+		const stockCount = countStocks();
+
+		if (stockCount > 0) {
+			console.log(`Stock list already synced: ${stockCount} stocks`);
+			return;
+		}
+
+		console.log("Stock list is empty, syncing...");
+
+		// 获取所有上市股票
+		const stocks = await TushareClient.getStockList(undefined, undefined, undefined, undefined, undefined, "L", 5000, 0);
+
+		if (stocks && stocks.length > 0) {
+			upsertStocks(stocks);
+			console.log(`Synced ${stocks.length} stocks to database`);
+
+			if (Notification.isSupported()) {
+				new Notification({
+					title: "股票列表同步完成",
+					body: `已同步 ${stocks.length} 只股票`,
+				}).show();
+			}
+		}
+	} catch (error: any) {
+		console.error("Failed to sync stocks:", error);
 	}
 }
 
@@ -689,6 +727,210 @@ function setupIPC() {
 			throw error;
 		}
 	});
+
+	// 搜索股票
+	ipcMain.handle("search-stocks", async (_event, keyword: string, limit: number = 50) => {
+		try {
+			console.log(`[IPC] search-stocks: keyword=${keyword}, limit=${limit}`);
+			return searchStocks(keyword, limit);
+		} catch (error: any) {
+			console.error("Failed to search stocks:", error);
+			throw error;
+		}
+	});
+
+	// 同步所有股票的十大股东数据
+	ipcMain.handle("sync-all-top10-holders", async (_event) => {
+		if (isSyncingHolders) {
+			return { status: "skipped", message: "同步正在进行中" };
+		}
+
+		isSyncingHolders = true;
+		console.log("[IPC] Starting sync all top10 holders...");
+
+		try {
+			// 获取所有股票
+			const stocks = getAllStocks();
+			const totalStocks = stocks.length;
+
+			if (totalStocks === 0) {
+				return { status: "failed", message: "没有股票数据，请先同步股票列表" };
+			}
+
+			console.log(`[IPC] Total stocks to sync: ${totalStocks}`);
+
+			let successCount = 0;
+			let skipCount = 0;
+			let failCount = 0;
+
+			// 逐个股票同步
+			for (let i = 0; i < stocks.length; i++) {
+				const stock = stocks[i];
+
+				// 检查是否已经有数据
+				if (hasTop10HoldersData(stock.ts_code)) {
+					skipCount++;
+					console.log(`[${i + 1}/${totalStocks}] Skip ${stock.ts_code} ${stock.name} - already synced`);
+
+					// 发送进度
+					mainWindow?.webContents.send("top10-holders-sync-progress", {
+						current: i + 1,
+						total: totalStocks,
+						tsCode: stock.ts_code,
+						name: stock.name,
+						status: "skipped",
+						successCount,
+						skipCount,
+						failCount,
+					});
+
+					continue;
+				}
+
+				try {
+					// 拉取该股票的十大股东数据
+					const holders = await TushareClient.getTop10Holders(stock.ts_code);
+
+					if (holders && holders.length > 0) {
+						upsertTop10Holders(holders);
+						successCount++;
+						console.log(`[${i + 1}/${totalStocks}] Success ${stock.ts_code} ${stock.name} - ${holders.length} holders`);
+					} else {
+						skipCount++;
+						console.log(`[${i + 1}/${totalStocks}] Skip ${stock.ts_code} ${stock.name} - no data`);
+					}
+
+					// 发送进度
+					mainWindow?.webContents.send("top10-holders-sync-progress", {
+						current: i + 1,
+						total: totalStocks,
+						tsCode: stock.ts_code,
+						name: stock.name,
+						status: "success",
+						successCount,
+						skipCount,
+						failCount,
+					});
+
+					// 限速：每个请求间隔 200ms（Tushare API 限流）
+					await new Promise((resolve) => setTimeout(resolve, 200));
+				} catch (error: any) {
+					failCount++;
+					console.error(`[${i + 1}/${totalStocks}] Failed ${stock.ts_code} ${stock.name}:`, error.message);
+
+					// 发送进度
+					mainWindow?.webContents.send("top10-holders-sync-progress", {
+						current: i + 1,
+						total: totalStocks,
+						tsCode: stock.ts_code,
+						name: stock.name,
+						status: "failed",
+						error: error.message,
+						successCount,
+						skipCount,
+						failCount,
+					});
+
+					// 如果是 API 限流错误，等待更长时间
+					if (error.message?.includes("限流") || error.message?.includes("频繁")) {
+						console.log("API 限流，等待 5 秒后继续...");
+						await new Promise((resolve) => setTimeout(resolve, 5000));
+					}
+				}
+			}
+
+			console.log(`[IPC] Sync completed: success=${successCount}, skip=${skipCount}, fail=${failCount}`);
+
+			return {
+				status: "success",
+				message: `同步完成：成功 ${successCount}，跳过 ${skipCount}，失败 ${failCount}`,
+				successCount,
+				skipCount,
+				failCount,
+				totalStocks,
+			};
+		} catch (error: any) {
+			console.error("Failed to sync all top10 holders:", error);
+			return { status: "failed", message: error.message || "同步失败" };
+		} finally {
+			isSyncingHolders = false;
+		}
+	});
+
+	// 同步单个股票的十大股东数据
+	ipcMain.handle("sync-stock-top10-holders", async (_event, tsCode: string) => {
+		try {
+			console.log(`[IPC] sync-stock-top10-holders: tsCode=${tsCode}`);
+
+			// 删除旧数据
+			deleteTop10HoldersByStock(tsCode);
+
+			// 拉取新数据
+			const holders = await TushareClient.getTop10Holders(tsCode);
+
+			if (holders && holders.length > 0) {
+				upsertTop10Holders(holders);
+				console.log(`[IPC] Synced ${holders.length} holders for ${tsCode}`);
+				return {
+					status: "success",
+					message: `成功同步 ${holders.length} 条股东数据`,
+					count: holders.length,
+				};
+			} else {
+				return {
+					status: "success",
+					message: "该股票暂无十大股东数据",
+					count: 0,
+				};
+			}
+		} catch (error: any) {
+			console.error("Failed to sync stock top10 holders:", error);
+			return {
+				status: "failed",
+				message: error.message || "同步失败",
+			};
+		}
+	});
+
+	// 获取数据库中的十大股东数据
+	ipcMain.handle("get-top10-holders-from-db", async (_event, tsCode: string, limit: number = 100) => {
+		try {
+			console.log(`[IPC] get-top10-holders-from-db: tsCode=${tsCode}, limit=${limit}`);
+			return getTop10HoldersByStock(tsCode, limit);
+		} catch (error: any) {
+			console.error("Failed to get top10 holders from db:", error);
+			throw error;
+		}
+	});
+
+	// 检查股票是否已有十大股东数据
+	ipcMain.handle("has-top10-holders-data", async (_event, tsCode: string) => {
+		try {
+			return hasTop10HoldersData(tsCode);
+		} catch (error: any) {
+			console.error("Failed to check top10 holders data:", error);
+			return false;
+		}
+	});
+
+	// 获取同步统计信息
+	ipcMain.handle("get-top10-holders-sync-stats", async () => {
+		try {
+			const totalStocks = countStocks();
+			const syncedStocks = countStocksWithTop10Holders();
+			const syncedStockCodes = getStocksWithTop10Holders();
+
+			return {
+				totalStocks,
+				syncedStocks,
+				syncedStockCodes,
+				syncRate: totalStocks > 0 ? ((syncedStocks / totalStocks) * 100).toFixed(2) : "0",
+			};
+		} catch (error: any) {
+			console.error("Failed to get top10 holders sync stats:", error);
+			throw error;
+		}
+	});
 }
 
 // 设置自动更新事件监听
@@ -770,6 +1012,9 @@ if (!gotTheLock) {
 		registerShortcuts();
 		setupIPC();
 		setupAutoUpdater();
+
+		// 启动时同步股票列表（如果为空）
+		syncStocksIfNeeded().catch((err) => console.error("Stock sync failed:", err));
 
 		// 启动时自动执行增量同步（异步，不阻塞）
 		performIncrementalSync().catch((err) => console.error("Auto sync failed:", err));
