@@ -2,7 +2,7 @@
  * Tushare Pro HTTP 客户端
  * 文档: https://tushare.pro/document/1?doc_id=130
  * 
- * 通过 Supabase Edge Function 代理请求，解决 CORS 问题
+ * 直接请求 Tushare Pro API
  * 
  * 优化功能：
  * 1. 请求节流：并发限制 2 个，每分钟控制频率
@@ -10,8 +10,7 @@
  * 3. 批量合并：支持多只股票合并请求
  */
 
-import { TUSHARE_TOKEN } from '../config/tushare'
-import { SUPABASE_FUNCTIONS_URL, SUPABASE_ANON_KEY } from '../config/supabase'
+import { TUSHARE_TOKEN, TUSHARE_API_URL } from '../config/tushare'
 import { tushareRateLimiter } from './rateLimiter'
 import { tushareCache } from './tushareCache'
 
@@ -20,7 +19,7 @@ import { tushareCache } from './tushareCache'
  */
 interface TushareRequestParams {
     api_name: string
-    token?: string  // token 可选，边缘函数已配置
+    token: string
     params?: Record<string, any>
     fields?: string
 }
@@ -73,12 +72,9 @@ class TushareClient {
     
     constructor(token?: string, apiUrl?: string, batchConfig?: Partial<BatchConfig>) {
         this.token = token || TUSHARE_TOKEN
-        // 使用 Supabase Edge Function 代理，解决 CORS 问题
-        this.apiUrl = apiUrl || `${SUPABASE_FUNCTIONS_URL}/tushare-proxy`
+        // 直接请求 Tushare Pro API
+        this.apiUrl = apiUrl || TUSHARE_API_URL
         this.batchConfig = { ...DEFAULT_BATCH_CONFIG, ...batchConfig }
-        
-        // Token 已在边缘函数中配置，前端无需传递
-        // 如果前端配置了 token，会优先使用前端的 token
     }
     
     /**
@@ -99,25 +95,19 @@ class TushareClient {
      * 发起 HTTP API 请求（内部方法，不经过节流器）
      */
     private async doRequest<T = any>(params: TushareRequestParams): Promise<TushareResponse<T>> {
-        // 构建请求体，token 可以为空（边缘函数会使用服务器端配置的 token）
-        const requestBody: Record<string, any> = {
+        // 构建请求体
+        const requestBody = {
             api_name: params.api_name,
+            token: params.token,
             params: params.params || {},
             fields: params.fields || ''
-        }
-        
-        // 如果前端配置了 token，则传递给边缘函数
-        if (this.token) {
-            requestBody.token = this.token
         }
         
         try {
             const response = await fetch(this.apiUrl, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-                    'apikey': SUPABASE_ANON_KEY
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify(requestBody)
             })

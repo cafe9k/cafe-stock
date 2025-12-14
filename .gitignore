@@ -10,6 +10,8 @@ loglevel.log*
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/launch.json
 .idea
 .DS_Store
 *.suo
@@ -17,18 +19,22 @@ loglevel.log*
 *.njsproj
 *.sln
 *.sw?
+Thumbs.db
+ehthumbs.db
 
 # Dependencies
 node_modules
 .pnp
 .pnp.js
 
-# Testing
-coverage
+# TypeScript
+*.tsbuildinfo
 
-# Production
+# Production / Build Output
 dist
 dist-ssr
+dist-electron
+release
 *.local
 
 # Environment variables
@@ -38,39 +44,13 @@ dist-ssr
 .env.test.local
 .env.production.local
 
-# Misc
-*.tsbuildinfo
-test-results/add-stock-添加股票完整流程-已关注的股票应显示-已关注-标记-chromium/trace.zip
-test-results/add-stock-添加股票完整流程-搜索结果应显示添加按钮-chromium/trace.zip
-test-results/add-stock-添加股票完整流程-搜索结果应显示股票信息-chromium/trace.zip
-test-results/add-stock-添加股票无障碍测试-模态框应该可以通过键盘操作-chromium/trace.zip
-test-results/add-stock-添加股票模态框-UI-按-ESC-键应关闭模态框-chromium/trace.zip
-test-results/add-stock-添加股票模态框-UI-搜索不存在的股票应显示空结果提示-chromium/trace.zip
-test-results/add-stock-添加股票模态框-UI-搜索股票应显示结果-chromium/trace.zip
-test-results/add-stock-添加股票模态框-UI-模态框应有搜索输入框-chromium/trace.zip
-test-results/add-stock-添加股票模态框-UI-清空搜索框应清除结果-chromium/trace.zip
-test-results/add-stock-添加股票模态框-UI-点击关闭按钮应关闭模态框-chromium/trace.zip
-test-results/add-stock-添加股票模态框-UI-点击添加股票按钮应打开模态框-chromium/trace.zip
-test-results/add-stock-添加股票模态框-UI-点击遮罩层应关闭模态框-chromium/trace.zip
-test-results/add-stock-添加股票模态框-未登录时无法访问添加股票功能-chromium/trace.zip
-test-results/add-stock-股票搜索功能-可以通过股票代码搜索-chromium/trace.zip
-test-results/add-stock-股票搜索功能-可以通过股票名称搜索-chromium/trace.zip
-test-results/add-stock-股票搜索功能-搜索应该是模糊匹配-chromium/trace.zip
-test-results/add-stock-股票搜索功能-搜索结果应限制数量-chromium/trace.zip
-playwright-report/data/2b159ddb3f3f30959ee2e90f1d9512b165621d76.zip
-playwright-report/data/04e316ea7bd28c792cbf297fe7b76b27a6651f2a.zip
-playwright-report/data/5ccbdbef60f68b149c91485223b3ad51d521f1b6.zip
-playwright-report/data/9f36e827a816bad23ac58c0330d693f96d81db59.zip
-playwright-report/data/9f90a8ba0f2032fdb31b1887d1aa7a348158d75d.zip
-playwright-report/data/24b8c5dc4daec851db18c1cc696f62ede13c4d8d.zip
-playwright-report/data/abfa750092f91a0b67e3042d42df599d5f671736.zip
-playwright-report/data/ac832d4ab2a21e3df27c163f51ee661a7b0648ad.zip
-playwright-report/data/b42078a139734314623393edddf5b733f2a7a915.zip
-playwright-report/data/bf3be5202403a72ef8d69cf8621ff8d8f65aeba7.zip
-playwright-report/data/cf3b5c64f93e9e4a3a21246e7eab01e6b96f08db.zip
-playwright-report/data/d884a81f7d7f01ab83583433823f629dedc5cc25.zip
-playwright-report/data/df6a49f1bcc1a9f14e7ec89f5200205f7e7b8643.zip
-playwright-report/data/e004ea75ac8c15b3e420483e9815e13d6a8316b6.zip
-playwright-report/data/eeb48169ab9413aabb22cefb175b74f32c0130f3.zip
-playwright-report/data/ef3018f4fcf79efac6a0bc2375df601c0b2f57f0.zip
-playwright-report/data/fe9da1a3246610d996a63c2559b3133435c851d9.zip
+# Testing
+coverage
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+
+# Electron Builder
+dist_electron/
+out/

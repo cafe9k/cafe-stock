@@ -6,6 +6,7 @@ const __dirname$1 = path.dirname(__filename$1);
 const isDev = process.env.NODE_ENV === "development" || !app.isPackaged;
 let mainWindow = null;
 let tray = null;
+const extendedApp = app;
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1280,
@@ -38,7 +39,7 @@ function createWindow() {
     mainWindow.loadFile(path.join(__dirname$1, "../dist/index.html"));
   }
   mainWindow.on("close", (event) => {
-    if (!app.isQuitting) {
+    if (!extendedApp.isQuitting) {
       event.preventDefault();
       mainWindow == null ? void 0 : mainWindow.hide();
     }
@@ -91,7 +92,7 @@ function createTray() {
     {
       label: "退出",
       click: () => {
-        app.isQuitting = true;
+        extendedApp.isQuitting = true;
         app.quit();
       }
     }
