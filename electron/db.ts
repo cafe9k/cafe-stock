@@ -210,7 +210,7 @@ export const getAnnouncementsGroupedByStock = (limit: number, offset: number, st
 	if (startDate && endDate) {
 		params.push(startDate, endDate);
 	}
-	
+
 	params.push(limit, offset);
 
 	return db.prepare(sql).all(...params);
@@ -316,7 +316,7 @@ export const searchAnnouncementsGroupedByStock = (
 	}
 
 	const whereClause = ` WHERE ` + conditions.join(" AND ");
-	
+
 	// 构建第二个 CTE 的 WHERE 子句（需要再次添加参数）
 	let annWhereClause = "";
 	if (annConditions.length > 0) {
@@ -661,7 +661,7 @@ export const getFavoriteStocksAnnouncementsGrouped = (limit: number, offset: num
 	if (startDate && endDate) {
 		params.push(startDate, endDate);
 	}
-	
+
 	params.push(limit, offset);
 
 	return db.prepare(sql).all(...params);

@@ -13992,6 +13992,9 @@ const getAnnouncementsGroupedByStock = (limit, offset, startDate, endDate, marke
     ORDER BY ad.latest_ann_date DESC, ad.stock_name
     LIMIT ? OFFSET ?
   `;
+  if (startDate && endDate) {
+    params.push(startDate, endDate);
+  }
   params.push(limit, offset);
   return db.prepare(sql).all(...params);
 };
