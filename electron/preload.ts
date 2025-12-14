@@ -64,6 +64,19 @@ contextBridge.exposeInMainWorld("electronAPI", {
 		return () => ipcRenderer.removeListener("stocks-updated", subscription);
 	},
 
+	// 聚合公告相关
+	getAnnouncementsGrouped: (page: number, pageSize: number) => {
+		return ipcRenderer.invoke("get-announcements-grouped", page, pageSize);
+	},
+
+	getStockAnnouncements: (tsCode: string, limit?: number) => {
+		return ipcRenderer.invoke("get-stock-announcements", tsCode, limit);
+	},
+
+	searchAnnouncementsGrouped: (keyword: string, page: number, pageSize: number) => {
+		return ipcRenderer.invoke("search-announcements-grouped", keyword, page, pageSize);
+	},
+
 	// 自动更新相关
 	checkForUpdates: () => {
 		return ipcRenderer.invoke("check-for-updates");

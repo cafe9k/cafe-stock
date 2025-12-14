@@ -18,6 +18,11 @@ import {
 	getLastSyncDate,
 	updateSyncFlag,
 	isSyncedToday,
+	getAnnouncementsGroupedByStock,
+	getAnnouncementsByStock,
+	countStocksWithAnnouncements,
+	searchAnnouncementsGroupedByStock,
+	countSearchedStocksWithAnnouncements,
 } from "./db.js";
 import { TushareClient } from "./tushare.js";
 
@@ -501,6 +506,59 @@ function setupIPC() {
 			syncedToday,
 			totalStocks,
 		};
+	});
+
+	// 获取按股票聚合的公告列表
+	ipcMain.handle("get-announcements-grouped", async (_event, page: number, pageSize: number) => {
+		try {
+			const offset = (page - 1) * pageSize;
+			const items = getAnnouncementsGroupedByStock(pageSize, offset);
+			const total = countStocksWithAnnouncements();
+
+			console.log(`[IPC] get-announcements-grouped: page=${page}, offset=${offset}, items=${items.length}, total=${total}`);
+
+			return {
+				items,
+				total,
+				page,
+				pageSize,
+			};
+		} catch (error: any) {
+			console.error("Failed to get grouped announcements:", error);
+			throw error;
+		}
+	});
+
+	// 获取特定股票的公告列表
+	ipcMain.handle("get-stock-announcements", async (_event, tsCode: string, limit: number = 100) => {
+		try {
+			console.log(`[IPC] get-stock-announcements: tsCode=${tsCode}, limit=${limit}`);
+			return getAnnouncementsByStock(tsCode, limit);
+		} catch (error: any) {
+			console.error("Failed to get stock announcements:", error);
+			throw error;
+		}
+	});
+
+	// 搜索按股票聚合的公告数据
+	ipcMain.handle("search-announcements-grouped", async (_event, keyword: string, page: number, pageSize: number) => {
+		try {
+			const offset = (page - 1) * pageSize;
+			const items = searchAnnouncementsGroupedByStock(keyword, pageSize, offset);
+			const total = countSearchedStocksWithAnnouncements(keyword);
+
+			console.log(`[IPC] search-announcements-grouped: keyword=${keyword}, page=${page}, items=${items.length}, total=${total}`);
+
+			return {
+				items,
+				total,
+				page,
+				pageSize,
+			};
+		} catch (error: any) {
+			console.error("Failed to search grouped announcements:", error);
+			throw error;
+		}
 	});
 
 	// 自动更新相关 IPC

@@ -13836,6 +13836,7 @@ db.exec(`
   );
 
   CREATE INDEX IF NOT EXISTS idx_ann_date_pub_time ON announcements (ann_date DESC, pub_time DESC);
+  CREATE INDEX IF NOT EXISTS idx_ann_ts_code ON announcements (ts_code);
 
   CREATE TABLE IF NOT EXISTS stocks (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -13915,6 +13916,76 @@ const getAnnouncements = (limit, offset) => {
 };
 const countAnnouncements = () => {
   const row = db.prepare("SELECT COUNT(*) as count FROM announcements").get();
+  return row.count;
+};
+const getAnnouncementsGroupedByStock = (limit, offset) => {
+  return db.prepare(
+    `
+    SELECT 
+      s.ts_code,
+      s.name as stock_name,
+      s.industry,
+      s.market,
+      COUNT(a.id) as announcement_count,
+      MAX(a.ann_date) as latest_ann_date
+    FROM stocks s
+    INNER JOIN announcements a ON s.ts_code = a.ts_code
+    GROUP BY s.ts_code, s.name, s.industry, s.market
+    ORDER BY MAX(a.ann_date) DESC, s.name
+    LIMIT ? OFFSET ?
+  `
+  ).all(limit, offset);
+};
+const getAnnouncementsByStock = (tsCode, limit = 100) => {
+  return db.prepare(
+    `
+    SELECT * FROM announcements 
+    WHERE ts_code = ?
+    ORDER BY ann_date DESC, pub_time DESC
+    LIMIT ?
+  `
+  ).all(tsCode, limit);
+};
+const countStocksWithAnnouncements = () => {
+  const row = db.prepare(
+    `
+    SELECT COUNT(DISTINCT s.ts_code) as count 
+    FROM stocks s
+    INNER JOIN announcements a ON s.ts_code = a.ts_code
+  `
+  ).get();
+  return row.count;
+};
+const searchAnnouncementsGroupedByStock = (keyword, limit, offset) => {
+  const likePattern = `%${keyword}%`;
+  return db.prepare(
+    `
+    SELECT 
+      s.ts_code,
+      s.name as stock_name,
+      s.industry,
+      s.market,
+      COUNT(a.id) as announcement_count,
+      MAX(a.ann_date) as latest_ann_date
+    FROM stocks s
+    INNER JOIN announcements a ON s.ts_code = a.ts_code
+    WHERE s.name LIKE ? OR s.ts_code LIKE ? OR s.symbol LIKE ?
+    GROUP BY s.ts_code, s.name, s.industry, s.market
+    ORDER BY MAX(a.ann_date) DESC, s.name
+    LIMIT ? OFFSET ?
+  `
+  ).all(likePattern, likePattern, likePattern, limit, offset);
+};
+const countSearchedStocksWithAnnouncements = (keyword) => {
+  const likePattern = `%${keyword}%`;
+  const row = db.prepare(
+    `
+    SELECT COUNT(DISTINCT s.ts_code) as count 
+    FROM stocks s
+    INNER JOIN announcements a ON s.ts_code = a.ts_code
+    WHERE s.name LIKE ? OR s.ts_code LIKE ? OR s.symbol LIKE ?
+  `
+  ).get(likePattern, likePattern, likePattern);
   return row.count;
 };
 const upsertStocks = (items) => {
@@ -14514,6 +14585,49 @@ function setupIPC() {
       syncedToday,
       totalStocks
     };
+  });
+  ipcMain.handle("get-announcements-grouped", async (_event, page, pageSize) => {
+    try {
+      const offset = (page - 1) * pageSize;
+      const items = getAnnouncementsGroupedByStock(pageSize, offset);
+      const total = countStocksWithAnnouncements();
+      console.log(`[IPC] get-announcements-grouped: page=${page}, offset=${offset}, items=${items.length}, total=${total}`);
+      return {
+        items,
+        total,
+        page,
+        pageSize
+      };
+    } catch (error2) {
+      console.error("Failed to get grouped announcements:", error2);
+      throw error2;
+    }
+  });
+  ipcMain.handle("get-stock-announcements", async (_event, tsCode, limit = 100) => {
+    try {
+      console.log(`[IPC] get-stock-announcements: tsCode=${tsCode}, limit=${limit}`);
+      return getAnnouncementsByStock(tsCode, limit);
+    } catch (error2) {
+      console.error("Failed to get stock announcements:", error2);
+      throw error2;
+    }
+  });
+  ipcMain.handle("search-announcements-grouped", async (_event, keyword, page, pageSize) => {
+    try {
+      const offset = (page - 1) * pageSize;
+      const items = searchAnnouncementsGroupedByStock(keyword, pageSize, offset);
+      const total = countSearchedStocksWithAnnouncements(keyword);
+      console.log(`[IPC] search-announcements-grouped: keyword=${keyword}, page=${page}, items=${items.length}, total=${total}`);
+      return {
+        items,
+        total,
+        page,
+        pageSize
+      };
+    } catch (error2) {
+      console.error("Failed to search grouped announcements:", error2);
+      throw error2;
+    }
   });
   ipcMain.handle("check-for-updates", async () => {
     if (isDev) {

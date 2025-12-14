@@ -19,6 +19,7 @@ db.exec(`
   );
 
   CREATE INDEX IF NOT EXISTS idx_ann_date_pub_time ON announcements (ann_date DESC, pub_time DESC);
+  CREATE INDEX IF NOT EXISTS idx_ann_ts_code ON announcements (ts_code);
 
   CREATE TABLE IF NOT EXISTS stocks (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -110,6 +111,106 @@ export const getAnnouncements = (limit: number, offset: number) => {
 
 export const countAnnouncements = () => {
 	const row = db.prepare("SELECT COUNT(*) as count FROM announcements").get() as { count: number };
+	return row.count;
+};
+
+/**
+ * 获取按股票聚合的公告数据（分页）
+ */
+export const getAnnouncementsGroupedByStock = (limit: number, offset: number) => {
+	return db
+		.prepare(
+			`
+    SELECT 
+      s.ts_code,
+      s.name as stock_name,
+      s.industry,
+      s.market,
+      COUNT(a.id) as announcement_count,
+      MAX(a.ann_date) as latest_ann_date
+    FROM stocks s
+    INNER JOIN announcements a ON s.ts_code = a.ts_code
+    GROUP BY s.ts_code, s.name, s.industry, s.market
+    ORDER BY MAX(a.ann_date) DESC, s.name
+    LIMIT ? OFFSET ?
+  `
+		)
+		.all(limit, offset);
+};
+
+/**
+ * 获取特定股票的公告列表
+ */
+export const getAnnouncementsByStock = (tsCode: string, limit: number = 100) => {
+	return db
+		.prepare(
+			`
+    SELECT * FROM announcements 
+    WHERE ts_code = ?
+    ORDER BY ann_date DESC, pub_time DESC
+    LIMIT ?
+  `
+		)
+		.all(tsCode, limit);
+};
+
+/**
+ * 统计有公告的股票数量
+ */
+export const countStocksWithAnnouncements = () => {
+	const row = db
+		.prepare(
+			`
+    SELECT COUNT(DISTINCT s.ts_code) as count 
+    FROM stocks s
+    INNER JOIN announcements a ON s.ts_code = a.ts_code
+  `
+		)
+		.get() as { count: number };
+	return row.count;
+};
+
+/**
+ * 搜索按股票聚合的公告数据（支持股票名称、代码搜索）
+ */
+export const searchAnnouncementsGroupedByStock = (keyword: string, limit: number, offset: number) => {
+	const likePattern = `%${keyword}%`;
+	return db
+		.prepare(
+			`
+    SELECT 
+      s.ts_code,
+      s.name as stock_name,
+      s.industry,
+      s.market,
+      COUNT(a.id) as announcement_count,
+      MAX(a.ann_date) as latest_ann_date
+    FROM stocks s
+    INNER JOIN announcements a ON s.ts_code = a.ts_code
+    WHERE s.name LIKE ? OR s.ts_code LIKE ? OR s.symbol LIKE ?
+    GROUP BY s.ts_code, s.name, s.industry, s.market
+    ORDER BY MAX(a.ann_date) DESC, s.name
+    LIMIT ? OFFSET ?
+  `
+		)
+		.all(likePattern, likePattern, likePattern, limit, offset);
+};
+
+/**
+ * 统计符合搜索条件且有公告的股票数量
+ */
+export const countSearchedStocksWithAnnouncements = (keyword: string) => {
+	const likePattern = `%${keyword}%`;
+	const row = db
+		.prepare(
+			`
+    SELECT COUNT(DISTINCT s.ts_code) as count 
+    FROM stocks s
+    INNER JOIN announcements a ON s.ts_code = a.ts_code
+    WHERE s.name LIKE ? OR s.ts_code LIKE ? OR s.symbol LIKE ?
+  `
+		)
+		.get(likePattern, likePattern, likePattern) as { count: number };
 	return row.count;
 };
 

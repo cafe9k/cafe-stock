@@ -36,6 +36,55 @@ export interface ElectronAPI {
 	}>;
 	onStocksUpdated: (callback: (data: { totalSynced: number; totalInDB: number }) => void) => () => void;
 
+	// 聚合公告相关
+	getAnnouncementsGrouped: (
+		page: number,
+		pageSize: number
+	) => Promise<{
+		items: Array<{
+			ts_code: string;
+			stock_name: string;
+			industry: string;
+			market: string;
+			announcement_count: number;
+			latest_ann_date: string;
+		}>;
+		total: number;
+		page: number;
+		pageSize: number;
+	}>;
+	getStockAnnouncements: (
+		tsCode: string,
+		limit?: number
+	) => Promise<
+		Array<{
+			id: number;
+			ts_code: string;
+			ann_date: string;
+			ann_type: string;
+			title: string;
+			content: string;
+			pub_time: string;
+		}>
+	>;
+	searchAnnouncementsGrouped: (
+		keyword: string,
+		page: number,
+		pageSize: number
+	) => Promise<{
+		items: Array<{
+			ts_code: string;
+			stock_name: string;
+			industry: string;
+			market: string;
+			announcement_count: number;
+			latest_ann_date: string;
+		}>;
+		total: number;
+		page: number;
+		pageSize: number;
+	}>;
+
 	// 自动更新相关
 	checkForUpdates: () => Promise<{ available: boolean; updateInfo?: any; error?: string; message?: string }>;
 	downloadUpdate: () => Promise<{ success: boolean; error?: string }>;

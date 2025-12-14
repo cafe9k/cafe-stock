@@ -9,14 +9,14 @@ type MenuItem = Required<MenuProps>["items"][number];
 
 const items: MenuItem[] = [
 	{
-		key: "/stocks",
-		icon: <StockOutlined />,
-		label: "股票列表",
-	},
-	{
 		key: "/announcements",
 		icon: <NotificationOutlined />,
 		label: "公告列表",
+	},
+	{
+		key: "/stocks",
+		icon: <StockOutlined />,
+		label: "股票列表",
 	},
 ];
 
@@ -30,7 +30,7 @@ export function Layout() {
 
 	return (
 		<AntLayout style={{ minHeight: "100vh" }}>
-			<Header style={{ display: "flex", alignItems: "center", background: "#001529" }}>
+			<Header style={{ display: "flex", alignItems: "center", background: "#001529", paddingLeft: 0 }}>
 				<Menu
 					theme="dark"
 					mode="horizontal"
