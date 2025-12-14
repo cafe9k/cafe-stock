@@ -3,7 +3,7 @@ import { Table, Input, Button, Space, Tag, Typography, Card, Statistic, Row, Col
 import { ReloadOutlined, SearchOutlined, SyncOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 
-const { Title } = Typography;
+const { Title, Text: AntText } = Typography;
 const { Search } = Input;
 
 interface Stock {
@@ -148,12 +148,6 @@ export default function Stocks() {
 			fixed: "left",
 		},
 		{
-			title: "拼音",
-			dataIndex: "cnspell",
-			key: "cnspell",
-			width: 100,
-		},
-		{
 			title: "行业",
 			dataIndex: "industry",
 			key: "industry",
@@ -181,62 +175,11 @@ export default function Stocks() {
 			},
 		},
 		{
-			title: "交易所",
-			dataIndex: "exchange",
-			key: "exchange",
-			width: 100,
-			render: (text) => {
-				const nameMap: { [key: string]: string } = {
-					SSE: "上交所",
-					SZSE: "深交所",
-					BSE: "北交所",
-				};
-				return nameMap[text] || text;
-			},
-		},
-		{
-			title: "状态",
-			dataIndex: "list_status",
-			key: "list_status",
-			width: 80,
-			render: (text) => {
-				const config: { [key: string]: { color: string; text: string } } = {
-					L: { color: "success", text: "上市" },
-					D: { color: "default", text: "退市" },
-					P: { color: "warning", text: "暂停" },
-				};
-				const status = config[text] || { color: "default", text: text };
-				return <Tag color={status.color}>{status.text}</Tag>;
-			},
-		},
-		{
-			title: "港股通",
-			dataIndex: "is_hs",
-			key: "is_hs",
-			width: 100,
-			render: (text) => {
-				const config: { [key: string]: { color: string; text: string } } = {
-					H: { color: "blue", text: "沪股通" },
-					S: { color: "cyan", text: "深股通" },
-					N: { color: "default", text: "否" },
-				};
-				const status = config[text] || { color: "default", text: text || "-" };
-				return <Tag color={status.color}>{status.text}</Tag>;
-			},
-		},
-		{
 			title: "上市日期",
 			dataIndex: "list_date",
 			key: "list_date",
 			width: 120,
 			render: (text) => (text ? text.replace(/(\d{4})(\d{2})(\d{2})/, "$1-$2-$3") : "-"),
-		},
-		{
-			title: "全称",
-			dataIndex: "fullname",
-			key: "fullname",
-			width: 250,
-			ellipsis: true,
 		},
 	];
 
@@ -248,49 +191,42 @@ export default function Stocks() {
 
 	return (
 		<div style={{ padding: "24px" }}>
-			<Title level={2}>A股股票列表</Title>
-
 			{/* 统计信息 */}
-			<Row gutter={16} style={{ marginBottom: 24 }}>
-				<Col span={6}>
-					<Card>
-						<Statistic
-							title="股票总数"
-							value={syncStatus.totalStocks}
-							suffix="只"
-							valueStyle={{ color: "#3f8600" }}
-						/>
-					</Card>
-				</Col>
-				<Col span={6}>
-					<Card>
-						<Statistic
-							title="上次同步"
-							value={formatSyncDate(syncStatus.lastSync)}
-							valueStyle={{ fontSize: 20 }}
-						/>
-					</Card>
-				</Col>
-				<Col span={6}>
-					<Card>
-						<Statistic
-							title="今日同步状态"
-							value={syncStatus.syncedToday ? "已同步" : "未同步"}
-							valueStyle={{ color: syncStatus.syncedToday ? "#3f8600" : "#cf1322", fontSize: 20 }}
-						/>
-					</Card>
-				</Col>
-				<Col span={6}>
-					<Card>
-						<Statistic
-							title="显示结果"
-							value={filteredStocks.length}
-							suffix={`/ ${stocks.length}`}
-							valueStyle={{ fontSize: 20 }}
-						/>
-					</Card>
-				</Col>
-			</Row>
+			<Space size="middle" style={{ marginBottom: 16, width: "100%" }}>
+				<Card size="small" style={{ minWidth: 180 }}>
+					<div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+						<AntText type="secondary">股票总数：</AntText>
+						<AntText strong style={{ fontSize: 18, color: "#3f8600" }}>
+							{syncStatus.totalStocks}
+						</AntText>
+						<AntText type="secondary">只</AntText>
+					</div>
+				</Card>
+				<Card size="small" style={{ minWidth: 180 }}>
+					<div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+						<AntText type="secondary">上次同步：</AntText>
+						<AntText strong style={{ fontSize: 16 }}>
+							{formatSyncDate(syncStatus.lastSync)}
+						</AntText>
+					</div>
+				</Card>
+				<Card size="small" style={{ minWidth: 150 }}>
+					<div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+						<AntText type="secondary">今日状态：</AntText>
+						<AntText strong style={{ fontSize: 16, color: syncStatus.syncedToday ? "#3f8600" : "#cf1322" }}>
+							{syncStatus.syncedToday ? "已同步" : "未同步"}
+						</AntText>
+					</div>
+				</Card>
+				<Card size="small" style={{ minWidth: 150 }}>
+					<div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+						<AntText type="secondary">显示：</AntText>
+						<AntText strong style={{ fontSize: 16 }}>
+							{filteredStocks.length} / {stocks.length}
+						</AntText>
+					</div>
+				</Card>
+			</Space>
 
 			{/* 操作栏 */}
 			<Space style={{ marginBottom: 16, width: "100%" }}>
@@ -320,13 +256,13 @@ export default function Stocks() {
 				rowKey="id"
 				loading={loading}
 				pagination={{
-					pageSize: 50,
+					pageSize: 20,
 					showSizeChanger: true,
 					showQuickJumper: true,
-					pageSizeOptions: ["20", "50", "100", "200"],
+					pageSizeOptions: ["20", "50", "100"],
 					showTotal: (total) => `共 ${total} 条`,
 				}}
-				scroll={{ x: 1500, y: "calc(100vh - 450px)" }}
+				scroll={{ x: 1000 }}
 				size="small"
 			/>
 		</div>

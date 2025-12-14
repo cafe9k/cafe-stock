@@ -31,7 +31,6 @@ export function Layout() {
 	return (
 		<AntLayout style={{ minHeight: "100vh" }}>
 			<Header style={{ display: "flex", alignItems: "center", background: "#001529" }}>
-				<div style={{ color: "white", fontSize: "20px", fontWeight: "bold", marginRight: "40px" }}>酷咖啡</div>
 				<Menu
 					theme="dark"
 					mode="horizontal"

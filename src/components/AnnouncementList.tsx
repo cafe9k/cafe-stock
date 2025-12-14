@@ -3,7 +3,7 @@ import { Table, Card, Tag, Typography, message, Badge, Space, Button, Input, Row
 import { FileTextOutlined, SyncOutlined, ReloadOutlined, SearchOutlined, HistoryOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 
-const { Text, Title } = Typography;
+const { Text: AntText, Title } = Typography;
 const { Search } = Input;
 
 interface Announcement {
@@ -15,7 +15,7 @@ interface Announcement {
 	pub_time: string;
 }
 
-const PAGE_SIZE = 200;
+const PAGE_SIZE = 20;
 
 export function AnnouncementList() {
 	const [announcements, setAnnouncements] = useState<Announcement[]>([]);
@@ -198,18 +198,7 @@ export function AnnouncementList() {
 			key: "ann_date",
 			width: 120,
 			fixed: "left",
-			render: (date: string) => <Text style={{ fontFamily: "monospace" }}>{date}</Text>,
-		},
-		{
-			title: "时间",
-			dataIndex: "pub_time",
-			key: "pub_time",
-			width: 100,
-			render: (time: string) => (
-				<Text type="secondary" style={{ fontFamily: "monospace", fontSize: 12 }}>
-					{time || "-"}
-				</Text>
-			),
+			render: (date: string) => <AntText style={{ fontFamily: "monospace" }}>{date}</AntText>,
 		},
 		{
 			title: "代码",
@@ -230,65 +219,63 @@ export function AnnouncementList() {
 			render: (title: string) => (
 				<div style={{ display: "flex", alignItems: "center", gap: 8 }}>
 					<FileTextOutlined style={{ color: "#1890ff" }} />
-					<Text strong style={{ cursor: "pointer" }} title={title}>
+					<AntText strong style={{ cursor: "pointer" }} title={title}>
 						{title}
-					</Text>
+					</AntText>
 				</div>
 			),
-		},
-		{
-			title: "类型",
-			dataIndex: "ann_type",
-			key: "ann_type",
-			width: 180,
-			render: (type: string) => <Text type="secondary">{type || "-"}</Text>,
 		},
 	];
 
 	return (
 		<div style={{ padding: "24px" }}>
-			<Title level={2}>公告列表</Title>
-
 			{/* 统计信息 */}
-			<Row gutter={16} style={{ marginBottom: 24 }}>
-				<Col span={6}>
-					<Card>
-						<Statistic title="公告总数" value={total} suffix="条" valueStyle={{ color: "#3f8600" }} loading={loading} />
-					</Card>
-				</Col>
-				<Col span={6}>
-					<Card>
-						<Statistic title="当前页数" value={page} suffix={`/ ${Math.ceil(total / PAGE_SIZE)}`} valueStyle={{ fontSize: 20 }} />
-					</Card>
-				</Col>
-				<Col span={6}>
-					<Card>
-						<Statistic
-							title="同步状态"
-							value={syncing ? "同步中" : loadingHistory ? "加载历史" : "正常"}
-							valueStyle={{
+			<Space size="middle" style={{ marginBottom: 16, width: "100%" }}>
+				<Card size="small" style={{ minWidth: 160 }} loading={loading}>
+					<div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+						<AntText type="secondary">总数：</AntText>
+						<AntText strong style={{ fontSize: 18, color: "#3f8600" }}>
+							{total}
+						</AntText>
+						<AntText type="secondary">条</AntText>
+					</div>
+				</Card>
+				<Card size="small" style={{ minWidth: 150 }}>
+					<div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+						<AntText type="secondary">页数：</AntText>
+						<AntText strong style={{ fontSize: 16 }}>
+							{page} / {Math.ceil(total / PAGE_SIZE)}
+						</AntText>
+					</div>
+				</Card>
+				<Card size="small" style={{ minWidth: 150 }}>
+					<div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+						<AntText type="secondary">状态：</AntText>
+						<AntText
+							strong
+							style={{
+								fontSize: 16,
 								color: syncing || loadingHistory ? "#1890ff" : "#3f8600",
-								fontSize: 20,
 							}}
-						/>
-					</Card>
-				</Col>
-				<Col span={6}>
-					<Card>
-						<Statistic
-							title="显示结果"
-							value={filteredAnnouncements.length}
-							suffix={`/ ${announcements.length}`}
-							valueStyle={{ fontSize: 20 }}
-						/>
-					</Card>
-				</Col>
-			</Row>
+						>
+							{syncing ? "同步中" : loadingHistory ? "加载历史" : "正常"}
+						</AntText>
+					</div>
+				</Card>
+				<Card size="small" style={{ minWidth: 150 }}>
+					<div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+						<AntText type="secondary">显示：</AntText>
+						<AntText strong style={{ fontSize: 16 }}>
+							{filteredAnnouncements.length} / {announcements.length}
+						</AntText>
+					</div>
+				</Card>
+			</Space>
 
 			{/* 操作栏 */}
 			<Space style={{ marginBottom: 16, width: "100%" }}>
 				<Search
-					placeholder="搜索标题、代码、类型或内容"
+					placeholder="搜索标题、代码或内容"
 					allowClear
 					enterButton={<SearchOutlined />}
 					onSearch={handleSearch}
@@ -317,9 +304,9 @@ export function AnnouncementList() {
 						<Badge
 							status="processing"
 							text={
-								<Text type="secondary">
+								<AntText type="secondary">
 									<SyncOutlined spin /> 正在同步最新公告...
-								</Text>
+								</AntText>
 							}
 						/>
 					)}
@@ -327,9 +314,9 @@ export function AnnouncementList() {
 						<Badge
 							status="processing"
 							text={
-								<Text type="secondary">
+								<AntText type="secondary">
 									<HistoryOutlined spin /> 正在加载历史数据...
-								</Text>
+								</AntText>
 							}
 						/>
 					)}
@@ -344,7 +331,7 @@ export function AnnouncementList() {
 					rowKey={getRowKey}
 					loading={loading}
 					pagination={false}
-					scroll={{ x: 1000, y: "calc(100vh - 520px)" }}
+					scroll={{ x: 800 }}
 					size="small"
 					locale={{
 						emptyText: loading ? "加载中..." : searchKeyword ? "没有找到匹配的公告" : "暂无公告数据",
@@ -363,15 +350,16 @@ export function AnnouncementList() {
 							borderTop: "1px solid #f0f0f0",
 						}}
 					>
-						<Text type="secondary">
-							显示第 <Text strong>{page}</Text> 页
+						<AntText type="secondary">
+							显示第 <AntText strong>{page}</AntText> 页
 							{total > 0 && (
 								<>
 									{" "}
-									共 <Text strong>{Math.ceil(total / PAGE_SIZE)}</Text> 页 (总计 <Text strong>{total.toLocaleString()}</Text> 条)
+									共 <AntText strong>{Math.ceil(total / PAGE_SIZE)}</AntText> 页 (总计{" "}
+									<AntText strong>{total.toLocaleString()}</AntText> 条)
 								</>
 							)}
-						</Text>
+						</AntText>
 						<div style={{ display: "flex", gap: 8 }}>
 							<Button onClick={handlePrevPage} disabled={page === 1}>
 								上一页

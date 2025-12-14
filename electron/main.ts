@@ -2,7 +2,8 @@ import { app, BrowserWindow, Tray, Menu, globalShortcut, ipcMain, Notification, 
 import path from "path";
 import { fileURLToPath } from "url";
 import windowStateKeeper from "electron-window-state";
-import { autoUpdater } from "electron-updater";
+import pkg from "electron-updater";
+const { autoUpdater } = pkg;
 import {
 	getAnnouncements,
 	getLatestAnnDate,
