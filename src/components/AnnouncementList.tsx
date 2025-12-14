@@ -242,14 +242,6 @@ export function AnnouncementList() {
 				</Card>
 				<Card size="small" style={{ minWidth: 150 }}>
 					<div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-						<AntText type="secondary">页数：</AntText>
-						<AntText strong style={{ fontSize: 16 }}>
-							{page} / {Math.ceil(total / PAGE_SIZE)}
-						</AntText>
-					</div>
-				</Card>
-				<Card size="small" style={{ minWidth: 150 }}>
-					<div style={{ display: "flex", alignItems: "center", gap: 8 }}>
 						<AntText type="secondary">状态：</AntText>
 						<AntText
 							strong
@@ -259,14 +251,6 @@ export function AnnouncementList() {
 							}}
 						>
 							{syncing ? "同步中" : loadingHistory ? "加载历史" : "正常"}
-						</AntText>
-					</div>
-				</Card>
-				<Card size="small" style={{ minWidth: 150 }}>
-					<div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-						<AntText type="secondary">显示：</AntText>
-						<AntText strong style={{ fontSize: 16 }}>
-							{filteredAnnouncements.length} / {announcements.length}
 						</AntText>
 					</div>
 				</Card>
