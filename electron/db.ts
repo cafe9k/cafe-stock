@@ -137,13 +137,21 @@ export const countAnnouncements = () => {
  */
 export const getAnnouncementsGroupedByStock = (limit: number, offset: number, startDate?: string, endDate?: string) => {
 	let sql = `
-    SELECT 
+    SELECT
       s.ts_code,
       s.name as stock_name,
       s.industry,
       s.market,
       COUNT(a.id) as announcement_count,
-      MAX(a.ann_date) as latest_ann_date
+      MAX(a.ann_date) as latest_ann_date,
+      (
+        SELECT title
+        FROM announcements a2
+        WHERE a2.ts_code = s.ts_code
+        ${startDate && endDate ? `AND a2.ann_date BETWEEN '${startDate}' AND '${endDate}'` : ""}
+        ORDER BY a2.ann_date DESC, a2.pub_time DESC
+        LIMIT 1
+      ) as latest_ann_title
     FROM stocks s
     INNER JOIN announcements a ON s.ts_code = a.ts_code
   `;
@@ -211,13 +219,21 @@ export const countStocksWithAnnouncements = (startDate?: string, endDate?: strin
 export const searchAnnouncementsGroupedByStock = (keyword: string, limit: number, offset: number, startDate?: string, endDate?: string) => {
 	const likePattern = `%${keyword}%`;
 	let sql = `
-    SELECT 
+    SELECT
       s.ts_code,
       s.name as stock_name,
       s.industry,
       s.market,
       COUNT(a.id) as announcement_count,
-      MAX(a.ann_date) as latest_ann_date
+      MAX(a.ann_date) as latest_ann_date,
+      (
+        SELECT title
+        FROM announcements a2
+        WHERE a2.ts_code = s.ts_code
+        ${startDate && endDate ? `AND a2.ann_date BETWEEN '${startDate}' AND '${endDate}'` : ""}
+        ORDER BY a2.ann_date DESC, a2.pub_time DESC
+        LIMIT 1
+      ) as latest_ann_title
     FROM stocks s
     INNER JOIN announcements a ON s.ts_code = a.ts_code
     WHERE (s.name LIKE ? OR s.ts_code LIKE ? OR s.symbol LIKE ?)

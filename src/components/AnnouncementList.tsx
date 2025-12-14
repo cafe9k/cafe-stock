@@ -16,6 +16,7 @@ interface StockGroup {
 	market: string;
 	announcement_count: number;
 	latest_ann_date: string;
+	latest_ann_title?: string;
 }
 
 interface Announcement {
@@ -359,6 +360,17 @@ export function AnnouncementList() {
 						backgroundColor: count > 10 ? "#f5222d" : count > 5 ? "#fa8c16" : "#52c41a",
 					}}
 				/>
+			),
+		},
+		{
+			title: "最新公告",
+			dataIndex: "latest_ann_title",
+			key: "latest_ann_title",
+			ellipsis: true,
+			render: (title) => (
+				<AntText ellipsis={{ tooltip: title }} style={{ fontSize: 13, color: "#666" }}>
+					{title || "-"}
+				</AntText>
 			),
 		},
 		{
