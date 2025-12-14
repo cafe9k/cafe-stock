@@ -1,4 +1,4 @@
-import require$$1$4, { app, BrowserWindow, globalShortcut, Notification, nativeImage, Tray, Menu, ipcMain } from "electron";
+import require$$1$4, { app, BrowserWindow, globalShortcut, session, Notification, nativeImage, Tray, Menu, ipcMain } from "electron";
 import require$$1$1 from "path";
 import require$$4$1, { fileURLToPath } from "url";
 import require$$1 from "fs";
@@ -13955,6 +13955,18 @@ let isSyncing = false;
 main$1.autoUpdater.autoDownload = false;
 main$1.autoUpdater.autoInstallOnAppQuit = true;
 function createWindow() {
+  if (!isDev) {
+    session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+      callback({
+        responseHeaders: {
+          ...details.responseHeaders,
+          "Content-Security-Policy": [
+            "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://api.tushare.pro https://github.com;"
+          ]
+        }
+      });
+    });
+  }
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,

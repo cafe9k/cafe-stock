@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Tray, Menu, globalShortcut, ipcMain, Notification, nativeImage, NativeImage } from "electron";
+import { app, BrowserWindow, Tray, Menu, globalShortcut, ipcMain, Notification, nativeImage, NativeImage, session } from "electron";
 import path from "path";
 import { fileURLToPath } from "url";
 import windowStateKeeper from "electron-window-state";
@@ -30,6 +30,20 @@ autoUpdater.autoInstallOnAppQuit = true; // 退出时自动安装
 
 // Create Window
 function createWindow() {
+	// 设置内容安全策略 (仅在生产环境应用严格策略)
+	if (!isDev) {
+		session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+			callback({
+				responseHeaders: {
+					...details.responseHeaders,
+					"Content-Security-Policy": [
+						"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://api.tushare.pro https://github.com;",
+					],
+				},
+			});
+		});
+	}
+
 	mainWindow = new BrowserWindow({
 		width: 1280,
 		height: 800,
