@@ -1,10 +1,12 @@
 import { useEffect, useState, useCallback } from "react";
-import { Table, Card, Tag, Typography, message, Badge, Space, Button, Input } from "antd";
-import { FileTextOutlined, SyncOutlined, ReloadOutlined, SearchOutlined, HistoryOutlined } from "@ant-design/icons";
+import { Table, Card, Tag, Typography, message, Badge, Space, Button, Input, DatePicker, Radio } from "antd";
+import { FileTextOutlined, SyncOutlined, ReloadOutlined, SearchOutlined, HistoryOutlined, CalendarOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
+import dayjs, { Dayjs } from "dayjs";
 
 const { Text: AntText } = Typography;
 const { Search } = Input;
+const { RangePicker } = DatePicker;
 
 interface StockGroup {
 	ts_code: string;
@@ -39,24 +41,32 @@ export function AnnouncementList() {
 	const [expandedData, setExpandedData] = useState<Record<string, Announcement[]>>({});
 	const [loadingExpanded, setLoadingExpanded] = useState<Record<string, boolean>>({});
 
-	// 加载股票聚合数据
-	const fetchGroupedData = useCallback(async (pageNum: number) => {
-		setLoading(true);
-		try {
-			if (!window.electronAPI) {
-				throw new Error("Electron API not available");
-			}
+	// 日期范围筛选相关状态
+	const [dateRange, setDateRange] = useState<[string, string] | null>(null);
+	const [dateRangeDisplay, setDateRangeDisplay] = useState<[Dayjs, Dayjs] | null>(null);
+	const [quickSelectValue, setQuickSelectValue] = useState<string>("all");
 
-			const result = await window.electronAPI.getAnnouncementsGrouped(pageNum, PAGE_SIZE);
-			setStockGroups(result.items);
-			setTotal(result.total);
-		} catch (err: any) {
-			console.error("Fetch error:", err);
-			message.error(err.message || "加载失败");
-		} finally {
-			setLoading(false);
-		}
-	}, []);
+	// 加载股票聚合数据
+	const fetchGroupedData = useCallback(
+		async (pageNum: number) => {
+			setLoading(true);
+			try {
+				if (!window.electronAPI) {
+					throw new Error("Electron API not available");
+				}
+
+				const result = await window.electronAPI.getAnnouncementsGrouped(pageNum, PAGE_SIZE, dateRange?.[0], dateRange?.[1]);
+				setStockGroups(result.items);
+				setTotal(result.total);
+			} catch (err: any) {
+				console.error("Fetch error:", err);
+				message.error(err.message || "加载失败");
+			} finally {
+				setLoading(false);
+			}
+		},
+		[dateRange]
+	);
 
 	// 展开行时加载该股票的公告
 	const onExpand = async (expanded: boolean, record: StockGroup) => {
@@ -128,7 +138,7 @@ export function AnnouncementList() {
 
 		setLoading(true);
 		try {
-			const result = await window.electronAPI.searchAnnouncementsGrouped(value, 1, PAGE_SIZE);
+			const result = await window.electronAPI.searchAnnouncementsGrouped(value, 1, PAGE_SIZE, dateRange?.[0], dateRange?.[1]);
 			setStockGroups(result.items);
 			setTotal(result.total);
 		} catch (err: any) {
@@ -145,6 +155,92 @@ export function AnnouncementList() {
 			handleSearch(searchKeyword);
 		} else {
 			fetchGroupedData(page);
+		}
+	};
+
+	// 日期格式化辅助函数：Dayjs -> YYYYMMDD
+	const formatDateToString = (date: Dayjs): string => {
+		return date.format("YYYYMMDD");
+	};
+
+	// 日期格式化辅助函数：YYYYMMDD -> Dayjs
+	const parseDateString = (dateStr: string): Dayjs => {
+		return dayjs(dateStr, "YYYYMMDD");
+	};
+
+	// 计算 N 天前的日期
+	const getDaysAgo = (days: number): string => {
+		return dayjs().subtract(days, "day").format("YYYYMMDD");
+	};
+
+	// 快速日期范围选择处理
+	const handleQuickSelect = async (value: string) => {
+		setQuickSelectValue(value);
+		setPage(1);
+
+		let newDateRange: [string, string] | null = null;
+		let newDateRangeDisplay: [Dayjs, Dayjs] | null = null;
+
+		const today = dayjs().format("YYYYMMDD");
+		const yesterday = getDaysAgo(1);
+
+		switch (value) {
+			case "all":
+				// 全部数据
+				newDateRange = null;
+				newDateRangeDisplay = null;
+				break;
+			case "today":
+				// 今天
+				newDateRange = [today, today];
+				newDateRangeDisplay = [parseDateString(today), parseDateString(today)];
+				break;
+			case "yesterday":
+				// 昨天
+				newDateRange = [yesterday, yesterday];
+				newDateRangeDisplay = [parseDateString(yesterday), parseDateString(yesterday)];
+				break;
+			case "week":
+				// 最近一周
+				const weekAgo = getDaysAgo(7);
+				newDateRange = [weekAgo, today];
+				newDateRangeDisplay = [parseDateString(weekAgo), parseDateString(today)];
+				break;
+			case "month":
+				// 最近一个月
+				const monthAgo = getDaysAgo(30);
+				newDateRange = [monthAgo, today];
+				newDateRangeDisplay = [parseDateString(monthAgo), parseDateString(today)];
+				break;
+			case "quarter":
+				// 最近三个月
+				const quarterAgo = getDaysAgo(90);
+				newDateRange = [quarterAgo, today];
+				newDateRangeDisplay = [parseDateString(quarterAgo), parseDateString(today)];
+				break;
+			case "custom":
+				// 自定义，不做任何处理
+				return;
+		}
+
+		setDateRange(newDateRange);
+		setDateRangeDisplay(newDateRangeDisplay);
+	};
+
+	// 自定义日期范围选择
+	const handleDateRangeChange = (dates: [Dayjs | null, Dayjs | null] | null) => {
+		setPage(1);
+
+		if (dates && dates[0] && dates[1]) {
+			const startDate = formatDateToString(dates[0]);
+			const endDate = formatDateToString(dates[1]);
+			setDateRange([startDate, endDate]);
+			setDateRangeDisplay([dates[0], dates[1]]);
+			setQuickSelectValue("custom");
+		} else {
+			setDateRange(null);
+			setDateRangeDisplay(null);
+			setQuickSelectValue("all");
 		}
 	};
 
@@ -176,7 +272,8 @@ export function AnnouncementList() {
 		} else {
 			fetchGroupedData(page);
 		}
-	}, [page]);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [page, dateRange]);
 
 	const handlePrevPage = () => {
 		if (page > 1) {
@@ -306,61 +403,52 @@ export function AnnouncementList() {
 
 	return (
 		<div style={{ padding: "24px" }}>
-			{/* 统计信息 */}
-			<Space size="middle" style={{ marginBottom: 16, width: "100%" }}>
-				<Card size="small" style={{ minWidth: 160 }} loading={loading}>
-					<div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-						<AntText type="secondary">股票总数：</AntText>
-						<AntText strong style={{ fontSize: 18, color: "#3f8600" }}>
-							{total}
-						</AntText>
-						<AntText type="secondary">只</AntText>
-					</div>
-				</Card>
-				<Card size="small" style={{ minWidth: 150 }}>
-					<div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-						<AntText type="secondary">状态：</AntText>
-						<AntText
-							strong
-							style={{
-								fontSize: 16,
-								color: syncing || loadingHistory ? "#1890ff" : "#3f8600",
-							}}
-						>
-							{syncing ? "同步中" : loadingHistory ? "加载历史" : "正常"}
-						</AntText>
-					</div>
-				</Card>
-			</Space>
-
 			{/* 操作栏 */}
-			<Space style={{ marginBottom: 16, width: "100%" }}>
-				<Search
-					placeholder="搜索股票名称或代码"
-					allowClear
-					enterButton={<SearchOutlined />}
-					onSearch={handleSearch}
-					onChange={(e) => {
-						if (!e.target.value) {
-							handleSearch("");
-						}
-					}}
-					style={{ width: 400 }}
-					value={searchKeyword}
-				/>
+			<div style={{ marginBottom: 16 }}>
+				{/* 第一行：搜索和刷新 */}
+				<Space style={{ marginBottom: 12 }} align="start">
+					<Search
+						placeholder="搜索股票名称或代码"
+						allowClear
+						enterButton={<SearchOutlined />}
+						onSearch={handleSearch}
+						onChange={(e) => {
+							if (!e.target.value) {
+								handleSearch("");
+							}
+						}}
+						style={{ width: 300 }}
+						value={searchKeyword}
+					/>
 
-				<Button type="primary" icon={<SyncOutlined spin={syncing} />} onClick={handleSync} loading={syncing} disabled={loadingHistory}>
-					增量同步
-				</Button>
+					<Button icon={<ReloadOutlined />} onClick={handleRefresh} loading={loading}>
+						刷新
+					</Button>
+				</Space>
 
-				<Button icon={<HistoryOutlined spin={loadingHistory} />} onClick={handleLoadHistory} loading={loadingHistory} disabled={syncing}>
-					加载历史
-				</Button>
+				{/* 第二行：时间范围选择 */}
+				<Space style={{ width: "100%" }} align="start">
+					<Radio.Group value={quickSelectValue} onChange={(e) => handleQuickSelect(e.target.value)} buttonStyle="solid" size="middle">
+						<Radio.Button value="all">全部</Radio.Button>
+						<Radio.Button value="today">今天</Radio.Button>
+						<Radio.Button value="yesterday">昨天</Radio.Button>
+						<Radio.Button value="week">最近一周</Radio.Button>
+						<Radio.Button value="month">最近一个月</Radio.Button>
+						<Radio.Button value="quarter">最近三个月</Radio.Button>
+						<Radio.Button value="custom">自定义</Radio.Button>
+					</Radio.Group>
 
-				<Button icon={<ReloadOutlined />} onClick={handleRefresh} loading={loading} disabled={syncing || loadingHistory}>
-					刷新
-				</Button>
-			</Space>
+					<RangePicker
+						value={dateRangeDisplay}
+						onChange={handleDateRangeChange}
+						format="YYYY-MM-DD"
+						placeholder={["开始日期", "结束日期"]}
+						style={{ width: 240 }}
+						allowClear
+						suffixIcon={<CalendarOutlined />}
+					/>
+				</Space>
+			</div>
 
 			{/* 同步状态提示 */}
 			{(syncing || loadingHistory) && (
@@ -400,7 +488,7 @@ export function AnnouncementList() {
 						expandedRowRender,
 						onExpand,
 						expandedRowKeys,
-						onExpandedRowsChange: setExpandedRowKeys,
+						onExpandedRowsChange: (keys) => setExpandedRowKeys(keys as string[]),
 					}}
 					scroll={{ x: 800 }}
 					size="small"

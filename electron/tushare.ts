@@ -161,4 +161,33 @@ export class TushareClient {
 			offset,
 		});
 	}
+
+	/**
+	 * 获取交易日历
+	 * 文档: https://tushare.pro/document/2?doc_id=26
+	 * 接口：trade_cal
+	 * 描述：获取各大交易所交易日历数据，默认提取的是上交所
+	 * 限量：单次最大提取4000条
+	 * 权限：用户需要至少120积分才可以调取
+	 *
+	 * 输入参数：
+	 * exchange: str, 交易所 SSE上交所 SZSE深交所 BSE北交所
+	 * start_date: str, 开始日期 (YYYYMMDD格式)
+	 * end_date: str, 结束日期 (YYYYMMDD格式)
+	 * is_open: str, 是否交易 '0'休市 '1'交易
+	 *
+	 * 输出参数：
+	 * exchange: str, 交易所 SSE上交所 SZSE深交所
+	 * cal_date: str, 日历日期
+	 * is_open: str, 是否交易 0休市 1交易
+	 * pretrade_date: str, 上一个交易日
+	 */
+	static async getTradeCalendar(exchange: string = "SSE", startDate?: string, endDate?: string, isOpen?: string) {
+		return this.request("trade_cal", {
+			exchange,
+			start_date: startDate,
+			end_date: endDate,
+			is_open: isOpen,
+		});
+	}
 }

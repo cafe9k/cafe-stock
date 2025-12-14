@@ -39,7 +39,9 @@ export interface ElectronAPI {
 	// 聚合公告相关
 	getAnnouncementsGrouped: (
 		page: number,
-		pageSize: number
+		pageSize: number,
+		startDate?: string,
+		endDate?: string
 	) => Promise<{
 		items: Array<{
 			ts_code: string;
@@ -70,7 +72,9 @@ export interface ElectronAPI {
 	searchAnnouncementsGrouped: (
 		keyword: string,
 		page: number,
-		pageSize: number
+		pageSize: number,
+		startDate?: string,
+		endDate?: string
 	) => Promise<{
 		items: Array<{
 			ts_code: string;
@@ -84,6 +88,9 @@ export interface ElectronAPI {
 		page: number;
 		pageSize: number;
 	}>;
+
+	// 获取最近交易日
+	getLatestTradeDate: () => Promise<string>;
 
 	// 自动更新相关
 	checkForUpdates: () => Promise<{ available: boolean; updateInfo?: any; error?: string; message?: string }>;

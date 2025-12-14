@@ -509,13 +509,15 @@ function setupIPC() {
 	});
 
 	// 获取按股票聚合的公告列表
-	ipcMain.handle("get-announcements-grouped", async (_event, page: number, pageSize: number) => {
+	ipcMain.handle("get-announcements-grouped", async (_event, page: number, pageSize: number, startDate?: string, endDate?: string) => {
 		try {
 			const offset = (page - 1) * pageSize;
-			const items = getAnnouncementsGroupedByStock(pageSize, offset);
-			const total = countStocksWithAnnouncements();
+			const items = getAnnouncementsGroupedByStock(pageSize, offset, startDate, endDate);
+			const total = countStocksWithAnnouncements(startDate, endDate);
 
-			console.log(`[IPC] get-announcements-grouped: page=${page}, offset=${offset}, items=${items.length}, total=${total}`);
+			console.log(
+				`[IPC] get-announcements-grouped: page=${page}, offset=${offset}, items=${items.length}, total=${total}, dateRange=${startDate}-${endDate}`
+			);
 
 			return {
 				items,
@@ -541,23 +543,66 @@ function setupIPC() {
 	});
 
 	// 搜索按股票聚合的公告数据
-	ipcMain.handle("search-announcements-grouped", async (_event, keyword: string, page: number, pageSize: number) => {
+	ipcMain.handle(
+		"search-announcements-grouped",
+		async (_event, keyword: string, page: number, pageSize: number, startDate?: string, endDate?: string) => {
+			try {
+				const offset = (page - 1) * pageSize;
+				const items = searchAnnouncementsGroupedByStock(keyword, pageSize, offset, startDate, endDate);
+				const total = countSearchedStocksWithAnnouncements(keyword, startDate, endDate);
+
+				console.log(
+					`[IPC] search-announcements-grouped: keyword=${keyword}, page=${page}, items=${items.length}, total=${total}, dateRange=${startDate}-${endDate}`
+				);
+
+				return {
+					items,
+					total,
+					page,
+					pageSize,
+				};
+			} catch (error: any) {
+				console.error("Failed to search grouped announcements:", error);
+				throw error;
+			}
+		}
+	);
+
+	// 获取最近交易日
+	ipcMain.handle("get-latest-trade-date", async () => {
 		try {
-			const offset = (page - 1) * pageSize;
-			const items = searchAnnouncementsGroupedByStock(keyword, pageSize, offset);
-			const total = countSearchedStocksWithAnnouncements(keyword);
+			// 获取最近30天的交易日历
+			const today = new Date();
+			const endDate = today.toISOString().slice(0, 10).replace(/-/g, "");
+			const startDateObj = new Date();
+			startDateObj.setDate(startDateObj.getDate() - 30);
+			const startDate = startDateObj.toISOString().slice(0, 10).replace(/-/g, "");
 
-			console.log(`[IPC] search-announcements-grouped: keyword=${keyword}, page=${page}, items=${items.length}, total=${total}`);
+			console.log(`[IPC] get-latest-trade-date: fetching from ${startDate} to ${endDate}`);
 
-			return {
-				items,
-				total,
-				page,
-				pageSize,
-			};
+			const calendar = await TushareClient.getTradeCalendar("SSE", startDate, endDate, "1");
+
+			// 找到最近一个交易日
+			if (calendar && calendar.length > 0) {
+				// 按日期降序排序，取第一个
+				const sortedDates = calendar
+					.filter((item: any) => item.is_open === "1" || item.is_open === 1)
+					.sort((a: any, b: any) => b.cal_date.localeCompare(a.cal_date));
+
+				if (sortedDates.length > 0) {
+					const latestTradeDate = sortedDates[0].cal_date;
+					console.log(`[IPC] get-latest-trade-date: found ${latestTradeDate}`);
+					return latestTradeDate;
+				}
+			}
+
+			// 如果没有找到，返回今天
+			console.log(`[IPC] get-latest-trade-date: no trade date found, returning today`);
+			return endDate;
 		} catch (error: any) {
-			console.error("Failed to search grouped announcements:", error);
-			throw error;
+			console.error("Failed to get latest trade date:", error);
+			// 出错时返回今天
+			return new Date().toISOString().slice(0, 10).replace(/-/g, "");
 		}
 	});
 
