@@ -1,0 +1,32 @@
+---
+description: React 和 TypeScript 组件开发规范
+globs: src/**/*.{ts,tsx}
+---
+
+# React & TypeScript 开发规范
+
+- **组件定义**:
+  - 所有组件必须使用 **函数式组件 (Functional Components)**。
+  - 组件文件名使用 `PascalCase` (如 `StockList.tsx`)。
+  - 必须显式定义 Props 接口，禁止使用 `any`。
+
+- **Hooks**:
+  - 自定义 Hooks 必须以 `use` 开头。
+  - 确保 `useEffect` 的依赖项数组完整。
+
+- **TypeScript**:
+  - 优先使用 `interface` 定义对象结构，使用 `type` 定义联合类型。
+  - 避免非空断言 (`!`)，使用可选链 (`?.`) 或类型守卫。
+
+- **示例**:
+  ```tsx
+  interface StockItemProps {
+    id: string;
+    name: string;
+    quantity: number;
+  }
+
+  export const StockItem = ({ id, name, quantity }: StockItemProps) => {
+    return <div>{name}: {quantity}</div>;
+  };
+  ```

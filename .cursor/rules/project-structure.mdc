@@ -1,0 +1,21 @@
+---
+description: 项目文件结构与命名约定
+globs: **/*
+---
+
+# 项目结构规范
+
+- **目录结构**:
+  - `electron/`: 存放主进程代码 (`main.ts`) 和预加载脚本 (`preload.ts`)。
+  - `src/`: 仅存放 React 渲染进程代码。
+    - `src/components/`: 可复用的 UI 组件。
+    - `src/hooks/`: 自定义 React Hooks。
+    - `src/utils/`: 通用工具函数。
+
+- **命名约定**:
+  - **文件夹**: 使用 `kebab-case` (如 `user-profile`)。
+  - **TS/TSX 文件**: 组件使用 `PascalCase`，工具/逻辑文件使用 `camelCase`。
+  - **CSS 文件**: 与组件同名 (如 `StockList.css`) 或使用 `StockList.module.css`。
+
+- **导入路径**:
+  - 尽量使用绝对路径或别名（如果 `tsconfig.json` 中已配置 `@/`）。

@@ -1,0 +1,25 @@
+---
+description: Electron 主进程与渲染进程开发规范
+globs: electron/**/*.{ts,js}, src/main.tsx
+---
+
+# Electron 最佳实践
+
+- **安全模型**:
+  - 始终保持 `contextIsolation: true` 和 `nodeIntegration: false` (在 `main.ts` 中配置)。
+  - 禁止在渲染进程 (`src/`) 直接导入 `fs`, `path` 等 Node.js 模块。
+
+- **IPC 通信**:
+  - 使用 `preload.ts` 作为主进程和渲染进程的桥梁。
+  - 在 `preload.ts` 中使用 `contextBridge.exposeInMainWorld` 暴露安全的 API。
+  - 类型定义：在 `src/electron.d.ts` 或 `src/types.d.ts` 中扩展 `Window` 接口以获得智能提示。
+
+- **示例 (Preload)**:
+  ```typescript
+  // electron/preload.ts
+  import { contextBridge, ipcRenderer } from 'electron';
+
+  contextBridge.exposeInMainWorld('electronAPI', {
+    loadConfig: () => ipcRenderer.invoke('load-config')
+  });
+  ```

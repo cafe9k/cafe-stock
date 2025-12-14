@@ -18,7 +18,9 @@ function createWindow() {
       preload: path.join(__dirname$1, "preload.js"),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false
+      sandbox: false,
+      webSecurity: false
+      // 禁用同源策略
     },
     show: false,
     backgroundColor: "#ffffff"
