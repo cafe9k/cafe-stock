@@ -38,6 +38,7 @@ import {
 	searchAnnouncements,
 	countAnnouncements,
 } from "./db.js";
+import db from "./db.js";
 import { TushareClient } from "./tushare.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -301,23 +302,56 @@ async function getAnnouncementsGroupedFromAPI(
 		filteredStocks = allStocks.filter((s: any) => s.market === market);
 	}
 
-	// 从 Tushare API 完整获取所有公告数据
+	// 从数据库或 Tushare API 获取公告数据
 	let announcements: any[] = [];
 
-	if (startDate && endDate) {
-		// 如果有日期范围，使用完整获取方式确保覆盖整个日期范围
-		console.log(`[getAnnouncementsGroupedFromAPI] 使用完整获取方式获取公告: ${startDate} - ${endDate}`);
-		announcements = await TushareClient.getAnnouncementsComplete(
-			undefined, // 全市场
-			startDate,
-			endDate,
-			(message, current, total) => {
-				console.log(`[getAnnouncementsGroupedFromAPI] ${message}`);
-			}
-		);
+	// 检查数据库中是否已有该时间范围的数据
+	const isSynced = startDate && endDate ? isAnnouncementRangeSynced(null, startDate, endDate) : false;
+
+	if (isSynced) {
+		// 从数据库读取
+		console.log(`[DB Cache Hit] 从数据库读取公告: ${startDate} - ${endDate}`);
+		announcements = db
+			.prepare(
+				`
+      SELECT * FROM announcements 
+      WHERE ann_date >= ? AND ann_date <= ?
+      ORDER BY ann_date DESC, rec_time DESC
+    `
+			)
+			.all(startDate, endDate);
+		console.log(`[DB Cache Hit] 从数据库读取到 ${announcements.length} 条公告`);
 	} else {
-		// 没有日期范围，使用单次请求（限制2000条）
-		announcements = await TushareClient.getAnnouncements(undefined, undefined, startDate, endDate, 2000, 0);
+		// 从 API 获取
+		console.log(`[DB Cache Miss] 从 API 获取公告: ${startDate || "无"} - ${endDate || "无"}`);
+
+		if (startDate && endDate) {
+			// 如果有日期范围，使用完整获取方式确保覆盖整个日期范围
+			console.log(`[getAnnouncementsGroupedFromAPI] 使用完整获取方式获取公告: ${startDate} - ${endDate}`);
+			announcements = await TushareClient.getAnnouncementsComplete(
+				undefined, // 全市场
+				startDate,
+				endDate,
+				(message, current, total) => {
+					console.log(`[getAnnouncementsGroupedFromAPI] ${message}`);
+				}
+			);
+		} else {
+			// 没有日期范围，使用单次请求（限制2000条）
+			announcements = await TushareClient.getAnnouncements(undefined, undefined, startDate, endDate, 2000, 0);
+		}
+
+		// 保存到数据库
+		if (announcements.length > 0) {
+			console.log(`[DB Cache] 保存 ${announcements.length} 条公告到数据库`);
+			upsertAnnouncements(announcements);
+
+			// 记录已同步的时间范围
+			if (startDate && endDate) {
+				recordAnnouncementSyncRange(null, startDate, endDate);
+				console.log(`[DB Cache] 记录同步范围: ${startDate} - ${endDate}`);
+			}
+		}
 	}
 
 	// 按股票聚合公告数据

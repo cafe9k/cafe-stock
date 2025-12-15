@@ -19,21 +19,28 @@ export function PDFWebViewer({ open, onClose, pdfUrl, title = "PDF 预览" }: PD
 			webview.src = pdfUrl;
 
 			// 监听 webview 事件
+			let loadStartTime: number;
+
 			const handleLoadStart = () => {
-				console.log("WebView 开始加载:", pdfUrl);
+				loadStartTime = Date.now();
+				console.log(`[PDF WebView] 开始加载: ${pdfUrl}`);
 			};
 
 			const handleLoadStop = () => {
-				console.log("WebView 加载完成");
+				const duration = Date.now() - (loadStartTime || 0);
+				console.log(`[PDF WebView] 加载完成, 耗时: ${duration}ms`);
 			};
 
 			const handleLoadAbort = (event: any) => {
-				console.error("WebView 加载中止:", event);
+				const duration = Date.now() - (loadStartTime || 0);
+				console.error(`[PDF WebView Error] 加载失败, 耗时: ${duration}ms`);
+				console.error(`[PDF WebView Error] 错误详情:`, event);
+				console.error(`[PDF WebView Error] URL: ${pdfUrl}`);
 				message.error("PDF 加载失败");
 			};
 
 			const handleNewWindow = (event: any) => {
-				console.log("WebView 尝试打开新窗口:", event.url);
+				console.log(`[PDF WebView] 尝试打开新窗口: ${event.url}`);
 			};
 
 			webview.addEventListener("did-start-loading", handleLoadStart);
@@ -52,6 +59,7 @@ export function PDFWebViewer({ open, onClose, pdfUrl, title = "PDF 预览" }: PD
 
 	const handleDownload = () => {
 		if (webviewRef.current) {
+			console.log(`[PDF WebView] 开始下载: ${pdfUrl}`);
 			webviewRef.current.downloadURL(pdfUrl);
 			message.success("开始下载");
 		}
@@ -59,11 +67,13 @@ export function PDFWebViewer({ open, onClose, pdfUrl, title = "PDF 预览" }: PD
 
 	const handleReload = () => {
 		if (webviewRef.current) {
+			console.log(`[PDF WebView] 刷新页面: ${pdfUrl}`);
 			webviewRef.current.reload();
 		}
 	};
 
 	const handleOpenInBrowser = () => {
+		console.log(`[PDF WebView] 在浏览器中打开: ${pdfUrl}`);
 		window.electronAPI?.openExternal?.(pdfUrl);
 	};
 

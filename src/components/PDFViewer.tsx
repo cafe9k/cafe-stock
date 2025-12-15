@@ -25,6 +25,7 @@ export function PDFViewer({ open, onClose, pdfUrl, title = "PDF 预览" }: PDFVi
 	// 重置状态当 URL 改变时
 	useEffect(() => {
 		if (open && pdfUrl) {
+			console.log(`[PDF Viewer] 开始加载 PDF: ${pdfUrl}`);
 			setLoading(true);
 			setPageNumber(1);
 			setScale(1.0);
@@ -32,13 +33,15 @@ export function PDFViewer({ open, onClose, pdfUrl, title = "PDF 预览" }: PDFVi
 	}, [open, pdfUrl]);
 
 	const onDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
+		console.log(`[PDF Viewer] PDF 加载成功, 总页数: ${numPages}`);
 		setNumPages(numPages);
 		setLoading(false);
 		setPageNumber(1);
 	};
 
 	const onDocumentLoadError = (error: Error) => {
-		console.error("PDF 加载失败:", error);
+		console.error("[PDF Viewer Error] PDF 加载失败:", error);
+		console.error("[PDF Viewer Error] URL:", pdfUrl);
 		message.error("PDF 加载失败，请稍后重试");
 		setLoading(false);
 	};
@@ -53,8 +56,20 @@ export function PDFViewer({ open, onClose, pdfUrl, title = "PDF 预览" }: PDFVi
 
 	const handleDownload = async () => {
 		try {
+			// 记录下载开始
+			const startTime = Date.now();
+			console.log(`[PDF Download] 开始下载 PDF: ${pdfUrl}`);
+			console.log(`[PDF Download] 文件名: ${title}`);
+
 			const response = await fetch(pdfUrl);
+			
+			// 记录响应状态
+			console.log(`[PDF Download] HTTP状态: ${response.status}, 内容类型: ${response.headers.get("content-type")}`);
+			console.log(`[PDF Download] 响应耗时: ${Date.now() - startTime}ms`);
+
 			const blob = await response.blob();
+			console.log(`[PDF Download] Blob大小: ${(blob.size / 1024 / 1024).toFixed(2)} MB`);
+
 			const url = window.URL.createObjectURL(blob);
 			const link = document.createElement("a");
 			link.href = url;
@@ -63,9 +78,13 @@ export function PDFViewer({ open, onClose, pdfUrl, title = "PDF 预览" }: PDFVi
 			link.click();
 			document.body.removeChild(link);
 			window.URL.revokeObjectURL(url);
+			
+			// 记录下载完成
+			console.log(`[PDF Download] 下载完成, 总耗时: ${Date.now() - startTime}ms`);
 			message.success("下载成功");
 		} catch (error) {
-			console.error("下载失败:", error);
+			console.error("[PDF Download Error] 下载失败:", error);
+			console.error("[PDF Download Error] URL:", pdfUrl);
 			message.error("下载失败，请稍后重试");
 		}
 	};

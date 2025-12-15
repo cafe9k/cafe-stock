@@ -35,6 +35,12 @@ export class TushareClient {
 			fields: Array.isArray(fields) ? fields.join(",") : fields,
 		};
 
+		// 记录请求开始
+		const startTime = Date.now();
+		console.log(`[Tushare Request] 开始请求 API: ${apiName}`);
+		console.log(`[Tushare Request] 请求参数:`, JSON.stringify(params, null, 2));
+		console.log(`[Tushare Request] 请求字段:`, fields);
+
 		try {
 			const response = await fetch(this.BASE_URL, {
 				method: "POST",
@@ -44,17 +50,25 @@ export class TushareClient {
 				body: JSON.stringify(requestBody),
 			});
 
+			// 记录响应状态
+			const duration = Date.now() - startTime;
+			console.log(`[Tushare Response] API: ${apiName}, HTTP状态: ${response.status}, 耗时: ${duration}ms`);
+
 			if (!response.ok) {
 				throw new Error(`HTTP Error: ${response.status}`);
 			}
 
 			const res = (await response.json()) as TushareResponse;
 
+			// 记录响应结果
+			console.log(`[Tushare Response] API: ${apiName}, 响应码: ${res.code}, 消息: ${res.msg || "成功"}`);
+
 			if (res.code !== 0) {
 				throw new Error(`Tushare Error [${res.code}]: ${res.msg}`);
 			}
 
 			if (!res.data) {
+				console.log(`[Tushare Response] API: ${apiName}, 返回空数据`);
 				return [];
 			}
 
@@ -67,9 +81,16 @@ export class TushareClient {
 				return obj as T;
 			});
 
+			// 记录返回数据量
+			console.log(`[Tushare Response] API: ${apiName}, 返回 ${result.length} 条数据, 总耗时: ${Date.now() - startTime}ms`);
+
 			return result;
 		} catch (error) {
-			console.error("Tushare Request Failed:", error);
+			// 增强错误日志
+			const duration = Date.now() - startTime;
+			console.error(`[Tushare Error] API: ${apiName}, 耗时: ${duration}ms`);
+			console.error(`[Tushare Error] 请求参数:`, JSON.stringify(params, null, 2));
+			console.error(`[Tushare Error] 错误详情:`, error);
 			throw error;
 		}
 	}

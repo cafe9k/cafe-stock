@@ -68,19 +68,20 @@ db.exec(`
 
   CREATE TABLE IF NOT EXISTS announcements (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    ann_date TEXT NOT NULL,
     ts_code TEXT NOT NULL,
+    ann_date TEXT NOT NULL,
+    ann_type TEXT,
+    title TEXT,
+    content TEXT,
+    pub_time TEXT,
+    file_path TEXT,
     name TEXT,
-    title TEXT NOT NULL,
-    url TEXT NOT NULL,
-    rec_time TEXT,
-    created_at TEXT NOT NULL,
     UNIQUE(ts_code, ann_date, title)
   );
 
   CREATE INDEX IF NOT EXISTS idx_ann_date ON announcements (ann_date DESC);
   CREATE INDEX IF NOT EXISTS idx_ann_ts_code ON announcements (ts_code);
-  CREATE INDEX IF NOT EXISTS idx_ann_ts_code_date ON announcements (ts_code, ann_date DESC);
+  CREATE INDEX IF NOT EXISTS idx_ann_ts_code_date ON announcements (ts_code, ann_date DESC, pub_time DESC);
 
   CREATE TABLE IF NOT EXISTS announcement_sync_ranges (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -93,6 +94,40 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_sync_range_ts_code ON announcement_sync_ranges (ts_code);
   CREATE INDEX IF NOT EXISTS idx_sync_range_dates ON announcement_sync_ranges (start_date, end_date);
 `);
+
+// ============= 数据库迁移 =============
+
+/**
+ * 检查并添加缺失的列（数据库迁移）
+ */
+function migrateDatabase() {
+	// 获取 announcements 表的列信息
+	const tableInfo = db.prepare("PRAGMA table_info(announcements)").all() as Array<{ name: string }>;
+	const existingColumns = new Set(tableInfo.map((col) => col.name));
+
+	// 定义需要的列及其类型
+	const requiredColumns = [
+		{ name: "name", type: "TEXT" },
+		{ name: "url", type: "TEXT" },
+		{ name: "rec_time", type: "TEXT" },
+	];
+
+	// 检查并添加缺失的列
+	for (const column of requiredColumns) {
+		if (!existingColumns.has(column.name)) {
+			console.log(`[DB Migration] 添加 announcements.${column.name} 列`);
+			try {
+				db.exec(`ALTER TABLE announcements ADD COLUMN ${column.name} ${column.type}`);
+				console.log(`[DB Migration] announcements.${column.name} 列添加成功`);
+			} catch (error) {
+				console.error(`[DB Migration Error] 添加 announcements.${column.name} 列失败:`, error);
+			}
+		}
+	}
+}
+
+// 执行数据库迁移
+migrateDatabase();
 
 // ============= 股票数据相关操作 =============
 
@@ -462,31 +497,32 @@ export const deleteTop10HoldersByStock = (tsCode: string) => {
  * 批量插入或更新公告数据
  */
 export const upsertAnnouncements = (items: any[]) => {
-	const now = new Date().toISOString();
 	const upsert = db.prepare(`
     INSERT INTO announcements (
-      ann_date, ts_code, name, title, url, rec_time, created_at
+      ts_code, ann_date, ann_type, title, content, pub_time, file_path, name
     )
     VALUES (
-      @ann_date, @ts_code, @name, @title, @url, @rec_time, @created_at
+      @ts_code, @ann_date, @ann_type, @title, @content, @pub_time, @file_path, @name
     )
     ON CONFLICT(ts_code, ann_date, title) DO UPDATE SET
-      name = excluded.name,
-      url = excluded.url,
-      rec_time = excluded.rec_time,
-      created_at = excluded.created_at
+      ann_type = excluded.ann_type,
+      content = excluded.content,
+      pub_time = excluded.pub_time,
+      file_path = excluded.file_path,
+      name = excluded.name
   `);
 
 	const upsertMany = db.transaction((announcements) => {
 		for (const ann of announcements) {
 			upsert.run({
-				ann_date: ann.ann_date || null,
 				ts_code: ann.ts_code || null,
-				name: ann.name || null,
+				ann_date: ann.ann_date || null,
+				ann_type: ann.ann_type || null,
 				title: ann.title || null,
-				url: ann.url || null,
-				rec_time: ann.rec_time || null,
-				created_at: now,
+				content: ann.content || null,
+				pub_time: ann.pub_time || null,
+				file_path: ann.file_path || null,
+				name: ann.name || null,
 			});
 		}
 	});

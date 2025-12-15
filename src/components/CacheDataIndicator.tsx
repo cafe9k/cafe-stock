@@ -122,7 +122,7 @@ export function CacheDataIndicator() {
 				borderBottom: "none",
 				boxShadow: "0 -2px 8px rgba(0, 0, 0, 0.1)",
 			}}
-			bodyStyle={{ padding: "8px 16px" }}
+			styles={{ body: { padding: "8px 16px" } }}
 		>
 			<div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
 				<Space size="large" wrap>
