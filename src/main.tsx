@@ -19,7 +19,7 @@ createRoot(document.getElementById("root")!).render(
 				algorithm: theme.defaultAlgorithm,
 			}}
 		>
-			<AntApp message={{ top: undefined, bottom: 24 }}>
+			<AntApp message={{ top: undefined }}>
 				<HashRouter>
 					<App />
 				</HashRouter>

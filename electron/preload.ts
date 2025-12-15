@@ -255,4 +255,29 @@ contextBridge.exposeInMainWorld("electronAPI", {
 		ipcRenderer.on("sqlite-http-server-error", subscription);
 		return () => ipcRenderer.removeListener("sqlite-http-server-error", subscription);
 	},
+
+	// 股票列表同步相关
+	getStockListSyncInfo: () => {
+		return ipcRenderer.invoke("get-stock-list-sync-info");
+	},
+
+	syncAllStocks: () => {
+		return ipcRenderer.invoke("sync-all-stocks");
+	},
+
+	checkStockListSyncStatus: () => {
+		return ipcRenderer.invoke("check-stock-list-sync-status");
+	},
+
+	// 监听股票列表同步进度
+	onStockListSyncProgress: (callback: (progress: any) => void) => {
+		const subscription = (_event: any, progress: any) => callback(progress);
+		ipcRenderer.on("stock-list-sync-progress", subscription);
+		return () => ipcRenderer.removeListener("stock-list-sync-progress", subscription);
+	},
+
+	// 获取缓存数据统计信息
+	getCacheDataStats: () => {
+		return ipcRenderer.invoke("get-cache-data-stats");
+	},
 });

@@ -7,28 +7,15 @@ import windowStateKeeper from "electron-window-state";
 import pkg from "electron-updater";
 const { autoUpdater } = pkg;
 import {
-	getAnnouncements,
-	getLatestAnnDate,
-	getOldestAnnDate,
-	hasDataInDateRange,
-	insertAnnouncements,
-	countAnnouncements,
 	upsertStocks,
 	getAllStocks,
 	countStocks,
 	searchStocks,
-	getAnnouncementsGroupedByStock,
-	getAnnouncementsByStock,
-	countStocksWithAnnouncements,
-	searchAnnouncementsGroupedByStock,
-	countSearchedStocksWithAnnouncements,
 	addFavoriteStock,
 	removeFavoriteStock,
 	isFavoriteStock,
 	getAllFavoriteStocks,
 	countFavoriteStocks,
-	getFavoriteStocksAnnouncementsGrouped,
-	countFavoriteStocksWithAnnouncements,
 	upsertTop10Holders,
 	getTop10HoldersByStock,
 	hasTop10HoldersData,
@@ -38,6 +25,10 @@ import {
 	getTop10HoldersEndDates,
 	getTop10HoldersByStockAndEndDate,
 	getDbPath,
+	getStockListSyncInfo,
+	updateSyncFlag,
+	isSyncedToday,
+	getCacheDataStats,
 } from "./db.js";
 import { TushareClient } from "./tushare.js";
 
@@ -231,160 +222,16 @@ function registerShortcuts() {
 	});
 }
 
-// 增量同步：从最新数据到今天
+// 增量同步：已废弃，数据现在实时从 Tushare API 获取
 async function performIncrementalSync() {
-	if (isSyncing) {
-		console.log("Sync already in progress, skipping");
-		return { status: "skipped", message: "Sync already in progress" };
-	}
-
-	isSyncing = true;
-	console.log("Starting incremental sync...");
-
-	let totalSynced = 0;
-
-	try {
-		const lastDate = getLatestAnnDate();
-		const now = new Date();
-		const today = now.toISOString().slice(0, 10).replace(/-/g, "");
-
-		// 如果已经是今天的数据，不需要同步
-		if (lastDate === today) {
-			console.log("Already synced to today.");
-			return { status: "success", message: "Already up to date", totalSynced: 0 };
-		}
-
-		// 从最新日期的下一天开始同步
-		const startDate = lastDate || today;
-		console.log(`Incremental sync from ${startDate} to ${today}`);
-
-		let offset = 0;
-		const limit = 2000;
-		let hasMore = true;
-
-		while (hasMore) {
-			const data = await TushareClient.getAnnouncements(undefined, undefined, startDate, today, limit, offset);
-
-			if (data.length > 0) {
-				insertAnnouncements(data);
-				console.log(`Synced ${data.length} items.`);
-				totalSynced += data.length;
-
-				// 通知前端更新
-				mainWindow?.webContents.send("data-updated", {
-					type: "incremental",
-					totalSynced,
-					currentBatchSize: data.length,
-				});
-
-				if (data.length < limit) {
-					hasMore = false;
-				} else {
-					offset += limit;
-				}
-			} else {
-				hasMore = false;
-			}
-
-			// 安全限制
-			if (offset > 100000) {
-				console.warn("Sync limit reached (safety break).");
-				break;
-			}
-		}
-
-		console.log(`Incremental sync completed. Total: ${totalSynced}`);
-		return { status: "success", message: "Sync completed", totalSynced };
-	} catch (error: any) {
-		console.error("Incremental sync failed:", error);
-		return { status: "failed", message: error.message || "Unknown error" };
-	} finally {
-		isSyncing = false;
-	}
+	console.log("Incremental sync is deprecated. Data is now fetched in real-time from Tushare API.");
+	return { status: "success", message: "数据现在实时从服务端获取，无需同步", totalSynced: 0 };
 }
 
-// 历史数据回补：从最老数据往前一个月
+// 历史数据回补：已废弃，数据现在实时从 Tushare API 获取
 async function loadHistoricalData() {
-	if (isLoadingHistory) {
-		console.log("History loading already in progress");
-		return { status: "skipped", message: "Loading already in progress" };
-	}
-
-	isLoadingHistory = true;
-	console.log("Loading historical data...");
-
-	let totalLoaded = 0;
-
-	try {
-		const oldestDate = getOldestAnnDate();
-
-		// 如果没有数据，从今天往前一个月开始
-		let endDate: string;
-		if (!oldestDate) {
-			const now = new Date();
-			endDate = now.toISOString().slice(0, 10).replace(/-/g, "");
-		} else {
-			endDate = oldestDate;
-		}
-
-		// 计算起始日期（往前一个月）
-		const endDateObj = new Date(endDate.slice(0, 4) + "-" + endDate.slice(4, 6) + "-" + endDate.slice(6, 8));
-		endDateObj.setMonth(endDateObj.getMonth() - 1);
-		const startDate = endDateObj.toISOString().slice(0, 10).replace(/-/g, "");
-
-		console.log(`Loading history from ${startDate} to ${endDate}`);
-
-		// 检查这个范围是否已有数据
-		if (hasDataInDateRange(startDate, endDate)) {
-			console.log("Data already exists in this range");
-			return { status: "success", message: "Data already exists", totalLoaded: 0 };
-		}
-
-		let offset = 0;
-		const limit = 2000;
-		let hasMore = true;
-
-		while (hasMore) {
-			const data = await TushareClient.getAnnouncements(undefined, undefined, startDate, endDate, limit, offset);
-
-			if (data.length > 0) {
-				insertAnnouncements(data);
-				console.log(`Loaded ${data.length} historical items.`);
-				totalLoaded += data.length;
-
-				// 通知前端更新
-				mainWindow?.webContents.send("data-updated", {
-					type: "historical",
-					totalLoaded,
-					currentBatchSize: data.length,
-					startDate,
-					endDate,
-				});
-
-				if (data.length < limit) {
-					hasMore = false;
-				} else {
-					offset += limit;
-				}
-			} else {
-				hasMore = false;
-			}
-
-			// 安全限制
-			if (offset > 50000) {
-				console.warn("History load limit reached (safety break).");
-				break;
-			}
-		}
-
-		console.log(`Historical data loaded. Total: ${totalLoaded}`);
-		return { status: "success", message: "History loaded", totalLoaded, startDate, endDate };
-	} catch (error: any) {
-		console.error("Historical data load failed:", error);
-		return { status: "failed", message: error.message || "Unknown error" };
-	} finally {
-		isLoadingHistory = false;
-	}
+	console.log("Historical data loading is deprecated. Data is now fetched in real-time from Tushare API.");
+	return { status: "success", message: "数据现在实时从服务端获取，无需加载历史数据", totalLoaded: 0 };
 }
 
 // 同步股票列表（首次启动或数据为空时）
@@ -418,6 +265,439 @@ async function syncStocksIfNeeded() {
 	}
 }
 
+// 从 Tushare API 获取公告数据并按股票聚合
+async function getAnnouncementsGroupedFromAPI(
+	page: number,
+	pageSize: number,
+	startDate?: string,
+	endDate?: string,
+	market?: string
+): Promise<{
+	items: Array<{
+		ts_code: string;
+		stock_name: string;
+		industry: string;
+		market: string;
+		announcement_count: number;
+		latest_ann_date: string;
+		latest_ann_title?: string;
+	}>;
+	total: number;
+}> {
+	// 获取所有股票列表
+	const allStocks = getAllStocks();
+	
+	// 过滤市场
+	let filteredStocks = allStocks;
+	if (market && market !== "all") {
+		filteredStocks = allStocks.filter((s: any) => s.market === market);
+	}
+
+	// 从 Tushare API 获取公告数据
+	const announcements = await TushareClient.getAnnouncements(
+		undefined,
+		undefined,
+		startDate,
+		endDate,
+		2000,
+		0
+	);
+
+	// 按股票聚合公告数据
+	const stockMap = new Map<string, {
+		ts_code: string;
+		stock_name: string;
+		industry: string;
+		market: string;
+		announcements: any[];
+	}>();
+
+	// 初始化股票映射
+	filteredStocks.forEach((stock: any) => {
+		stockMap.set(stock.ts_code, {
+			ts_code: stock.ts_code,
+			stock_name: stock.name,
+			industry: stock.industry || "",
+			market: stock.market || "",
+			announcements: [],
+		});
+	});
+
+	// 将公告分配到对应的股票
+	announcements.forEach((ann: any) => {
+		const stock = stockMap.get(ann.ts_code);
+		if (stock) {
+			stock.announcements.push(ann);
+		}
+	});
+
+	// 转换为数组并计算聚合信息
+	const groupedData = Array.from(stockMap.values())
+		.map((stock) => {
+			if (stock.announcements.length === 0) {
+				return null;
+			}
+			
+			// 按日期和时间排序
+			stock.announcements.sort((a, b) => {
+				const dateCompare = (b.ann_date || "").localeCompare(a.ann_date || "");
+				if (dateCompare !== 0) return dateCompare;
+				return (b.pub_time || "").localeCompare(a.pub_time || "");
+			});
+
+			const latestAnn = stock.announcements[0];
+			return {
+				ts_code: stock.ts_code,
+				stock_name: stock.stock_name,
+				industry: stock.industry,
+				market: stock.market,
+				announcement_count: stock.announcements.length,
+				latest_ann_date: latestAnn.ann_date,
+				latest_ann_title: latestAnn.title,
+			};
+		})
+		.filter((item) => item !== null)
+		.sort((a, b) => {
+			const dateCompare = (b?.latest_ann_date || "").localeCompare(a?.latest_ann_date || "");
+			if (dateCompare !== 0) return dateCompare;
+			return (a?.stock_name || "").localeCompare(b?.stock_name || "");
+		}) as Array<{
+			ts_code: string;
+			stock_name: string;
+			industry: string;
+			market: string;
+			announcement_count: number;
+			latest_ann_date: string;
+			latest_ann_title?: string;
+		}>;
+
+	const total = groupedData.length;
+	const offset = (page - 1) * pageSize;
+	const items = groupedData.slice(offset, offset + pageSize);
+
+	return { items, total };
+}
+
+// 从 Tushare API 搜索公告数据并按股票聚合
+async function searchAnnouncementsGroupedFromAPI(
+	keyword: string,
+	page: number,
+	pageSize: number,
+	startDate?: string,
+	endDate?: string,
+	market?: string
+): Promise<{
+	items: Array<{
+		ts_code: string;
+		stock_name: string;
+		industry: string;
+		market: string;
+		announcement_count: number;
+		latest_ann_date: string;
+		latest_ann_title?: string;
+	}>;
+	total: number;
+}> {
+	// 搜索匹配的股票
+	const matchedStocks = searchStocks(keyword, 1000);
+	
+	// 过滤市场
+	let filteredStocks = matchedStocks;
+	if (market && market !== "all") {
+		filteredStocks = matchedStocks.filter((s: any) => s.market === market);
+	}
+
+	if (filteredStocks.length === 0) {
+		return { items: [], total: 0 };
+	}
+
+	// 获取匹配股票的代码列表
+	const tsCodes = filteredStocks.map((s: any) => s.ts_code).join(",");
+
+	// 从 Tushare API 获取公告数据
+	const announcements = await TushareClient.getAnnouncements(
+		tsCodes,
+		undefined,
+		startDate,
+		endDate,
+		2000,
+		0
+	);
+
+	// 按股票聚合公告数据
+	const stockMap = new Map<string, {
+		ts_code: string;
+		stock_name: string;
+		industry: string;
+		market: string;
+		announcements: any[];
+	}>();
+
+	// 初始化股票映射
+	filteredStocks.forEach((stock: any) => {
+		stockMap.set(stock.ts_code, {
+			ts_code: stock.ts_code,
+			stock_name: stock.name,
+			industry: stock.industry || "",
+			market: stock.market || "",
+			announcements: [],
+		});
+	});
+
+	// 将公告分配到对应的股票
+	announcements.forEach((ann: any) => {
+		const stock = stockMap.get(ann.ts_code);
+		if (stock) {
+			stock.announcements.push(ann);
+		}
+	});
+
+	// 转换为数组并计算聚合信息
+	const groupedData = Array.from(stockMap.values())
+		.map((stock) => {
+			if (stock.announcements.length === 0) {
+				return null;
+			}
+			
+			// 按日期和时间排序
+			stock.announcements.sort((a, b) => {
+				const dateCompare = (b.ann_date || "").localeCompare(a.ann_date || "");
+				if (dateCompare !== 0) return dateCompare;
+				return (b.pub_time || "").localeCompare(a.pub_time || "");
+			});
+
+			const latestAnn = stock.announcements[0];
+			return {
+				ts_code: stock.ts_code,
+				stock_name: stock.stock_name,
+				industry: stock.industry,
+				market: stock.market,
+				announcement_count: stock.announcements.length,
+				latest_ann_date: latestAnn.ann_date,
+				latest_ann_title: latestAnn.title,
+			};
+		})
+		.filter((item) => item !== null)
+		.sort((a, b) => {
+			const dateCompare = (b?.latest_ann_date || "").localeCompare(a?.latest_ann_date || "");
+			if (dateCompare !== 0) return dateCompare;
+			return (a?.stock_name || "").localeCompare(b?.stock_name || "");
+		}) as Array<{
+			ts_code: string;
+			stock_name: string;
+			industry: string;
+			market: string;
+			announcement_count: number;
+			latest_ann_date: string;
+			latest_ann_title?: string;
+		}>;
+
+	const total = groupedData.length;
+	const offset = (page - 1) * pageSize;
+	const items = groupedData.slice(offset, offset + pageSize);
+
+	return { items, total };
+}
+
+// 从 Tushare API 获取关注股票的公告数据并按股票聚合
+async function getFavoriteStocksAnnouncementsGroupedFromAPI(
+	page: number,
+	pageSize: number,
+	startDate?: string,
+	endDate?: string
+): Promise<{
+	items: Array<{
+		ts_code: string;
+		stock_name: string;
+		industry: string;
+		market: string;
+		announcement_count: number;
+		latest_ann_date: string;
+		latest_ann_title?: string;
+	}>;
+	total: number;
+}> {
+	// 获取所有关注的股票代码
+	const favoriteStocks = getAllFavoriteStocks();
+	
+	if (favoriteStocks.length === 0) {
+		return { items: [], total: 0 };
+	}
+
+	// 获取关注的股票信息
+	const allStocks = getAllStocks();
+	const favoriteStockInfos = allStocks.filter((s: any) => favoriteStocks.includes(s.ts_code));
+
+	// 获取关注股票的代码列表
+	const tsCodes = favoriteStocks.join(",");
+
+	// 从 Tushare API 获取公告数据
+	const announcements = await TushareClient.getAnnouncements(
+		tsCodes,
+		undefined,
+		startDate,
+		endDate,
+		2000,
+		0
+	);
+
+	// 按股票聚合公告数据
+	const stockMap = new Map<string, {
+		ts_code: string;
+		stock_name: string;
+		industry: string;
+		market: string;
+		announcements: any[];
+	}>();
+
+	// 初始化股票映射
+	favoriteStockInfos.forEach((stock: any) => {
+		stockMap.set(stock.ts_code, {
+			ts_code: stock.ts_code,
+			stock_name: stock.name,
+			industry: stock.industry || "",
+			market: stock.market || "",
+			announcements: [],
+		});
+	});
+
+	// 将公告分配到对应的股票
+	announcements.forEach((ann: any) => {
+		const stock = stockMap.get(ann.ts_code);
+		if (stock) {
+			stock.announcements.push(ann);
+		}
+	});
+
+	// 转换为数组并计算聚合信息
+	const groupedData = Array.from(stockMap.values())
+		.map((stock) => {
+			if (stock.announcements.length === 0) {
+				return null;
+			}
+			
+			// 按日期和时间排序
+			stock.announcements.sort((a, b) => {
+				const dateCompare = (b.ann_date || "").localeCompare(a.ann_date || "");
+				if (dateCompare !== 0) return dateCompare;
+				return (b.pub_time || "").localeCompare(a.pub_time || "");
+			});
+
+			const latestAnn = stock.announcements[0];
+			return {
+				ts_code: stock.ts_code,
+				stock_name: stock.stock_name,
+				industry: stock.industry,
+				market: stock.market,
+				announcement_count: stock.announcements.length,
+				latest_ann_date: latestAnn.ann_date,
+				latest_ann_title: latestAnn.title,
+			};
+		})
+		.filter((item) => item !== null)
+		.sort((a, b) => {
+			const dateCompare = (b?.latest_ann_date || "").localeCompare(a?.latest_ann_date || "");
+			if (dateCompare !== 0) return dateCompare;
+			return (a?.stock_name || "").localeCompare(b?.stock_name || "");
+		}) as Array<{
+			ts_code: string;
+			stock_name: string;
+			industry: string;
+			market: string;
+			announcement_count: number;
+			latest_ann_date: string;
+			latest_ann_title?: string;
+		}>;
+
+	const total = groupedData.length;
+	const offset = (page - 1) * pageSize;
+	const items = groupedData.slice(offset, offset + pageSize);
+
+	return { items, total };
+}
+
+// 重新同步全部股票列表数据
+async function syncAllStocks() {
+	try {
+		console.log("Starting full stock list sync...");
+
+		// 发送开始同步事件
+		mainWindow?.webContents.send("stock-list-sync-progress", {
+			status: "started",
+			message: "开始同步股票列表...",
+		});
+
+		// 获取所有上市股票
+		const stocks = await TushareClient.getStockList(undefined, undefined, undefined, undefined, undefined, "L", 5000, 0);
+
+		if (stocks && stocks.length > 0) {
+			// 发送同步中事件
+			mainWindow?.webContents.send("stock-list-sync-progress", {
+				status: "syncing",
+				message: `正在同步 ${stocks.length} 只股票...`,
+				total: stocks.length,
+				current: 0,
+			});
+
+			upsertStocks(stocks);
+			console.log(`Synced ${stocks.length} stocks to database`);
+
+			// 更新同步标志位（使用今天的日期）
+			const today = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+			updateSyncFlag("stock_list", today);
+
+			// 发送完成事件
+			mainWindow?.webContents.send("stock-list-sync-progress", {
+				status: "completed",
+				message: `成功同步 ${stocks.length} 只股票`,
+				total: stocks.length,
+				current: stocks.length,
+				stockCount: stocks.length,
+			});
+
+			if (Notification.isSupported()) {
+				new Notification({
+					title: "股票列表同步完成",
+					body: `已同步 ${stocks.length} 只股票`,
+				}).show();
+			}
+
+			return {
+				success: true,
+				stockCount: stocks.length,
+				message: `成功同步 ${stocks.length} 只股票`,
+			};
+		} else {
+			// 发送失败事件
+			mainWindow?.webContents.send("stock-list-sync-progress", {
+				status: "failed",
+				message: "未获取到股票数据",
+			});
+
+			return {
+				success: false,
+				stockCount: 0,
+				message: "未获取到股票数据",
+			};
+		}
+	} catch (error: any) {
+		console.error("Failed to sync stocks:", error);
+
+		// 发送错误事件
+		mainWindow?.webContents.send("stock-list-sync-progress", {
+			status: "failed",
+			message: error.message || "同步失败",
+			error: error.message,
+		});
+
+		return {
+			success: false,
+			stockCount: 0,
+			message: error.message || "同步失败",
+		};
+	}
+}
+
 function setupIPC() {
 	ipcMain.handle("show-notification", async (_event, title: string, body: string) => {
 		if (Notification.isSupported()) {
@@ -429,49 +709,24 @@ function setupIPC() {
 		return app.getVersion();
 	});
 
-	ipcMain.handle("get-announcements", async (_event, page: number, pageSize: number) => {
-		const offset = (page - 1) * pageSize;
-		const items = getAnnouncements(pageSize, offset);
-		const total = countAnnouncements();
-		console.log(`[IPC] get-announcements: page=${page}, offset=${offset}, items=${items.length}, total=${total}`);
-
-		// 检查是否需要加载历史数据（接近数据末尾时）
-		const totalPages = Math.ceil(total / pageSize);
-		const shouldLoadHistory = page >= totalPages - 2 && total > 0; // 倒数第2页时触发
-
-		return {
-			items,
-			total,
-			shouldLoadHistory,
-		};
-	});
-
-	// 触发增量同步
-	ipcMain.handle("trigger-incremental-sync", async () => {
-		return await performIncrementalSync();
-	});
-
-	// 触发历史数据加载
-	ipcMain.handle("load-historical-data", async () => {
-		return await loadHistoricalData();
-	});
-
-	// 获取按股票聚合的公告列表
+	// 获取按股票聚合的公告列表（从 Tushare API 实时获取）
 	ipcMain.handle(
 		"get-announcements-grouped",
 		async (_event, page: number, pageSize: number, startDate?: string, endDate?: string, market?: string) => {
 			try {
-				const offset = (page - 1) * pageSize;
-				const items = getAnnouncementsGroupedByStock(pageSize, offset, startDate, endDate, market);
-				const total = countStocksWithAnnouncements(startDate, endDate, market);
+				console.log(
+					`[IPC] get-announcements-grouped: page=${page}, pageSize=${pageSize}, dateRange=${startDate}-${endDate}, market=${market}`
+				);
+
+				const result = await getAnnouncementsGroupedFromAPI(page, pageSize, startDate, endDate, market);
 
 				console.log(
-					`[IPC] get-announcements-grouped: page=${page}, offset=${offset}, items=${items.length}, total=${total}, dateRange=${startDate}-${endDate}, market=${market}`
+					`[IPC] get-announcements-grouped: page=${page}, items=${result.items.length}, total=${result.total}`
 				);
 
 				return {
-					items,
-					total,
+					items: result.items,
+					total: result.total,
 					page,
 					pageSize,
 				};
@@ -482,33 +737,53 @@ function setupIPC() {
 		}
 	);
 
-	// 获取特定股票的公告列表
+	// 获取特定股票的公告列表（从 Tushare API 实时获取）
 	ipcMain.handle("get-stock-announcements", async (_event, tsCode: string, limit: number = 100) => {
 		try {
 			console.log(`[IPC] get-stock-announcements: tsCode=${tsCode}, limit=${limit}`);
-			return getAnnouncementsByStock(tsCode, limit);
+			
+			const announcements = await TushareClient.getAnnouncements(tsCode, undefined, undefined, undefined, limit, 0);
+			
+			// 按日期和时间排序
+			announcements.sort((a: any, b: any) => {
+				const dateCompare = (b.ann_date || "").localeCompare(a.ann_date || "");
+				if (dateCompare !== 0) return dateCompare;
+				return (b.pub_time || "").localeCompare(a.pub_time || "");
+			});
+
+			// 转换为前端期望的格式（移除 id 字段）
+			return announcements.map((ann: any) => ({
+				ts_code: ann.ts_code,
+				ann_date: ann.ann_date,
+				ann_type: ann.ann_type,
+				title: ann.title,
+				content: ann.content,
+				pub_time: ann.pub_time,
+			}));
 		} catch (error: any) {
 			console.error("Failed to get stock announcements:", error);
 			throw error;
 		}
 	});
 
-	// 搜索按股票聚合的公告数据
+	// 搜索按股票聚合的公告数据（从 Tushare API 实时获取）
 	ipcMain.handle(
 		"search-announcements-grouped",
 		async (_event, keyword: string, page: number, pageSize: number, startDate?: string, endDate?: string, market?: string) => {
 			try {
-				const offset = (page - 1) * pageSize;
-				const items = searchAnnouncementsGroupedByStock(keyword, pageSize, offset, startDate, endDate, market);
-				const total = countSearchedStocksWithAnnouncements(keyword, startDate, endDate, market);
+				console.log(
+					`[IPC] search-announcements-grouped: keyword=${keyword}, page=${page}, pageSize=${pageSize}, dateRange=${startDate}-${endDate}, market=${market}`
+				);
+
+				const result = await searchAnnouncementsGroupedFromAPI(keyword, page, pageSize, startDate, endDate, market);
 
 				console.log(
-					`[IPC] search-announcements-grouped: keyword=${keyword}, page=${page}, items=${items.length}, total=${total}, dateRange=${startDate}-${endDate}, market=${market}`
+					`[IPC] search-announcements-grouped: keyword=${keyword}, page=${page}, items=${result.items.length}, total=${result.total}`
 				);
 
 				return {
-					items,
-					total,
+					items: result.items,
+					total: result.total,
 					page,
 					pageSize,
 				};
@@ -984,15 +1259,17 @@ function setupIPC() {
 		"get-favorite-stocks-announcements-grouped",
 		async (_event, page: number, pageSize: number, startDate?: string, endDate?: string) => {
 			try {
-				const offset = (page - 1) * pageSize;
-				const items = getFavoriteStocksAnnouncementsGrouped(pageSize, offset, startDate, endDate);
-				const total = countFavoriteStocksWithAnnouncements(startDate, endDate);
+				console.log(
+					`[IPC] get-favorite-stocks-announcements-grouped: page=${page}, pageSize=${pageSize}, dateRange=${startDate}-${endDate}`
+				);
 
-				console.log(`[IPC] get-favorite-stocks-announcements-grouped: page=${page}, items=${items.length}, total=${total}`);
+				const result = await getFavoriteStocksAnnouncementsGroupedFromAPI(page, pageSize, startDate, endDate);
+
+				console.log(`[IPC] get-favorite-stocks-announcements-grouped: page=${page}, items=${result.items.length}, total=${result.total}`);
 
 				return {
-					items,
-					total,
+					items: result.items,
+					total: result.total,
 					page,
 					pageSize,
 				};
@@ -1301,6 +1578,69 @@ function setupIPC() {
 			return [];
 		}
 	});
+
+	// 获取股票列表同步信息
+	ipcMain.handle("get-stock-list-sync-info", async () => {
+		try {
+			console.log("[IPC] get-stock-list-sync-info");
+			return getStockListSyncInfo();
+		} catch (error: any) {
+			console.error("Failed to get stock list sync info:", error);
+			throw error;
+		}
+	});
+
+	// 重新同步全部股票列表数据
+	ipcMain.handle("sync-all-stocks", async () => {
+		try {
+			console.log("[IPC] sync-all-stocks");
+			return await syncAllStocks();
+		} catch (error: any) {
+			console.error("Failed to sync all stocks:", error);
+			return {
+				success: false,
+				stockCount: 0,
+				message: error.message || "同步失败",
+			};
+		}
+	});
+
+	// 检查股票列表今日是否已同步
+	ipcMain.handle("check-stock-list-sync-status", async () => {
+		try {
+			console.log("[IPC] check-stock-list-sync-status");
+			const synced = isSyncedToday("stock_list");
+			const syncInfo = getStockListSyncInfo();
+			return {
+				isSyncedToday: synced,
+				stockCount: syncInfo.stockCount,
+				lastSyncTime: syncInfo.lastSyncTime,
+			};
+		} catch (error: any) {
+			console.error("Failed to check stock list sync status:", error);
+			return {
+				isSyncedToday: false,
+				stockCount: 0,
+				lastSyncTime: null,
+			};
+		}
+	});
+
+	// 获取缓存数据统计信息
+	ipcMain.handle("get-cache-data-stats", async () => {
+		try {
+			console.log("[IPC] get-cache-data-stats");
+			return getCacheDataStats();
+		} catch (error: any) {
+			console.error("Failed to get cache data stats:", error);
+			return {
+				stocks: { count: 0, lastSyncTime: null },
+				favoriteStocks: { count: 0 },
+				top10Holders: { stockCount: 0, recordCount: 0 },
+				syncFlags: [],
+			};
+		}
+	});
 }
 
 // 设置自动更新事件监听
@@ -1388,6 +1728,24 @@ if (!gotTheLock) {
 
 		// 启动时自动执行增量同步（异步，不阻塞）
 		performIncrementalSync().catch((err) => console.error("Auto sync failed:", err));
+
+		// 每日自动同步检查：如果今日未同步，自动执行同步
+		const checkDailySync = async () => {
+			try {
+				if (!isSyncedToday("stock_list")) {
+					console.log("Today's stock list not synced yet, starting automatic sync...");
+					// 延迟3秒后执行，避免阻塞应用启动
+					setTimeout(async () => {
+						await syncAllStocks();
+					}, 3000);
+				} else {
+					console.log("Stock list already synced today");
+				}
+			} catch (error) {
+				console.error("Daily sync check failed:", error);
+			}
+		};
+		checkDailySync();
 
 		// 启动时检查更新（生产环境）
 		if (!isDev) {

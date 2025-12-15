@@ -13,6 +13,7 @@ import {
 	UserOutlined,
 } from "@ant-design/icons";
 import type { MenuProps } from "antd";
+import { CacheDataIndicator } from "./CacheDataIndicator";
 
 const { Header, Content } = AntLayout;
 
@@ -42,7 +43,7 @@ export function Layout() {
 	const { message } = App.useApp();
 	const [isServerRunning, setIsServerRunning] = useState(false);
 	const [serverPort, setServerPort] = useState(8080);
-	const [serverUrl, setServerUrl] = useState<string | null>(null);
+	const [_serverUrl, setServerUrl] = useState<string | null>(null);
 	const [hasAuth, setHasAuth] = useState(false);
 	const [username, setUsername] = useState<string | null>(null);
 	const [showAuthModal, setShowAuthModal] = useState(false);
@@ -282,9 +283,10 @@ export function Layout() {
 					</Button>
 				</Dropdown>
 			</Header>
-			<Content style={{ background: "#f0f2f5" }}>
+			<Content style={{ background: "#f0f2f5", paddingBottom: 60 }}>
 				<Outlet />
 			</Content>
+			<CacheDataIndicator />
 
 			{/* 设置认证信息对话框 */}
 			<Modal

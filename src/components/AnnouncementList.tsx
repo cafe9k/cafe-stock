@@ -29,7 +29,6 @@ interface StockGroup {
 }
 
 interface Announcement {
-	id: number;
 	ts_code: string;
 	ann_date: string;
 	ann_type: string;
@@ -53,10 +52,19 @@ export function AnnouncementList() {
 	const [expandedData, setExpandedData] = useState<Record<string, Announcement[]>>({});
 	const [loadingExpanded, setLoadingExpanded] = useState<Record<string, boolean>>({});
 
-	// 日期范围筛选相关状态
-	const [dateRange, setDateRange] = useState<[string, string] | null>(null);
-	const [dateRangeDisplay, setDateRangeDisplay] = useState<[Dayjs, Dayjs] | null>(null);
-	const [quickSelectValue, setQuickSelectValue] = useState<string>("all");
+	// 日期范围筛选相关状态 - 默认最近一周
+	const getDefaultDateRange = (): [string, string] => {
+		const today = dayjs().format("YYYYMMDD");
+		const weekAgo = dayjs().subtract(7, "day").format("YYYYMMDD");
+		return [weekAgo, today];
+	};
+
+	const [dateRange, setDateRange] = useState<[string, string]>(getDefaultDateRange());
+	const [dateRangeDisplay, setDateRangeDisplay] = useState<[Dayjs, Dayjs]>([
+		dayjs().subtract(7, "day"),
+		dayjs(),
+	]);
+	const [quickSelectValue, setQuickSelectValue] = useState<string>("week");
 
 	// 市场筛选状态
 	const [selectedMarket, setSelectedMarket] = useState<string>("all");
@@ -82,14 +90,14 @@ export function AnnouncementList() {
 				let result;
 				if (showFavoriteOnly) {
 					// 加载关注的股票
-					result = await window.electronAPI.getFavoriteStocksAnnouncementsGrouped(pageNum, PAGE_SIZE, dateRange?.[0], dateRange?.[1]);
+					result = await window.electronAPI.getFavoriteStocksAnnouncementsGrouped(pageNum, PAGE_SIZE, dateRange[0], dateRange[1]);
 				} else {
 					// 加载所有股票
 					result = await window.electronAPI.getAnnouncementsGrouped(
 						pageNum,
 						PAGE_SIZE,
-						dateRange?.[0],
-						dateRange?.[1],
+						dateRange[0],
+						dateRange[1],
 						selectedMarket === "all" ? undefined : selectedMarket
 					);
 				}
@@ -192,8 +200,8 @@ export function AnnouncementList() {
 				value,
 				1,
 				PAGE_SIZE,
-				dateRange?.[0],
-				dateRange?.[1],
+				dateRange[0],
+				dateRange[1],
 				selectedMarket === "all" ? undefined : selectedMarket
 			);
 
@@ -252,18 +260,11 @@ export function AnnouncementList() {
 		setQuickSelectValue(value);
 		setPage(1);
 
-		let newDateRange: [string, string] | null = null;
-		let newDateRangeDisplay: [Dayjs, Dayjs] | null = null;
-
 		const today = dayjs().format("YYYYMMDD");
-		const yesterday = getDaysAgo(1);
+		let newDateRange: [string, string];
+		let newDateRangeDisplay: [Dayjs, Dayjs];
 
 		switch (value) {
-			case "all":
-				// 全部数据
-				newDateRange = null;
-				newDateRangeDisplay = null;
-				break;
 			case "today":
 				// 今天
 				newDateRange = [today, today];
@@ -271,6 +272,7 @@ export function AnnouncementList() {
 				break;
 			case "yesterday":
 				// 昨天
+				const yesterday = getDaysAgo(1);
 				newDateRange = [yesterday, yesterday];
 				newDateRangeDisplay = [parseDateString(yesterday), parseDateString(yesterday)];
 				break;
@@ -292,16 +294,18 @@ export function AnnouncementList() {
 				newDateRange = [quarterAgo, today];
 				newDateRangeDisplay = [parseDateString(quarterAgo), parseDateString(today)];
 				break;
-			case "custom":
-				// 自定义，不做任何处理
-				return;
+			default:
+				// 默认最近一周
+				const defaultWeekAgo = getDaysAgo(7);
+				newDateRange = [defaultWeekAgo, today];
+				newDateRangeDisplay = [parseDateString(defaultWeekAgo), parseDateString(today)];
 		}
 
 		setDateRange(newDateRange);
 		setDateRangeDisplay(newDateRangeDisplay);
 	};
 
-	// 自定义日期范围选择
+	// 日期范围选择 - 用户输入起始时间即认为自定义
 	const handleDateRangeChange = (dates: [Dayjs | null, Dayjs | null] | null) => {
 		setPage(1);
 
@@ -310,11 +314,19 @@ export function AnnouncementList() {
 			const endDate = formatDateToString(dates[1]);
 			setDateRange([startDate, endDate]);
 			setDateRangeDisplay([dates[0], dates[1]]);
-			setQuickSelectValue("custom");
+			// 用户输入了起始时间，即认为自定义，不设置 quickSelectValue
+		} else if (dates && dates[0]) {
+			// 只选择了起始时间，等待用户选择结束时间
+			const startDate = formatDateToString(dates[0]);
+			const today = dayjs().format("YYYYMMDD");
+			setDateRange([startDate, today]);
+			setDateRangeDisplay([dates[0], dayjs()]);
 		} else {
-			setDateRange(null);
-			setDateRangeDisplay(null);
-			setQuickSelectValue("all");
+			// 清空时恢复默认最近一周
+			const defaultRange = getDefaultDateRange();
+			setDateRange(defaultRange);
+			setDateRangeDisplay([dayjs().subtract(7, "day"), dayjs()]);
+			setQuickSelectValue("week");
 		}
 	};
 
@@ -385,8 +397,8 @@ export function AnnouncementList() {
 						searchKeyword,
 						page,
 						PAGE_SIZE,
-						dateRange?.[0],
-						dateRange?.[1],
+						dateRange[0],
+						dateRange[1],
 						selectedMarket === "all" ? undefined : selectedMarket
 					);
 
@@ -548,7 +560,7 @@ export function AnnouncementList() {
 				pagination={false}
 				loading={loading}
 				size="small"
-				rowKey="id"
+				rowKey={(record) => `${record.ts_code}-${record.ann_date}-${record.title}`}
 				locale={{
 					emptyText: loading ? "加载中..." : "暂无公告",
 				}}
@@ -625,13 +637,11 @@ export function AnnouncementList() {
 				{/* 第二行：时间范围选择 */}
 				<Space style={{ width: "100%" }} align="start">
 					<Radio.Group value={quickSelectValue} onChange={(e) => handleQuickSelect(e.target.value)} buttonStyle="solid" size="middle">
-						<Radio.Button value="all">全部</Radio.Button>
 						<Radio.Button value="today">今天</Radio.Button>
 						<Radio.Button value="yesterday">昨天</Radio.Button>
 						<Radio.Button value="week">最近一周</Radio.Button>
 						<Radio.Button value="month">最近一个月</Radio.Button>
 						<Radio.Button value="quarter">最近三个月</Radio.Button>
-						<Radio.Button value="custom">自定义</Radio.Button>
 					</Radio.Group>
 
 					<RangePicker

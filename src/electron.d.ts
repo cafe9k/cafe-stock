@@ -44,7 +44,6 @@ export interface ElectronAPI {
 		limit?: number
 	) => Promise<
 		Array<{
-			id: number;
 			ts_code: string;
 			ann_date: string;
 			ann_type: string;
@@ -324,6 +323,50 @@ export interface ElectronAPI {
 	onSqliteHttpServerStarted: (callback: (data: { port: number; hasAuth: boolean; username: string | null }) => void) => () => void;
 	onSqliteHttpServerStopped: (callback: () => void) => () => void;
 	onSqliteHttpServerError: (callback: (error: { message: string }) => void) => () => void;
+
+	// 股票列表同步相关
+	getStockListSyncInfo: () => Promise<{
+		stockCount: number;
+		lastSyncTime: string | null;
+	}>;
+	syncAllStocks: () => Promise<{
+		success: boolean;
+		stockCount: number;
+		message: string;
+	}>;
+	checkStockListSyncStatus: () => Promise<{
+		isSyncedToday: boolean;
+		stockCount: number;
+		lastSyncTime: string | null;
+	}>;
+	onStockListSyncProgress: (
+		callback: (progress: {
+			status: "started" | "syncing" | "completed" | "failed";
+			message?: string;
+			total?: number;
+			current?: number;
+			stockCount?: number;
+			error?: string;
+		}) => void
+	) => () => void;
+	getCacheDataStats: () => Promise<{
+		stocks: {
+			count: number;
+			lastSyncTime: string | null;
+		};
+		favoriteStocks: {
+			count: number;
+		};
+		top10Holders: {
+			stockCount: number;
+			recordCount: number;
+		};
+		syncFlags: Array<{
+			type: string;
+			lastSyncDate: string;
+			updatedAt: string;
+		}>;
+	}>;
 }
 
 declare global {

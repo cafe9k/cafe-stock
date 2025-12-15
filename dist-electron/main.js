@@ -13824,33 +13824,7 @@ const pkg = /* @__PURE__ */ getDefaultExportFromCjs(main$1);
 const dbPath = require$$1$1.join(app.getPath("userData"), "cafe_stock.db");
 const db = new Database(dbPath);
 const getDbPath = () => dbPath;
-function runMigrations() {
-  const tableInfo = db.pragma("table_info(announcements)");
-  const hasFilePath = tableInfo.some((col) => col.name === "file_path");
-  if (!hasFilePath) {
-    console.log("Running migration: Adding file_path column to announcements table");
-    db.exec("ALTER TABLE announcements ADD COLUMN file_path TEXT");
-    console.log("Migration completed: file_path column added");
-  }
-}
 db.exec(`
-  CREATE TABLE IF NOT EXISTS announcements (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    ts_code TEXT NOT NULL,
-    ann_date TEXT NOT NULL,
-    ann_type TEXT,
-    title TEXT,
-    content TEXT,
-    pub_time TEXT,
-    file_path TEXT,
-    UNIQUE(ts_code, ann_date, title)
-  );
-
-  CREATE INDEX IF NOT EXISTS idx_ann_date_pub_time ON announcements (ann_date DESC, pub_time DESC);
-  CREATE INDEX IF NOT EXISTS idx_ann_ts_code ON announcements (ts_code);
-  CREATE INDEX IF NOT EXISTS idx_ann_ts_code_date ON announcements (ts_code, ann_date DESC, pub_time DESC);
-  CREATE INDEX IF NOT EXISTS idx_ann_date_ts_code ON announcements (ann_date DESC, ts_code);
-
   CREATE TABLE IF NOT EXISTS stocks (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     ts_code TEXT NOT NULL UNIQUE,
@@ -13907,252 +13881,6 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_top10_holder_name ON top10_holders (holder_name);
   CREATE INDEX IF NOT EXISTS idx_top10_ts_end_date ON top10_holders (ts_code, end_date DESC);
 `);
-runMigrations();
-const insertAnnouncements = (items) => {
-  const insert = db.prepare(`
-    INSERT OR IGNORE INTO announcements (ts_code, ann_date, ann_type, title, content, pub_time, file_path)
-    VALUES (@ts_code, @ann_date, @ann_type, @title, @content, @pub_time, @file_path)
-  `);
-  const insertMany = db.transaction((announcements) => {
-    for (const ann of announcements) {
-      insert.run({
-        ts_code: ann.ts_code || null,
-        ann_date: ann.ann_date || null,
-        ann_type: ann.ann_type || null,
-        title: ann.title || null,
-        content: ann.content || null,
-        pub_time: ann.pub_time || null,
-        file_path: ann.file_path || null
-      });
-    }
-  });
-  insertMany(items);
-};
-const getLatestAnnDate = () => {
-  const row = db.prepare("SELECT MAX(ann_date) as max_date FROM announcements").get();
-  return (row == null ? void 0 : row.max_date) || null;
-};
-const getOldestAnnDate = () => {
-  const row = db.prepare("SELECT MIN(ann_date) as min_date FROM announcements").get();
-  return (row == null ? void 0 : row.min_date) || null;
-};
-const hasDataInDateRange = (startDate, endDate) => {
-  const row = db.prepare(
-    `
-    SELECT COUNT(*) as count FROM announcements 
-    WHERE ann_date >= ? AND ann_date <= ?
-  `
-  ).get(startDate, endDate);
-  return row.count > 0;
-};
-const getAnnouncements = (limit, offset) => {
-  return db.prepare(
-    `
-    SELECT * FROM announcements 
-    ORDER BY ann_date DESC, pub_time DESC 
-    LIMIT ? OFFSET ?
-  `
-  ).all(limit, offset);
-};
-const countAnnouncements = () => {
-  const row = db.prepare("SELECT COUNT(*) as count FROM announcements").get();
-  return row.count;
-};
-const getAnnouncementsGroupedByStock = (limit, offset, startDate, endDate, market) => {
-  const params = [];
-  const conditions = [];
-  const annConditions = [];
-  if (startDate && endDate) {
-    conditions.push(`a.ann_date BETWEEN ? AND ?`);
-    annConditions.push(`a.ann_date BETWEEN ? AND ?`);
-    params.push(startDate, endDate);
-  }
-  if (market && market !== "all") {
-    conditions.push(`s.market = ?`);
-    params.push(market);
-  }
-  const whereClause = conditions.length > 0 ? ` WHERE ` + conditions.join(" AND ") : "";
-  const annWhereClause = annConditions.length > 0 ? ` WHERE ` + annConditions.join(" AND ") : "";
-  const sql = `
-    WITH aggregated_data AS (
-      SELECT
-        s.ts_code,
-        s.name as stock_name,
-        s.industry,
-        s.market,
-        COUNT(a.id) as announcement_count,
-        MAX(a.ann_date) as latest_ann_date
-      FROM stocks s
-      INNER JOIN announcements a ON s.ts_code = a.ts_code
-      ${whereClause}
-      GROUP BY s.ts_code, s.name, s.industry, s.market
-    ),
-    latest_announcements AS (
-      SELECT DISTINCT
-        a.ts_code,
-        FIRST_VALUE(a.title) OVER (
-          PARTITION BY a.ts_code 
-          ORDER BY a.ann_date DESC, a.pub_time DESC
-        ) as latest_ann_title
-      FROM announcements a
-      ${annWhereClause}
-    )
-    SELECT
-      ad.ts_code,
-      ad.stock_name,
-      ad.industry,
-      ad.market,
-      ad.announcement_count,
-      ad.latest_ann_date,
-      la.latest_ann_title
-    FROM aggregated_data ad
-    LEFT JOIN latest_announcements la ON ad.ts_code = la.ts_code
-    ORDER BY ad.latest_ann_date DESC, ad.stock_name
-    LIMIT ? OFFSET ?
-  `;
-  if (startDate && endDate) {
-    params.push(startDate, endDate);
-  }
-  params.push(limit, offset);
-  return db.prepare(sql).all(...params);
-};
-const getAnnouncementsByStock = (tsCode, limit = 100) => {
-  return db.prepare(
-    `
-    SELECT * FROM announcements 
-    WHERE ts_code = ?
-    ORDER BY ann_date DESC, pub_time DESC
-    LIMIT ?
-  `
-  ).all(tsCode, limit);
-};
-const countStocksWithAnnouncements = (startDate, endDate, market) => {
-  const params = [];
-  const conditions = [];
-  if (startDate && endDate) {
-    conditions.push(`a.ann_date BETWEEN ? AND ?`);
-    params.push(startDate, endDate);
-  }
-  if (market && market !== "all") {
-    conditions.push(`s.market = ?`);
-    params.push(market);
-  }
-  let sql;
-  if (conditions.length === 0) {
-    sql = `
-      SELECT COUNT(DISTINCT a.ts_code) as count
-      FROM announcements a
-      INNER JOIN stocks s ON a.ts_code = s.ts_code
-    `;
-  } else {
-    sql = `
-      SELECT COUNT(DISTINCT s.ts_code) as count
-      FROM stocks s
-      WHERE EXISTS (
-        SELECT 1 FROM announcements a 
-        WHERE a.ts_code = s.ts_code
-        ${conditions.map((c) => `AND ${c}`).join(" ")}
-      )
-      ${market && market !== "all" ? `AND s.market = ?` : ""}
-    `;
-    if (market && market !== "all") {
-      const marketParam = params.pop();
-      if (marketParam) params.push(marketParam);
-    }
-  }
-  const row = db.prepare(sql).get(...params);
-  return row.count;
-};
-const searchAnnouncementsGroupedByStock = (keyword, limit, offset, startDate, endDate, market) => {
-  const likePattern = `%${keyword}%`;
-  const params = [likePattern, likePattern, likePattern];
-  const conditions = ["(s.name LIKE ? OR s.ts_code LIKE ? OR s.symbol LIKE ?)"];
-  const annConditions = [];
-  if (startDate && endDate) {
-    conditions.push(`a.ann_date BETWEEN ? AND ?`);
-    annConditions.push(`a.ann_date BETWEEN ? AND ?`);
-    params.push(startDate, endDate);
-  }
-  if (market && market !== "all") {
-    conditions.push(`s.market = ?`);
-    params.push(market);
-  }
-  const whereClause = ` WHERE ` + conditions.join(" AND ");
-  let annWhereClause = "";
-  if (annConditions.length > 0) {
-    annWhereClause = ` WHERE ` + annConditions.join(" AND ");
-    if (startDate && endDate) {
-      params.push(startDate, endDate);
-    }
-  }
-  const sql = `
-    WITH aggregated_data AS (
-      SELECT
-        s.ts_code,
-        s.name as stock_name,
-        s.industry,
-        s.market,
-        COUNT(a.id) as announcement_count,
-        MAX(a.ann_date) as latest_ann_date
-      FROM stocks s
-      INNER JOIN announcements a ON s.ts_code = a.ts_code
-      ${whereClause}
-      GROUP BY s.ts_code, s.name, s.industry, s.market
-    ),
-    latest_announcements AS (
-      SELECT DISTINCT
-        a.ts_code,
-        FIRST_VALUE(a.title) OVER (
-          PARTITION BY a.ts_code 
-          ORDER BY a.ann_date DESC, a.pub_time DESC
-        ) as latest_ann_title
-      FROM announcements a
-      ${annWhereClause}
-    )
-    SELECT
-      ad.ts_code,
-      ad.stock_name,
-      ad.industry,
-      ad.market,
-      ad.announcement_count,
-      ad.latest_ann_date,
-      la.latest_ann_title
-    FROM aggregated_data ad
-    LEFT JOIN latest_announcements la ON ad.ts_code = la.ts_code
-    ORDER BY ad.latest_ann_date DESC, ad.stock_name
-    LIMIT ? OFFSET ?
-  `;
-  params.push(limit, offset);
-  return db.prepare(sql).all(...params);
-};
-const countSearchedStocksWithAnnouncements = (keyword, startDate, endDate, market) => {
-  const likePattern = `%${keyword}%`;
-  const params = [likePattern, likePattern, likePattern];
-  const annConditions = [];
-  if (startDate && endDate) {
-    annConditions.push(`a.ann_date BETWEEN ? AND ?`);
-    params.push(startDate, endDate);
-  }
-  let marketCondition = "";
-  if (market && market !== "all") {
-    marketCondition = ` AND s.market = ?`;
-    params.push(market);
-  }
-  const annWhereClause = annConditions.length > 0 ? ` AND ` + annConditions.join(" AND ") : "";
-  const sql = `
-    SELECT COUNT(*) as count
-    FROM stocks s
-    WHERE (s.name LIKE ? OR s.ts_code LIKE ? OR s.symbol LIKE ?)
-    ${marketCondition}
-    AND EXISTS (
-      SELECT 1 FROM announcements a 
-      WHERE a.ts_code = s.ts_code
-      ${annWhereClause}
-    )
-  `;
-  const row = db.prepare(sql).get(...params);
-  return row.count;
-};
 const upsertStocks = (items) => {
   const now = (/* @__PURE__ */ new Date()).toISOString();
   const upsert = db.prepare(`
@@ -14211,6 +13939,14 @@ const getAllStocks = () => {
 const countStocks = () => {
   const row = db.prepare("SELECT COUNT(*) as count FROM stocks").get();
   return row.count;
+};
+const getStockListSyncInfo = () => {
+  const stockCount = countStocks();
+  const row = db.prepare("SELECT MAX(updated_at) as last_sync_time FROM stocks").get();
+  return {
+    stockCount,
+    lastSyncTime: (row == null ? void 0 : row.last_sync_time) || null
+  };
 };
 const searchStocks = (keyword, limit = 50) => {
   const likePattern = `%${keyword}%`;
@@ -14283,78 +14019,6 @@ const getAllFavoriteStocks = () => {
 };
 const countFavoriteStocks = () => {
   const row = db.prepare("SELECT COUNT(*) as count FROM favorite_stocks").get();
-  return row.count;
-};
-const getFavoriteStocksAnnouncementsGrouped = (limit, offset, startDate, endDate) => {
-  const params = [];
-  const whereClause = startDate && endDate ? ` WHERE a.ann_date BETWEEN ? AND ?` : "";
-  if (startDate && endDate) {
-    params.push(startDate, endDate);
-  }
-  const sql = `
-    WITH aggregated_data AS (
-      SELECT
-        s.ts_code,
-        s.name as stock_name,
-        s.industry,
-        s.market,
-        COUNT(a.id) as announcement_count,
-        MAX(a.ann_date) as latest_ann_date
-      FROM stocks s
-      INNER JOIN favorite_stocks f ON s.ts_code = f.ts_code
-      INNER JOIN announcements a ON s.ts_code = a.ts_code
-      ${whereClause}
-      GROUP BY s.ts_code, s.name, s.industry, s.market
-    ),
-    latest_announcements AS (
-      SELECT DISTINCT
-        a.ts_code,
-        FIRST_VALUE(a.title) OVER (
-          PARTITION BY a.ts_code 
-          ORDER BY a.ann_date DESC, a.pub_time DESC
-        ) as latest_ann_title
-      FROM announcements a
-      INNER JOIN favorite_stocks f ON a.ts_code = f.ts_code
-      ${whereClause}
-    )
-    SELECT
-      ad.ts_code,
-      ad.stock_name,
-      ad.industry,
-      ad.market,
-      ad.announcement_count,
-      ad.latest_ann_date,
-      la.latest_ann_title
-    FROM aggregated_data ad
-    LEFT JOIN latest_announcements la ON ad.ts_code = la.ts_code
-    ORDER BY ad.latest_ann_date DESC, ad.stock_name
-    LIMIT ? OFFSET ?
-  `;
-  if (startDate && endDate) {
-    params.push(startDate, endDate);
-  }
-  params.push(limit, offset);
-  return db.prepare(sql).all(...params);
-};
-const countFavoriteStocksWithAnnouncements = (startDate, endDate) => {
-  const params = [];
-  const annConditions = [];
-  if (startDate && endDate) {
-    annConditions.push(`a.ann_date BETWEEN ? AND ?`);
-    params.push(startDate, endDate);
-  }
-  const annWhereClause = annConditions.length > 0 ? ` AND ` + annConditions.join(" AND ") : "";
-  const sql = `
-    SELECT COUNT(*) as count
-    FROM stocks s
-    INNER JOIN favorite_stocks f ON s.ts_code = f.ts_code
-    WHERE EXISTS (
-      SELECT 1 FROM announcements a 
-      WHERE a.ts_code = s.ts_code
-      ${annWhereClause}
-    )
-  `;
-  const row = db.prepare(sql).get(...params);
   return row.count;
 };
 const upsertTop10Holders = (items) => {
@@ -14469,41 +14133,57 @@ const analyzeQuery = (sql, params = []) => {
   console.log("Query Plan:", JSON.stringify(plan, null, 2));
   return plan;
 };
+const getCacheDataStats = () => {
+  const stockCount = countStocks();
+  const favoriteCount = countFavoriteStocks();
+  const top10HoldersCount = countStocksWithTop10Holders();
+  const top10HoldersRecordRow = db.prepare("SELECT COUNT(*) as count FROM top10_holders").get();
+  const top10HoldersRecordCount = top10HoldersRecordRow.count;
+  const stockSyncInfo = getStockListSyncInfo();
+  const syncFlags = db.prepare("SELECT sync_type, last_sync_date, updated_at FROM sync_flags ORDER BY sync_type").all();
+  return {
+    stocks: {
+      count: stockCount,
+      lastSyncTime: stockSyncInfo.lastSyncTime
+    },
+    favoriteStocks: {
+      count: favoriteCount
+    },
+    top10Holders: {
+      stockCount: top10HoldersCount,
+      recordCount: top10HoldersRecordCount
+    },
+    syncFlags: syncFlags.map((flag) => ({
+      type: flag.sync_type,
+      lastSyncDate: flag.last_sync_date,
+      updatedAt: flag.updated_at
+    }))
+  };
+};
 const db$1 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   addFavoriteStock,
   analyzeQuery,
-  countAnnouncements,
   countFavoriteStocks,
-  countFavoriteStocksWithAnnouncements,
-  countSearchedStocksWithAnnouncements,
   countStocks,
-  countStocksWithAnnouncements,
   countStocksWithTop10Holders,
   default: db,
   deleteTop10HoldersByStock,
   getAllFavoriteStocks,
   getAllStocks,
-  getAnnouncements,
-  getAnnouncementsByStock,
-  getAnnouncementsGroupedByStock,
+  getCacheDataStats,
   getDbPath,
-  getFavoriteStocksAnnouncementsGrouped,
   getLastSyncDate,
-  getLatestAnnDate,
-  getOldestAnnDate,
+  getStockListSyncInfo,
   getStocksByHolder,
   getStocksWithTop10Holders,
   getTop10HoldersByStock,
   getTop10HoldersByStockAndEndDate,
   getTop10HoldersEndDates,
-  hasDataInDateRange,
   hasTop10HoldersData,
-  insertAnnouncements,
   isFavoriteStock,
   isSyncedToday,
   removeFavoriteStock,
-  searchAnnouncementsGroupedByStock,
   searchHoldersByName,
   searchStocks,
   updateSyncFlag,
@@ -14756,8 +14436,6 @@ const isDev = process.env.NODE_ENV === "development" || !app.isPackaged;
 let mainWindow = null;
 let tray = null;
 const extendedApp = app;
-let isSyncing = false;
-let isLoadingHistory = false;
 let isSyncingHolders = false;
 let isPausedHolders = false;
 let sqliteHttpServer = null;
@@ -14911,121 +14589,8 @@ function registerShortcuts() {
   });
 }
 async function performIncrementalSync() {
-  if (isSyncing) {
-    console.log("Sync already in progress, skipping");
-    return { status: "skipped", message: "Sync already in progress" };
-  }
-  isSyncing = true;
-  console.log("Starting incremental sync...");
-  let totalSynced = 0;
-  try {
-    const lastDate = getLatestAnnDate();
-    const now = /* @__PURE__ */ new Date();
-    const today = now.toISOString().slice(0, 10).replace(/-/g, "");
-    if (lastDate === today) {
-      console.log("Already synced to today.");
-      return { status: "success", message: "Already up to date", totalSynced: 0 };
-    }
-    const startDate = lastDate || today;
-    console.log(`Incremental sync from ${startDate} to ${today}`);
-    let offset = 0;
-    const limit = 2e3;
-    let hasMore = true;
-    while (hasMore) {
-      const data = await TushareClient.getAnnouncements(void 0, void 0, startDate, today, limit, offset);
-      if (data.length > 0) {
-        insertAnnouncements(data);
-        console.log(`Synced ${data.length} items.`);
-        totalSynced += data.length;
-        mainWindow == null ? void 0 : mainWindow.webContents.send("data-updated", {
-          type: "incremental",
-          totalSynced,
-          currentBatchSize: data.length
-        });
-        if (data.length < limit) {
-          hasMore = false;
-        } else {
-          offset += limit;
-        }
-      } else {
-        hasMore = false;
-      }
-      if (offset > 1e5) {
-        console.warn("Sync limit reached (safety break).");
-        break;
-      }
-    }
-    console.log(`Incremental sync completed. Total: ${totalSynced}`);
-    return { status: "success", message: "Sync completed", totalSynced };
-  } catch (error2) {
-    console.error("Incremental sync failed:", error2);
-    return { status: "failed", message: error2.message || "Unknown error" };
-  } finally {
-    isSyncing = false;
-  }
-}
-async function loadHistoricalData() {
-  if (isLoadingHistory) {
-    console.log("History loading already in progress");
-    return { status: "skipped", message: "Loading already in progress" };
-  }
-  isLoadingHistory = true;
-  console.log("Loading historical data...");
-  let totalLoaded = 0;
-  try {
-    const oldestDate = getOldestAnnDate();
-    let endDate;
-    if (!oldestDate) {
-      const now = /* @__PURE__ */ new Date();
-      endDate = now.toISOString().slice(0, 10).replace(/-/g, "");
-    } else {
-      endDate = oldestDate;
-    }
-    const endDateObj = /* @__PURE__ */ new Date(endDate.slice(0, 4) + "-" + endDate.slice(4, 6) + "-" + endDate.slice(6, 8));
-    endDateObj.setMonth(endDateObj.getMonth() - 1);
-    const startDate = endDateObj.toISOString().slice(0, 10).replace(/-/g, "");
-    console.log(`Loading history from ${startDate} to ${endDate}`);
-    if (hasDataInDateRange(startDate, endDate)) {
-      console.log("Data already exists in this range");
-      return { status: "success", message: "Data already exists", totalLoaded: 0 };
-    }
-    let offset = 0;
-    const limit = 2e3;
-    let hasMore = true;
-    while (hasMore) {
-      const data = await TushareClient.getAnnouncements(void 0, void 0, startDate, endDate, limit, offset);
-      if (data.length > 0) {
-        insertAnnouncements(data);
-        console.log(`Loaded ${data.length} historical items.`);
-        totalLoaded += data.length;
-        mainWindow == null ? void 0 : mainWindow.webContents.send("data-updated", {
-          type: "historical",
-          totalLoaded,
-          currentBatchSize: data.length,
-          startDate,
-          endDate
-        });
-        if (data.length < limit) {
-          hasMore = false;
-        } else {
-          offset += limit;
-        }
-      } else {
-        hasMore = false;
-      }
-      if (offset > 5e4) {
-        console.warn("History load limit reached (safety break).");
-        break;
-      }
-    }
-    console.log(`Historical data loaded. Total: ${totalLoaded}`);
-    return { status: "success", message: "History loaded", totalLoaded, startDate, endDate };
-  } catch (error2) {
-    console.error("Historical data load failed:", error2);
-    return { status: "failed", message: error2.message || "Unknown error" };
-  } finally {
-    isLoadingHistory = false;
-  }
+  console.log("Incremental sync is deprecated. Data is now fetched in real-time from Tushare API.");
+  return { status: "success", message: "数据现在实时从服务端获取，无需同步", totalSynced: 0 };
 }
 async function syncStocksIfNeeded() {
   try {
@@ -15050,6 +14615,251 @@ async function syncStocksIfNeeded() {
     console.error("Failed to sync stocks:", error2);
   }
 }
+async function getAnnouncementsGroupedFromAPI(page, pageSize, startDate, endDate, market) {
+  const allStocks = getAllStocks();
+  let filteredStocks = allStocks;
+  if (market && market !== "all") {
+    filteredStocks = allStocks.filter((s) => s.market === market);
+  }
+  const announcements = await TushareClient.getAnnouncements(
+    void 0,
+    void 0,
+    startDate,
+    endDate,
+    2e3,
+    0
+  );
+  const stockMap = /* @__PURE__ */ new Map();
+  filteredStocks.forEach((stock) => {
+    stockMap.set(stock.ts_code, {
+      ts_code: stock.ts_code,
+      stock_name: stock.name,
+      industry: stock.industry || "",
+      market: stock.market || "",
+      announcements: []
+    });
+  });
+  announcements.forEach((ann) => {
+    const stock = stockMap.get(ann.ts_code);
+    if (stock) {
+      stock.announcements.push(ann);
+    }
+  });
+  const groupedData = Array.from(stockMap.values()).map((stock) => {
+    if (stock.announcements.length === 0) {
+      return null;
+    }
+    stock.announcements.sort((a, b) => {
+      const dateCompare = (b.ann_date || "").localeCompare(a.ann_date || "");
+      if (dateCompare !== 0) return dateCompare;
+      return (b.pub_time || "").localeCompare(a.pub_time || "");
+    });
+    const latestAnn = stock.announcements[0];
+    return {
+      ts_code: stock.ts_code,
+      stock_name: stock.stock_name,
+      industry: stock.industry,
+      market: stock.market,
+      announcement_count: stock.announcements.length,
+      latest_ann_date: latestAnn.ann_date,
+      latest_ann_title: latestAnn.title
+    };
+  }).filter((item) => item !== null).sort((a, b) => {
+    const dateCompare = ((b == null ? void 0 : b.latest_ann_date) || "").localeCompare((a == null ? void 0 : a.latest_ann_date) || "");
+    if (dateCompare !== 0) return dateCompare;
+    return ((a == null ? void 0 : a.stock_name) || "").localeCompare((b == null ? void 0 : b.stock_name) || "");
+  });
+  const total = groupedData.length;
+  const offset = (page - 1) * pageSize;
+  const items = groupedData.slice(offset, offset + pageSize);
+  return { items, total };
+}
+async function searchAnnouncementsGroupedFromAPI(keyword, page, pageSize, startDate, endDate, market) {
+  const matchedStocks = searchStocks(keyword, 1e3);
+  let filteredStocks = matchedStocks;
+  if (market && market !== "all") {
+    filteredStocks = matchedStocks.filter((s) => s.market === market);
+  }
+  if (filteredStocks.length === 0) {
+    return { items: [], total: 0 };
+  }
+  const tsCodes = filteredStocks.map((s) => s.ts_code).join(",");
+  const announcements = await TushareClient.getAnnouncements(
+    tsCodes,
+    void 0,
+    startDate,
+    endDate,
+    2e3,
+    0
+  );
+  const stockMap = /* @__PURE__ */ new Map();
+  filteredStocks.forEach((stock) => {
+    stockMap.set(stock.ts_code, {
+      ts_code: stock.ts_code,
+      stock_name: stock.name,
+      industry: stock.industry || "",
+      market: stock.market || "",
+      announcements: []
+    });
+  });
+  announcements.forEach((ann) => {
+    const stock = stockMap.get(ann.ts_code);
+    if (stock) {
+      stock.announcements.push(ann);
+    }
+  });
+  const groupedData = Array.from(stockMap.values()).map((stock) => {
+    if (stock.announcements.length === 0) {
+      return null;
+    }
+    stock.announcements.sort((a, b) => {
+      const dateCompare = (b.ann_date || "").localeCompare(a.ann_date || "");
+      if (dateCompare !== 0) return dateCompare;
+      return (b.pub_time || "").localeCompare(a.pub_time || "");
+    });
+    const latestAnn = stock.announcements[0];
+    return {
+      ts_code: stock.ts_code,
+      stock_name: stock.stock_name,
+      industry: stock.industry,
+      market: stock.market,
+      announcement_count: stock.announcements.length,
+      latest_ann_date: latestAnn.ann_date,
+      latest_ann_title: latestAnn.title
+    };
+  }).filter((item) => item !== null).sort((a, b) => {
+    const dateCompare = ((b == null ? void 0 : b.latest_ann_date) || "").localeCompare((a == null ? void 0 : a.latest_ann_date) || "");
+    if (dateCompare !== 0) return dateCompare;
+    return ((a == null ? void 0 : a.stock_name) || "").localeCompare((b == null ? void 0 : b.stock_name) || "");
+  });
+  const total = groupedData.length;
+  const offset = (page - 1) * pageSize;
+  const items = groupedData.slice(offset, offset + pageSize);
+  return { items, total };
+}
+async function getFavoriteStocksAnnouncementsGroupedFromAPI(page, pageSize, startDate, endDate) {
+  const favoriteStocks = getAllFavoriteStocks();
+  if (favoriteStocks.length === 0) {
+    return { items: [], total: 0 };
+  }
+  const allStocks = getAllStocks();
+  const favoriteStockInfos = allStocks.filter((s) => favoriteStocks.includes(s.ts_code));
+  const tsCodes = favoriteStocks.join(",");
+  const announcements = await TushareClient.getAnnouncements(
+    tsCodes,
+    void 0,
+    startDate,
+    endDate,
+    2e3,
+    0
+  );
+  const stockMap = /* @__PURE__ */ new Map();
+  favoriteStockInfos.forEach((stock) => {
+    stockMap.set(stock.ts_code, {
+      ts_code: stock.ts_code,
+      stock_name: stock.name,
+      industry: stock.industry || "",
+      market: stock.market || "",
+      announcements: []
+    });
+  });
+  announcements.forEach((ann) => {
+    const stock = stockMap.get(ann.ts_code);
+    if (stock) {
+      stock.announcements.push(ann);
+    }
+  });
+  const groupedData = Array.from(stockMap.values()).map((stock) => {
+    if (stock.announcements.length === 0) {
+      return null;
+    }
+    stock.announcements.sort((a, b) => {
+      const dateCompare = (b.ann_date || "").localeCompare(a.ann_date || "");
+      if (dateCompare !== 0) return dateCompare;
+      return (b.pub_time || "").localeCompare(a.pub_time || "");
+    });
+    const latestAnn = stock.announcements[0];
+    return {
+      ts_code: stock.ts_code,
+      stock_name: stock.stock_name,
+      industry: stock.industry,
+      market: stock.market,
+      announcement_count: stock.announcements.length,
+      latest_ann_date: latestAnn.ann_date,
+      latest_ann_title: latestAnn.title
+    };
+  }).filter((item) => item !== null).sort((a, b) => {
+    const dateCompare = ((b == null ? void 0 : b.latest_ann_date) || "").localeCompare((a == null ? void 0 : a.latest_ann_date) || "");
+    if (dateCompare !== 0) return dateCompare;
+    return ((a == null ? void 0 : a.stock_name) || "").localeCompare((b == null ? void 0 : b.stock_name) || "");
+  });
+  const total = groupedData.length;
+  const offset = (page - 1) * pageSize;
+  const items = groupedData.slice(offset, offset + pageSize);
+  return { items, total };
+}
+async function syncAllStocks() {
+  try {
+    console.log("Starting full stock list sync...");
+    mainWindow == null ? void 0 : mainWindow.webContents.send("stock-list-sync-progress", {
+      status: "started",
+      message: "开始同步股票列表..."
+    });
+    const stocks = await TushareClient.getStockList(void 0, void 0, void 0, void 0, void 0, "L", 5e3, 0);
+    if (stocks && stocks.length > 0) {
+      mainWindow == null ? void 0 : mainWindow.webContents.send("stock-list-sync-progress", {
+        status: "syncing",
+        message: `正在同步 ${stocks.length} 只股票...`,
+        total: stocks.length,
+        current: 0
+      });
+      upsertStocks(stocks);
+      console.log(`Synced ${stocks.length} stocks to database`);
+      const today = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10).replace(/-/g, "");
+      updateSyncFlag("stock_list", today);
+      mainWindow == null ? void 0 : mainWindow.webContents.send("stock-list-sync-progress", {
+        status: "completed",
+        message: `成功同步 ${stocks.length} 只股票`,
+        total: stocks.length,
+        current: stocks.length,
+        stockCount: stocks.length
+      });
+      if (Notification.isSupported()) {
+        new Notification({
+          title: "股票列表同步完成",
+          body: `已同步 ${stocks.length} 只股票`
+        }).show();
+      }
+      return {
+        success: true,
+        stockCount: stocks.length,
+        message: `成功同步 ${stocks.length} 只股票`
+      };
+    } else {
+      mainWindow == null ? void 0 : mainWindow.webContents.send("stock-list-sync-progress", {
+        status: "failed",
+        message: "未获取到股票数据"
+      });
+      return {
+        success: false,
+        stockCount: 0,
+        message: "未获取到股票数据"
+      };
+    }
+  } catch (error2) {
+    console.error("Failed to sync stocks:", error2);
+    mainWindow == null ? void 0 : mainWindow.webContents.send("stock-list-sync-progress", {
+      status: "failed",
+      message: error2.message || "同步失败",
+      error: error2.message
+    });
+    return {
+      success: false,
+      stockCount: 0,
+      message: error2.message || "同步失败"
+    };
+  }
+}
 function setupIPC() {
   ipcMain.handle("show-notification", async (_event, title, body) => {
     if (Notification.isSupported()) {
@@ -15059,38 +14869,20 @@ function setupIPC() {
   ipcMain.handle("get-app-version", async () => {
     return app.getVersion();
   });
-  ipcMain.handle("get-announcements", async (_event, page, pageSize) => {
-    const offset = (page - 1) * pageSize;
-    const items = getAnnouncements(pageSize, offset);
-    const total = countAnnouncements();
-    console.log(`[IPC] get-announcements: page=${page}, offset=${offset}, items=${items.length}, total=${total}`);
-    const totalPages = Math.ceil(total / pageSize);
-    const shouldLoadHistory = page >= totalPages - 2 && total > 0;
-    return {
-      items,
-      total,
-      shouldLoadHistory
-    };
-  });
-  ipcMain.handle("trigger-incremental-sync", async () => {
-    return await performIncrementalSync();
-  });
-  ipcMain.handle("load-historical-data", async () => {
-    return await loadHistoricalData();
-  });
   ipcMain.handle(
     "get-announcements-grouped",
     async (_event, page, pageSize, startDate, endDate, market) => {
       try {
-        const offset = (page - 1) * pageSize;
-        const items = getAnnouncementsGroupedByStock(pageSize, offset, startDate, endDate, market);
-        const total = countStocksWithAnnouncements(startDate, endDate, market);
         console.log(
-          `[IPC] get-announcements-grouped: page=${page}, offset=${offset}, items=${items.length}, total=${total}, dateRange=${startDate}-${endDate}, market=${market}`
+          `[IPC] get-announcements-grouped: page=${page}, pageSize=${pageSize}, dateRange=${startDate}-${endDate}, market=${market}`
+        );
+        const result = await getAnnouncementsGroupedFromAPI(page, pageSize, startDate, endDate, market);
+        console.log(
+          `[IPC] get-announcements-grouped: page=${page}, items=${result.items.length}, total=${result.total}`
         );
         return {
-          items,
-          total,
+          items: result.items,
+          total: result.total,
           page,
           pageSize
         };
@@ -15103,7 +14895,20 @@ function setupIPC() {
   ipcMain.handle("get-stock-announcements", async (_event, tsCode, limit = 100) => {
     try {
       console.log(`[IPC] get-stock-announcements: tsCode=${tsCode}, limit=${limit}`);
-      return getAnnouncementsByStock(tsCode, limit);
+      const announcements = await TushareClient.getAnnouncements(tsCode, void 0, void 0, void 0, limit, 0);
+      announcements.sort((a, b) => {
+        const dateCompare = (b.ann_date || "").localeCompare(a.ann_date || "");
+        if (dateCompare !== 0) return dateCompare;
+        return (b.pub_time || "").localeCompare(a.pub_time || "");
+      });
+      return announcements.map((ann) => ({
+        ts_code: ann.ts_code,
+        ann_date: ann.ann_date,
+        ann_type: ann.ann_type,
+        title: ann.title,
+        content: ann.content,
+        pub_time: ann.pub_time
+      }));
     } catch (error2) {
       console.error("Failed to get stock announcements:", error2);
       throw error2;
@@ -15113,15 +14918,16 @@ function setupIPC() {
     "search-announcements-grouped",
     async (_event, keyword, page, pageSize, startDate, endDate, market) => {
       try {
-        const offset = (page - 1) * pageSize;
-        const items = searchAnnouncementsGroupedByStock(keyword, pageSize, offset, startDate, endDate, market);
-        const total = countSearchedStocksWithAnnouncements(keyword, startDate, endDate, market);
         console.log(
-          `[IPC] search-announcements-grouped: keyword=${keyword}, page=${page}, items=${items.length}, total=${total}, dateRange=${startDate}-${endDate}, market=${market}`
+          `[IPC] search-announcements-grouped: keyword=${keyword}, page=${page}, pageSize=${pageSize}, dateRange=${startDate}-${endDate}, market=${market}`
+        );
+        const result = await searchAnnouncementsGroupedFromAPI(keyword, page, pageSize, startDate, endDate, market);
+        console.log(
+          `[IPC] search-announcements-grouped: keyword=${keyword}, page=${page}, items=${result.items.length}, total=${result.total}`
         );
         return {
-          items,
-          total,
+          items: result.items,
+          total: result.total,
           page,
           pageSize
         };
@@ -15513,13 +15319,14 @@ function setupIPC() {
     "get-favorite-stocks-announcements-grouped",
     async (_event, page, pageSize, startDate, endDate) => {
       try {
-        const offset = (page - 1) * pageSize;
-        const items = getFavoriteStocksAnnouncementsGrouped(pageSize, offset, startDate, endDate);
-        const total = countFavoriteStocksWithAnnouncements(startDate, endDate);
-        console.log(`[IPC] get-favorite-stocks-announcements-grouped: page=${page}, items=${items.length}, total=${total}`);
+        console.log(
+          `[IPC] get-favorite-stocks-announcements-grouped: page=${page}, pageSize=${pageSize}, dateRange=${startDate}-${endDate}`
+        );
+        const result = await getFavoriteStocksAnnouncementsGroupedFromAPI(page, pageSize, startDate, endDate);
+        console.log(`[IPC] get-favorite-stocks-announcements-grouped: page=${page}, items=${result.items.length}, total=${result.total}`);
         return {
-          items,
-          total,
+          items: result.items,
+          total: result.total,
           page,
           pageSize
         };
@@ -15765,6 +15572,61 @@ function setupIPC() {
       return [];
     }
   });
+  ipcMain.handle("get-stock-list-sync-info", async () => {
+    try {
+      console.log("[IPC] get-stock-list-sync-info");
+      return getStockListSyncInfo();
+    } catch (error2) {
+      console.error("Failed to get stock list sync info:", error2);
+      throw error2;
+    }
+  });
+  ipcMain.handle("sync-all-stocks", async () => {
+    try {
+      console.log("[IPC] sync-all-stocks");
+      return await syncAllStocks();
+    } catch (error2) {
+      console.error("Failed to sync all stocks:", error2);
+      return {
+        success: false,
+        stockCount: 0,
+        message: error2.message || "同步失败"
+      };
+    }
+  });
+  ipcMain.handle("check-stock-list-sync-status", async () => {
+    try {
+      console.log("[IPC] check-stock-list-sync-status");
+      const synced = isSyncedToday("stock_list");
+      const syncInfo = getStockListSyncInfo();
+      return {
+        isSyncedToday: synced,
+        stockCount: syncInfo.stockCount,
+        lastSyncTime: syncInfo.lastSyncTime
+      };
+    } catch (error2) {
+      console.error("Failed to check stock list sync status:", error2);
+      return {
+        isSyncedToday: false,
+        stockCount: 0,
+        lastSyncTime: null
+      };
+    }
+  });
+  ipcMain.handle("get-cache-data-stats", async () => {
+    try {
+      console.log("[IPC] get-cache-data-stats");
+      return getCacheDataStats();
+    } catch (error2) {
+      console.error("Failed to get cache data stats:", error2);
+      return {
+        stocks: { count: 0, lastSyncTime: null },
+        favoriteStocks: { count: 0 },
+        top10Holders: { stockCount: 0, recordCount: 0 },
+        syncFlags: []
+      };
+    }
+  });
 }
 function setupAutoUpdater() {
   autoUpdater.on("checking-for-update", () => {
@@ -15827,6 +15689,21 @@ if (!gotTheLock) {
     setupAutoUpdater();
     syncStocksIfNeeded().catch((err) => console.error("Stock sync failed:", err));
     performIncrementalSync().catch((err) => console.error("Auto sync failed:", err));
+    const checkDailySync = async () => {
+      try {
+        if (!isSyncedToday("stock_list")) {
+          console.log("Today's stock list not synced yet, starting automatic sync...");
+          setTimeout(async () => {
+            await syncAllStocks();
+          }, 3e3);
+        } else {
+          console.log("Stock list already synced today");
+        }
+      } catch (error2) {
+        console.error("Daily sync check failed:", error2);
+      }
+    };
+    checkDailySync();
     if (!isDev) {
       setTimeout(() => {
         autoUpdater.checkForUpdates();

@@ -8,38 +8,8 @@ const db = new Database(dbPath);
 // 导出数据库路径，供外部访问
 export const getDbPath = () => dbPath;
 
-// 运行数据库迁移
-function runMigrations() {
-	// 检查 announcements 表是否有 file_path 列
-	const tableInfo = db.pragma("table_info(announcements)") as Array<{ name: string }>;
-	const hasFilePath = tableInfo.some((col) => col.name === "file_path");
-
-	if (!hasFilePath) {
-		console.log("Running migration: Adding file_path column to announcements table");
-		db.exec("ALTER TABLE announcements ADD COLUMN file_path TEXT");
-		console.log("Migration completed: file_path column added");
-	}
-}
-
 // Initialize tables
 db.exec(`
-  CREATE TABLE IF NOT EXISTS announcements (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    ts_code TEXT NOT NULL,
-    ann_date TEXT NOT NULL,
-    ann_type TEXT,
-    title TEXT,
-    content TEXT,
-    pub_time TEXT,
-    file_path TEXT,
-    UNIQUE(ts_code, ann_date, title)
-  );
-
-  CREATE INDEX IF NOT EXISTS idx_ann_date_pub_time ON announcements (ann_date DESC, pub_time DESC);
-  CREATE INDEX IF NOT EXISTS idx_ann_ts_code ON announcements (ts_code);
-  CREATE INDEX IF NOT EXISTS idx_ann_ts_code_date ON announcements (ts_code, ann_date DESC, pub_time DESC);
-  CREATE INDEX IF NOT EXISTS idx_ann_date_ts_code ON announcements (ann_date DESC, ts_code);
-
   CREATE TABLE IF NOT EXISTS stocks (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     ts_code TEXT NOT NULL UNIQUE,
@@ -96,341 +66,6 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_top10_holder_name ON top10_holders (holder_name);
   CREATE INDEX IF NOT EXISTS idx_top10_ts_end_date ON top10_holders (ts_code, end_date DESC);
 `);
-
-// 运行迁移
-runMigrations();
-
-export const insertAnnouncements = (items: any[]) => {
-	const insert = db.prepare(`
-    INSERT OR IGNORE INTO announcements (ts_code, ann_date, ann_type, title, content, pub_time, file_path)
-    VALUES (@ts_code, @ann_date, @ann_type, @title, @content, @pub_time, @file_path)
-  `);
-
-	const insertMany = db.transaction((announcements) => {
-		for (const ann of announcements) {
-			insert.run({
-				ts_code: ann.ts_code || null,
-				ann_date: ann.ann_date || null,
-				ann_type: ann.ann_type || null,
-				title: ann.title || null,
-				content: ann.content || null,
-				pub_time: ann.pub_time || null,
-				file_path: ann.file_path || null,
-			});
-		}
-	});
-
-	insertMany(items);
-};
-
-export const getLatestAnnDate = () => {
-	const row = db.prepare("SELECT MAX(ann_date) as max_date FROM announcements").get() as { max_date: string };
-	return row?.max_date || null;
-};
-
-export const getOldestAnnDate = () => {
-	const row = db.prepare("SELECT MIN(ann_date) as min_date FROM announcements").get() as { min_date: string };
-	return row?.min_date || null;
-};
-
-export const hasDataInDateRange = (startDate: string, endDate: string) => {
-	const row = db
-		.prepare(
-			`
-    SELECT COUNT(*) as count FROM announcements 
-    WHERE ann_date >= ? AND ann_date <= ?
-  `
-		)
-		.get(startDate, endDate) as { count: number };
-	return row.count > 0;
-};
-
-export const getAnnouncements = (limit: number, offset: number) => {
-	return db
-		.prepare(
-			`
-    SELECT * FROM announcements 
-    ORDER BY ann_date DESC, pub_time DESC 
-    LIMIT ? OFFSET ?
-  `
-		)
-		.all(limit, offset);
-};
-
-export const countAnnouncements = () => {
-	const row = db.prepare("SELECT COUNT(*) as count FROM announcements").get() as { count: number };
-	return row.count;
-};
-
-/**
- * 获取按股票聚合的公告数据（分页）
- * 优化：使用 CTE 和 LEFT JOIN 替代子查询，提高性能
- */
-export const getAnnouncementsGroupedByStock = (limit: number, offset: number, startDate?: string, endDate?: string, market?: string) => {
-	const params: any[] = [];
-	const conditions: string[] = [];
-	const annConditions: string[] = []; // 仅用于 announcements 表的条件
-
-	// 添加日期范围条件
-	if (startDate && endDate) {
-		conditions.push(`a.ann_date BETWEEN ? AND ?`);
-		annConditions.push(`a.ann_date BETWEEN ? AND ?`);
-		params.push(startDate, endDate);
-	}
-
-	// 添加市场条件（仅用于第一个 CTE）
-	if (market && market !== "all") {
-		conditions.push(`s.market = ?`);
-		params.push(market);
-	}
-
-	const whereClause = conditions.length > 0 ? ` WHERE ` + conditions.join(" AND ") : "";
-	const annWhereClause = annConditions.length > 0 ? ` WHERE ` + annConditions.join(" AND ") : "";
-
-	// 使用 CTE (Common Table Expression) 优化查询
-	const sql = `
-    WITH aggregated_data AS (
-      SELECT
-        s.ts_code,
-        s.name as stock_name,
-        s.industry,
-        s.market,
-        COUNT(a.id) as announcement_count,
-        MAX(a.ann_date) as latest_ann_date
-      FROM stocks s
-      INNER JOIN announcements a ON s.ts_code = a.ts_code
-      ${whereClause}
-      GROUP BY s.ts_code, s.name, s.industry, s.market
-    ),
-    latest_announcements AS (
-      SELECT DISTINCT
-        a.ts_code,
-        FIRST_VALUE(a.title) OVER (
-          PARTITION BY a.ts_code 
-          ORDER BY a.ann_date DESC, a.pub_time DESC
-        ) as latest_ann_title
-      FROM announcements a
-      ${annWhereClause}
-    )
-    SELECT
-      ad.ts_code,
-      ad.stock_name,
-      ad.industry,
-      ad.market,
-      ad.announcement_count,
-      ad.latest_ann_date,
-      la.latest_ann_title
-    FROM aggregated_data ad
-    LEFT JOIN latest_announcements la ON ad.ts_code = la.ts_code
-    ORDER BY ad.latest_ann_date DESC, ad.stock_name
-    LIMIT ? OFFSET ?
-  `;
-
-	// 为第二个 CTE 添加相同的日期参数
-	if (startDate && endDate) {
-		params.push(startDate, endDate);
-	}
-
-	params.push(limit, offset);
-
-	return db.prepare(sql).all(...params);
-};
-
-/**
- * 获取特定股票的公告列表
- */
-export const getAnnouncementsByStock = (tsCode: string, limit: number = 100) => {
-	return db
-		.prepare(
-			`
-    SELECT * FROM announcements 
-    WHERE ts_code = ?
-    ORDER BY ann_date DESC, pub_time DESC
-    LIMIT ?
-  `
-		)
-		.all(tsCode, limit);
-};
-
-/**
- * 统计有公告的股票数量
- * 优化：使用更高效的查询计划
- */
-export const countStocksWithAnnouncements = (startDate?: string, endDate?: string, market?: string) => {
-	const params: any[] = [];
-	const conditions: string[] = [];
-
-	// 添加日期范围条件
-	if (startDate && endDate) {
-		conditions.push(`a.ann_date BETWEEN ? AND ?`);
-		params.push(startDate, endDate);
-	}
-
-	// 添加市场条件
-	if (market && market !== "all") {
-		conditions.push(`s.market = ?`);
-		params.push(market);
-	}
-
-	const whereClause = conditions.length > 0 ? ` WHERE ` + conditions.join(" AND ") : "";
-
-	// 优化：使用 EXISTS 子查询，避免大表 JOIN
-	let sql: string;
-	if (conditions.length === 0) {
-		// 无条件时，直接统计有公告的股票
-		sql = `
-      SELECT COUNT(DISTINCT a.ts_code) as count
-      FROM announcements a
-      INNER JOIN stocks s ON a.ts_code = s.ts_code
-    `;
-	} else {
-		sql = `
-      SELECT COUNT(DISTINCT s.ts_code) as count
-      FROM stocks s
-      WHERE EXISTS (
-        SELECT 1 FROM announcements a 
-        WHERE a.ts_code = s.ts_code
-        ${conditions.map((c) => `AND ${c}`).join(" ")}
-      )
-      ${market && market !== "all" ? `AND s.market = ?` : ""}
-    `;
-		// 调整参数顺序
-		if (market && market !== "all") {
-			const marketParam = params.pop();
-			if (marketParam) params.push(marketParam);
-		}
-	}
-
-	const row = db.prepare(sql).get(...params) as { count: number };
-	return row.count;
-};
-
-/**
- * 搜索按股票聚合的公告数据（支持股票名称、代码搜索）
- * 优化：使用 CTE 和窗口函数提高性能
- */
-export const searchAnnouncementsGroupedByStock = (
-	keyword: string,
-	limit: number,
-	offset: number,
-	startDate?: string,
-	endDate?: string,
-	market?: string
-) => {
-	const likePattern = `%${keyword}%`;
-	const params: any[] = [likePattern, likePattern, likePattern];
-	const conditions: string[] = ["(s.name LIKE ? OR s.ts_code LIKE ? OR s.symbol LIKE ?)"];
-	const annConditions: string[] = [];
-
-	// 添加日期范围条件
-	if (startDate && endDate) {
-		conditions.push(`a.ann_date BETWEEN ? AND ?`);
-		annConditions.push(`a.ann_date BETWEEN ? AND ?`);
-		params.push(startDate, endDate);
-	}
-
-	// 添加市场条件
-	if (market && market !== "all") {
-		conditions.push(`s.market = ?`);
-		params.push(market);
-	}
-
-	const whereClause = ` WHERE ` + conditions.join(" AND ");
-
-	// 构建第二个 CTE 的 WHERE 子句（需要再次添加参数）
-	let annWhereClause = "";
-	if (annConditions.length > 0) {
-		annWhereClause = ` WHERE ` + annConditions.join(" AND ");
-		// 为第二个查询再次添加日期参数
-		if (startDate && endDate) {
-			params.push(startDate, endDate);
-		}
-	}
-
-	// 使用 CTE 和窗口函数优化
-	const sql = `
-    WITH aggregated_data AS (
-      SELECT
-        s.ts_code,
-        s.name as stock_name,
-        s.industry,
-        s.market,
-        COUNT(a.id) as announcement_count,
-        MAX(a.ann_date) as latest_ann_date
-      FROM stocks s
-      INNER JOIN announcements a ON s.ts_code = a.ts_code
-      ${whereClause}
-      GROUP BY s.ts_code, s.name, s.industry, s.market
-    ),
-    latest_announcements AS (
-      SELECT DISTINCT
-        a.ts_code,
-        FIRST_VALUE(a.title) OVER (
-          PARTITION BY a.ts_code 
-          ORDER BY a.ann_date DESC, a.pub_time DESC
-        ) as latest_ann_title
-      FROM announcements a
-      ${annWhereClause}
-    )
-    SELECT
-      ad.ts_code,
-      ad.stock_name,
-      ad.industry,
-      ad.market,
-      ad.announcement_count,
-      ad.latest_ann_date,
-      la.latest_ann_title
-    FROM aggregated_data ad
-    LEFT JOIN latest_announcements la ON ad.ts_code = la.ts_code
-    ORDER BY ad.latest_ann_date DESC, ad.stock_name
-    LIMIT ? OFFSET ?
-  `;
-
-	params.push(limit, offset);
-
-	return db.prepare(sql).all(...params);
-};
-
-/**
- * 统计符合搜索条件且有公告的股票数量
- * 优化：使用更高效的 EXISTS 子查询
- */
-export const countSearchedStocksWithAnnouncements = (keyword: string, startDate?: string, endDate?: string, market?: string) => {
-	const likePattern = `%${keyword}%`;
-	const params: any[] = [likePattern, likePattern, likePattern];
-	const annConditions: string[] = [];
-
-	// 添加日期范围条件
-	if (startDate && endDate) {
-		annConditions.push(`a.ann_date BETWEEN ? AND ?`);
-		params.push(startDate, endDate);
-	}
-
-	// 添加市场条件（在外层查询）
-	let marketCondition = "";
-	if (market && market !== "all") {
-		marketCondition = ` AND s.market = ?`;
-		params.push(market);
-	}
-
-	const annWhereClause = annConditions.length > 0 ? ` AND ` + annConditions.join(" AND ") : "";
-
-	// 使用 EXISTS 优化
-	const sql = `
-    SELECT COUNT(*) as count
-    FROM stocks s
-    WHERE (s.name LIKE ? OR s.ts_code LIKE ? OR s.symbol LIKE ?)
-    ${marketCondition}
-    AND EXISTS (
-      SELECT 1 FROM announcements a 
-      WHERE a.ts_code = s.ts_code
-      ${annWhereClause}
-    )
-  `;
-
-	const row = db.prepare(sql).get(...params) as { count: number };
-	return row.count;
-};
 
 // ============= 股票数据相关操作 =============
 
@@ -505,6 +140,19 @@ export const getAllStocks = () => {
 export const countStocks = () => {
 	const row = db.prepare("SELECT COUNT(*) as count FROM stocks").get() as { count: number };
 	return row.count;
+};
+
+/**
+ * 获取股票列表同步信息（股票数量和最近同步时间）
+ */
+export const getStockListSyncInfo = () => {
+	const stockCount = countStocks();
+	// 获取最近更新的时间
+	const row = db.prepare("SELECT MAX(updated_at) as last_sync_time FROM stocks").get() as { last_sync_time: string | null };
+	return {
+		stockCount,
+		lastSyncTime: row?.last_sync_time || null,
+	};
 };
 
 /**
@@ -621,101 +269,6 @@ export const getAllFavoriteStocks = (): string[] => {
  */
 export const countFavoriteStocks = (): number => {
 	const row = db.prepare("SELECT COUNT(*) as count FROM favorite_stocks").get() as { count: number };
-	return row.count;
-};
-
-/**
- * 获取关注股票的公告聚合数据（分页）
- * 优化：使用 CTE 和窗口函数提高性能
- */
-export const getFavoriteStocksAnnouncementsGrouped = (limit: number, offset: number, startDate?: string, endDate?: string) => {
-	const params: any[] = [];
-	const whereClause = startDate && endDate ? ` WHERE a.ann_date BETWEEN ? AND ?` : "";
-
-	if (startDate && endDate) {
-		params.push(startDate, endDate);
-	}
-
-	// 使用 CTE 优化查询
-	const sql = `
-    WITH aggregated_data AS (
-      SELECT
-        s.ts_code,
-        s.name as stock_name,
-        s.industry,
-        s.market,
-        COUNT(a.id) as announcement_count,
-        MAX(a.ann_date) as latest_ann_date
-      FROM stocks s
-      INNER JOIN favorite_stocks f ON s.ts_code = f.ts_code
-      INNER JOIN announcements a ON s.ts_code = a.ts_code
-      ${whereClause}
-      GROUP BY s.ts_code, s.name, s.industry, s.market
-    ),
-    latest_announcements AS (
-      SELECT DISTINCT
-        a.ts_code,
-        FIRST_VALUE(a.title) OVER (
-          PARTITION BY a.ts_code 
-          ORDER BY a.ann_date DESC, a.pub_time DESC
-        ) as latest_ann_title
-      FROM announcements a
-      INNER JOIN favorite_stocks f ON a.ts_code = f.ts_code
-      ${whereClause}
-    )
-    SELECT
-      ad.ts_code,
-      ad.stock_name,
-      ad.industry,
-      ad.market,
-      ad.announcement_count,
-      ad.latest_ann_date,
-      la.latest_ann_title
-    FROM aggregated_data ad
-    LEFT JOIN latest_announcements la ON ad.ts_code = la.ts_code
-    ORDER BY ad.latest_ann_date DESC, ad.stock_name
-    LIMIT ? OFFSET ?
-  `;
-
-	// 如果有日期参数，需要为第二个 CTE 再添加一次
-	if (startDate && endDate) {
-		params.push(startDate, endDate);
-	}
-
-	params.push(limit, offset);
-
-	return db.prepare(sql).all(...params);
-};
-
-/**
- * 统计关注股票中有公告的数量
- * 优化：使用 EXISTS 子查询
- */
-export const countFavoriteStocksWithAnnouncements = (startDate?: string, endDate?: string): number => {
-	const params: any[] = [];
-	const annConditions: string[] = [];
-
-	// 添加日期范围条件
-	if (startDate && endDate) {
-		annConditions.push(`a.ann_date BETWEEN ? AND ?`);
-		params.push(startDate, endDate);
-	}
-
-	const annWhereClause = annConditions.length > 0 ? ` AND ` + annConditions.join(" AND ") : "";
-
-	// 使用 EXISTS 优化
-	const sql = `
-    SELECT COUNT(*) as count
-    FROM stocks s
-    INNER JOIN favorite_stocks f ON s.ts_code = f.ts_code
-    WHERE EXISTS (
-      SELECT 1 FROM announcements a 
-      WHERE a.ts_code = s.ts_code
-      ${annWhereClause}
-    )
-  `;
-
-	const row = db.prepare(sql).get(...params) as { count: number };
 	return row.count;
 };
 
@@ -887,6 +440,50 @@ export const analyzeQuery = (sql: string, params: any[] = []) => {
 	const plan = db.prepare(`EXPLAIN QUERY PLAN ${sql}`).all(...params);
 	console.log("Query Plan:", JSON.stringify(plan, null, 2));
 	return plan;
+};
+
+// ============= 缓存数据统计相关操作 =============
+
+/**
+ * 获取所有缓存数据的统计信息
+ */
+export const getCacheDataStats = () => {
+	const stockCount = countStocks();
+	const favoriteCount = countFavoriteStocks();
+	const top10HoldersCount = countStocksWithTop10Holders();
+	
+	// 统计十大股东记录总数
+	const top10HoldersRecordRow = db.prepare("SELECT COUNT(*) as count FROM top10_holders").get() as { count: number };
+	const top10HoldersRecordCount = top10HoldersRecordRow.count;
+
+	// 获取股票列表同步信息
+	const stockSyncInfo = getStockListSyncInfo();
+
+	// 获取同步标志位信息
+	const syncFlags = db.prepare("SELECT sync_type, last_sync_date, updated_at FROM sync_flags ORDER BY sync_type").all() as Array<{
+		sync_type: string;
+		last_sync_date: string;
+		updated_at: string;
+	}>;
+
+	return {
+		stocks: {
+			count: stockCount,
+			lastSyncTime: stockSyncInfo.lastSyncTime,
+		},
+		favoriteStocks: {
+			count: favoriteCount,
+		},
+		top10Holders: {
+			stockCount: top10HoldersCount,
+			recordCount: top10HoldersRecordCount,
+		},
+		syncFlags: syncFlags.map((flag) => ({
+			type: flag.sync_type,
+			lastSyncDate: flag.last_sync_date,
+			updatedAt: flag.updated_at,
+		})),
+	};
 };
 
 export default db;

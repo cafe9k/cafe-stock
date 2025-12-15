@@ -3,7 +3,7 @@ import { Button, Select, Table, Card, Space, Spin, Typography, Tag, Progress, St
 import { SearchOutlined, SyncOutlined, StarOutlined, StarFilled } from "@ant-design/icons";
 import type { TableColumnsType } from "antd";
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 
 interface Stock {
 	ts_code: string;
@@ -45,7 +45,7 @@ interface SyncStats {
 
 export function DataInsights() {
 	const { message, modal } = App.useApp();
-	const [searchKeyword, setSearchKeyword] = useState("");
+	const [_searchKeyword, _setSearchKeyword] = useState("");
 	const [stockOptions, setStockOptions] = useState<Stock[]>([]);
 	const [searching, setSearching] = useState(false);
 	const [selectedStock, setSelectedStock] = useState<string | null>(null);
