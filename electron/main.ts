@@ -296,7 +296,7 @@ async function getAnnouncementsGroupedFromAPI(
 }> {
 	// 获取所有股票列表
 	const allStocks = getAllStocks();
-
+	
 	// 过滤市场
 	let filteredStocks = allStocks;
 	if (market && market !== "all") {
@@ -329,22 +329,22 @@ async function getAnnouncementsGroupedFromAPI(
 		} else {
 			console.log(`[DB Cache Miss] 从 API 获取公告: ${startDate || "无"} - ${endDate || "无"}`);
 		}
-
-		if (startDate && endDate) {
-			// 如果有日期范围，使用完整获取方式确保覆盖整个日期范围
-			console.log(`[getAnnouncementsGroupedFromAPI] 使用完整获取方式获取公告: ${startDate} - ${endDate}`);
-			announcements = await TushareClient.getAnnouncementsComplete(
-				undefined, // 全市场
-				startDate,
-				endDate,
-				(message, current, total) => {
-					console.log(`[getAnnouncementsGroupedFromAPI] ${message}`);
-				}
-			);
-		} else {
-			// 没有日期范围，使用单次请求（限制2000条）
+	
+	if (startDate && endDate) {
+		// 如果有日期范围，使用完整获取方式确保覆盖整个日期范围
+		console.log(`[getAnnouncementsGroupedFromAPI] 使用完整获取方式获取公告: ${startDate} - ${endDate}`);
+		announcements = await TushareClient.getAnnouncementsComplete(
+			undefined, // 全市场
+			startDate,
+			endDate,
+			(message, current, total) => {
+				console.log(`[getAnnouncementsGroupedFromAPI] ${message}`);
+			}
+		);
+	} else {
+		// 没有日期范围，使用单次请求（限制2000条）
 			announcements = await TushareClient.getAnnouncements(undefined, undefined, startDate, endDate, 2000, 0);
-		}
+	}
 
 		// 保存到数据库
 		if (announcements.length > 0) {
@@ -363,11 +363,11 @@ async function getAnnouncementsGroupedFromAPI(
 	const stockMap = new Map<
 		string,
 		{
-			ts_code: string;
-			stock_name: string;
-			industry: string;
-			market: string;
-			announcements: any[];
+		ts_code: string;
+		stock_name: string;
+		industry: string;
+		market: string;
+		announcements: any[];
 		}
 	>();
 
@@ -396,7 +396,7 @@ async function getAnnouncementsGroupedFromAPI(
 			if (stock.announcements.length === 0) {
 				return null;
 			}
-
+			
 			// 按日期和时间排序
 			stock.announcements.sort((a, b) => {
 				const dateCompare = (b.ann_date || "").localeCompare(a.ann_date || "");
@@ -421,14 +421,14 @@ async function getAnnouncementsGroupedFromAPI(
 			if (dateCompare !== 0) return dateCompare;
 			return (a?.stock_name || "").localeCompare(b?.stock_name || "");
 		}) as Array<{
-		ts_code: string;
-		stock_name: string;
-		industry: string;
-		market: string;
-		announcement_count: number;
-		latest_ann_date: string;
-		latest_ann_title?: string;
-	}>;
+			ts_code: string;
+			stock_name: string;
+			industry: string;
+			market: string;
+			announcement_count: number;
+			latest_ann_date: string;
+			latest_ann_title?: string;
+		}>;
 
 	const total = groupedData.length;
 	const offset = (page - 1) * pageSize;
@@ -459,7 +459,7 @@ async function searchAnnouncementsGroupedFromAPI(
 }> {
 	// 搜索匹配的股票
 	const matchedStocks = searchStocks(keyword, 1000);
-
+	
 	// 过滤市场
 	let filteredStocks = matchedStocks;
 	if (market && market !== "all") {
@@ -480,11 +480,11 @@ async function searchAnnouncementsGroupedFromAPI(
 	const stockMap = new Map<
 		string,
 		{
-			ts_code: string;
-			stock_name: string;
-			industry: string;
-			market: string;
-			announcements: any[];
+		ts_code: string;
+		stock_name: string;
+		industry: string;
+		market: string;
+		announcements: any[];
 		}
 	>();
 
@@ -513,7 +513,7 @@ async function searchAnnouncementsGroupedFromAPI(
 			if (stock.announcements.length === 0) {
 				return null;
 			}
-
+			
 			// 按日期和时间排序
 			stock.announcements.sort((a, b) => {
 				const dateCompare = (b.ann_date || "").localeCompare(a.ann_date || "");
@@ -538,14 +538,14 @@ async function searchAnnouncementsGroupedFromAPI(
 			if (dateCompare !== 0) return dateCompare;
 			return (a?.stock_name || "").localeCompare(b?.stock_name || "");
 		}) as Array<{
-		ts_code: string;
-		stock_name: string;
-		industry: string;
-		market: string;
-		announcement_count: number;
-		latest_ann_date: string;
-		latest_ann_title?: string;
-	}>;
+			ts_code: string;
+			stock_name: string;
+			industry: string;
+			market: string;
+			announcement_count: number;
+			latest_ann_date: string;
+			latest_ann_title?: string;
+		}>;
 
 	const total = groupedData.length;
 	const offset = (page - 1) * pageSize;
@@ -574,7 +574,7 @@ async function getFavoriteStocksAnnouncementsGroupedFromAPI(
 }> {
 	// 获取所有关注的股票代码
 	const favoriteStocks = getAllFavoriteStocks();
-
+	
 	if (favoriteStocks.length === 0) {
 		return { items: [], total: 0 };
 	}
@@ -593,11 +593,11 @@ async function getFavoriteStocksAnnouncementsGroupedFromAPI(
 	const stockMap = new Map<
 		string,
 		{
-			ts_code: string;
-			stock_name: string;
-			industry: string;
-			market: string;
-			announcements: any[];
+		ts_code: string;
+		stock_name: string;
+		industry: string;
+		market: string;
+		announcements: any[];
 		}
 	>();
 
@@ -626,7 +626,7 @@ async function getFavoriteStocksAnnouncementsGroupedFromAPI(
 			if (stock.announcements.length === 0) {
 				return null;
 			}
-
+			
 			// 按日期和时间排序
 			stock.announcements.sort((a, b) => {
 				const dateCompare = (b.ann_date || "").localeCompare(a.ann_date || "");
@@ -651,14 +651,14 @@ async function getFavoriteStocksAnnouncementsGroupedFromAPI(
 			if (dateCompare !== 0) return dateCompare;
 			return (a?.stock_name || "").localeCompare(b?.stock_name || "");
 		}) as Array<{
-		ts_code: string;
-		stock_name: string;
-		industry: string;
-		market: string;
-		announcement_count: number;
-		latest_ann_date: string;
-		latest_ann_title?: string;
-	}>;
+			ts_code: string;
+			stock_name: string;
+			industry: string;
+			market: string;
+			announcement_count: number;
+			latest_ann_date: string;
+			latest_ann_title?: string;
+		}>;
 
 	const total = groupedData.length;
 	const offset = (page - 1) * pageSize;
@@ -790,9 +790,9 @@ function setupIPC() {
 	ipcMain.handle("get-stock-announcements", async (_event, tsCode: string, limit: number = 100, startDate?: string, endDate?: string) => {
 		try {
 			console.log(`[IPC] get-stock-announcements: tsCode=${tsCode}, limit=${limit}, dateRange=${startDate}-${endDate}`);
-
+			
 			const announcements = await TushareClient.getAnnouncements(tsCode, undefined, startDate, endDate, limit, 0);
-
+			
 			// 按日期和时间排序
 			announcements.sort((a: any, b: any) => {
 				const dateCompare = (b.ann_date || "").localeCompare(a.ann_date || "");

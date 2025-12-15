@@ -1,77 +1,82 @@
 /**
- * 关注股票管理 Hook
- * 封装关注股票相关的逻辑和状态管理
+ * 关注股票 Hook
+ * 管理股票关注状态和操作
  */
 
 import { useState, useEffect, useCallback } from "react";
 import { App } from "antd";
-import * as favoriteStockService from "../services/favoriteStockService";
 
 /**
- * 关注股票管理 Hook
+ * 关注股票 Hook
  */
 export function useFavoriteStocks() {
 	const { message } = App.useApp();
-	const [favoriteCodes, setFavoriteCodes] = useState<Set<string>>(new Set());
+	const [favoriteCodes, setFavoriteCodes] = useState<string[]>([]);
 	const [loading, setLoading] = useState(false);
 
-	// 加载关注股票列表
-	const loadFavoriteStocks = useCallback(async () => {
+	// 加载关注列表
+	const loadFavorites = useCallback(async () => {
 		try {
-			setLoading(true);
-			const codes = await favoriteStockService.getAllFavoriteStocks();
-			setFavoriteCodes(new Set(codes));
-		} catch (error: any) {
-			console.error("加载关注股票失败:", error);
-			message.error(`加载关注股票失败: ${error.message || "未知错误"}`);
-		} finally {
-			setLoading(false);
+			if (!window.electronAPI) {
+				return;
+			}
+			const codes = await window.electronAPI.getAllFavoriteStocks();
+			setFavoriteCodes(codes);
+		} catch (error) {
+			console.error("Failed to load favorite stocks:", error);
 		}
-	}, [message]);
+	}, []);
 
-	// 初始化加载
+	// 初始加载
 	useEffect(() => {
-		loadFavoriteStocks();
-	}, [loadFavoriteStocks]);
+		loadFavorites();
+	}, [loadFavorites]);
 
 	// 切换关注状态
 	const toggleFavorite = useCallback(
-		async (tsCode: string, stockName?: string): Promise<boolean> => {
-			try {
-				const isFavorite = favoriteCodes.has(tsCode);
-				const result = await favoriteStockService.toggleFavoriteStock(tsCode, isFavorite);
+		async (tsCode: string, stockName?: string) => {
+			if (!window.electronAPI) {
+				throw new Error("Electron API not available");
+			}
 
-				if (result.success) {
-					// 更新本地状态
-					setFavoriteCodes((prev) => {
-						const newSet = new Set(prev);
-						if (isFavorite) {
-							newSet.delete(tsCode);
-							message.success(stockName ? `已取消关注 ${stockName}` : "已取消关注");
-						} else {
-							newSet.add(tsCode);
-							message.success(stockName ? `已关注 ${stockName}` : "已关注");
-						}
-						return newSet;
-					});
-					return !isFavorite;
+			setLoading(true);
+			try {
+				const isFavorite = favoriteCodes.includes(tsCode);
+
+				if (isFavorite) {
+					// 取消关注
+					const result = await window.electronAPI.removeFavoriteStock(tsCode);
+					if (result.success) {
+						setFavoriteCodes((prev) => prev.filter((code) => code !== tsCode));
+						message.success(`已取消关注 ${stockName || tsCode}`);
+					} else {
+						message.error(result.message || "取消关注失败");
+					}
 				} else {
-					message.error(result.message || "操作失败");
-					return isFavorite;
+					// 添加关注
+					const result = await window.electronAPI.addFavoriteStock(tsCode);
+					if (result.success) {
+						setFavoriteCodes((prev) => [...prev, tsCode]);
+						message.success(`已关注 ${stockName || tsCode}`);
+					} else {
+						message.error(result.message || "关注失败");
+					}
 				}
 			} catch (error: any) {
-				console.error("切换关注状态失败:", error);
-				message.error(`操作失败: ${error.message || "未知错误"}`);
-				return favoriteCodes.has(tsCode);
+				console.error("Toggle favorite error:", error);
+				message.error(error.message || "操作失败");
+				throw error;
+			} finally {
+				setLoading(false);
 			}
 		},
 		[favoriteCodes, message]
 	);
 
-	// 检查是否关注
+	// 检查是否已关注
 	const isFavorite = useCallback(
-		(tsCode: string): boolean => {
-			return favoriteCodes.has(tsCode);
+		(tsCode: string) => {
+			return favoriteCodes.includes(tsCode);
 		},
 		[favoriteCodes]
 	);
@@ -79,9 +84,9 @@ export function useFavoriteStocks() {
 	return {
 		favoriteCodes,
 		loading,
-		loadFavoriteStocks,
 		toggleFavorite,
 		isFavorite,
+		refresh: loadFavorites,
 	};
 }
 

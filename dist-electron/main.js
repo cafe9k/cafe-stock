@@ -13849,13 +13849,6 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_stock_industry ON stocks (industry);
   CREATE INDEX IF NOT EXISTS idx_stock_list_status ON stocks (list_status);
 
-  CREATE TABLE IF NOT EXISTS sync_flags (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    sync_type TEXT NOT NULL UNIQUE,
-    last_sync_date TEXT NOT NULL,
-    updated_at TEXT NOT NULL
-  );
-
   CREATE TABLE IF NOT EXISTS favorite_stocks (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     ts_code TEXT NOT NULL UNIQUE,
@@ -13863,6 +13856,14 @@ db.exec(`
   );
 
   CREATE INDEX IF NOT EXISTS idx_favorite_ts_code ON favorite_stocks (ts_code);
+
+  CREATE TABLE IF NOT EXISTS sync_flags (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    sync_type TEXT NOT NULL UNIQUE,
+    last_sync_date TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+
 
   CREATE TABLE IF NOT EXISTS top10_holders (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -13910,15 +13911,15 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_sync_range_dates ON announcement_sync_ranges (start_date, end_date);
 `);
 function migrateDatabase() {
-  const tableInfo = db.prepare("PRAGMA table_info(announcements)").all();
-  const existingColumns = new Set(tableInfo.map((col) => col.name));
-  const requiredColumns = [
+  const announcementsTableInfo = db.prepare("PRAGMA table_info(announcements)").all();
+  const announcementsColumns = new Set(announcementsTableInfo.map((col) => col.name));
+  const announcementsRequiredColumns = [
     { name: "name", type: "TEXT" },
     { name: "url", type: "TEXT" },
     { name: "rec_time", type: "TEXT" }
   ];
-  for (const column of requiredColumns) {
-    if (!existingColumns.has(column.name)) {
+  for (const column of announcementsRequiredColumns) {
+    if (!announcementsColumns.has(column.name)) {
       console.log(`[DB Migration] 添加 announcements.${column.name} 列`);
       try {
         db.exec(`ALTER TABLE announcements ADD COLUMN ${column.name} ${column.type}`);
@@ -13926,6 +13927,19 @@ function migrateDatabase() {
       } catch (error2) {
         console.error(`[DB Migration Error] 添加 announcements.${column.name} 列失败:`, error2);
       }
+    }
+  }
+  const stocksTableInfo = db.prepare("PRAGMA table_info(stocks)").all();
+  const stocksColumns = new Set(stocksTableInfo.map((col) => col.name));
+  if (!stocksColumns.has("is_favorite")) {
+    console.log("[DB Migration] 添加 stocks.is_favorite 列");
+    try {
+      db.exec("ALTER TABLE stocks ADD COLUMN is_favorite INTEGER DEFAULT 0");
+      console.log("[DB Migration] stocks.is_favorite 列添加成功");
+      db.exec("CREATE INDEX IF NOT EXISTS idx_stock_is_favorite ON stocks (is_favorite)");
+      console.log("[DB Migration] stocks.is_favorite 索引创建成功");
+    } catch (error2) {
+      console.error("[DB Migration Error] 添加 stocks.is_favorite 列失败:", error2);
     }
   }
 }
@@ -14015,6 +14029,56 @@ const searchStocks = (keyword, limit = 50) => {
   `
   ).all(likePattern, likePattern, likePattern, likePattern, keyword, keyword, keyword, limit);
 };
+const addFavoriteStock = (tsCode) => {
+  try {
+    const stmt = db.prepare("UPDATE stocks SET is_favorite = 1 WHERE ts_code = ?");
+    const result = stmt.run(tsCode);
+    return result.changes > 0;
+  } catch (error2) {
+    console.error("Failed to add favorite stock:", error2);
+    return false;
+  }
+};
+const removeFavoriteStock = (tsCode) => {
+  try {
+    const stmt = db.prepare("UPDATE stocks SET is_favorite = 0 WHERE ts_code = ?");
+    const result = stmt.run(tsCode);
+    return result.changes > 0;
+  } catch (error2) {
+    console.error("Failed to remove favorite stock:", error2);
+    return false;
+  }
+};
+const isFavoriteStock = (tsCode) => {
+  try {
+    const stmt = db.prepare("SELECT is_favorite FROM stocks WHERE ts_code = ?");
+    const result = stmt.get(tsCode);
+    return (result == null ? void 0 : result.is_favorite) === 1;
+  } catch (error2) {
+    console.error("Failed to check favorite stock:", error2);
+    return false;
+  }
+};
+const getAllFavoriteStocks = () => {
+  try {
+    const stmt = db.prepare("SELECT ts_code FROM stocks WHERE is_favorite = 1 ORDER BY ts_code");
+    const results = stmt.all();
+    return results.map((r) => r.ts_code);
+  } catch (error2) {
+    console.error("Failed to get all favorite stocks:", error2);
+    return [];
+  }
+};
+const countFavoriteStocks = () => {
+  try {
+    const stmt = db.prepare("SELECT COUNT(*) as count FROM stocks WHERE is_favorite = 1");
+    const result = stmt.get();
+    return (result == null ? void 0 : result.count) || 0;
+  } catch (error2) {
+    console.error("Failed to count favorite stocks:", error2);
+    return 0;
+  }
+};
 const getLastSyncDate = (syncType) => {
   const row = db.prepare("SELECT last_sync_date FROM sync_flags WHERE sync_type = ?").get(syncType);
   return (row == null ? void 0 : row.last_sync_date) || null;
@@ -14036,39 +14100,6 @@ const isSyncedToday = (syncType) => {
   if (!lastSync) return false;
   const today = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10).replace(/-/g, "");
   return lastSync === today;
-};
-const addFavoriteStock = (tsCode) => {
-  const now = (/* @__PURE__ */ new Date()).toISOString();
-  try {
-    db.prepare(
-      `
-      INSERT INTO favorite_stocks (ts_code, created_at)
-      VALUES (?, ?)
-    `
-    ).run(tsCode, now);
-    return true;
-  } catch (error2) {
-    if (error2.code === "SQLITE_CONSTRAINT") {
-      return false;
-    }
-    throw error2;
-  }
-};
-const removeFavoriteStock = (tsCode) => {
-  const result = db.prepare("DELETE FROM favorite_stocks WHERE ts_code = ?").run(tsCode);
-  return result.changes > 0;
-};
-const isFavoriteStock = (tsCode) => {
-  const row = db.prepare("SELECT COUNT(*) as count FROM favorite_stocks WHERE ts_code = ?").get(tsCode);
-  return row.count > 0;
-};
-const getAllFavoriteStocks = () => {
-  const rows = db.prepare("SELECT ts_code FROM favorite_stocks ORDER BY created_at DESC").all();
-  return rows.map((row) => row.ts_code);
-};
-const countFavoriteStocks = () => {
-  const row = db.prepare("SELECT COUNT(*) as count FROM favorite_stocks").get();
-  return row.count;
 };
 const upsertTop10Holders = (items) => {
   const now = (/* @__PURE__ */ new Date()).toISOString();

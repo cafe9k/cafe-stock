@@ -34,13 +34,6 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_stock_industry ON stocks (industry);
   CREATE INDEX IF NOT EXISTS idx_stock_list_status ON stocks (list_status);
 
-  CREATE TABLE IF NOT EXISTS sync_flags (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    sync_type TEXT NOT NULL UNIQUE,
-    last_sync_date TEXT NOT NULL,
-    updated_at TEXT NOT NULL
-  );
-
   CREATE TABLE IF NOT EXISTS favorite_stocks (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     ts_code TEXT NOT NULL UNIQUE,
@@ -48,6 +41,14 @@ db.exec(`
   );
 
   CREATE INDEX IF NOT EXISTS idx_favorite_ts_code ON favorite_stocks (ts_code);
+
+  CREATE TABLE IF NOT EXISTS sync_flags (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    sync_type TEXT NOT NULL UNIQUE,
+    last_sync_date TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+
 
   CREATE TABLE IF NOT EXISTS top10_holders (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -101,20 +102,18 @@ db.exec(`
  * 检查并添加缺失的列（数据库迁移）
  */
 function migrateDatabase() {
-	// 获取 announcements 表的列信息
-	const tableInfo = db.prepare("PRAGMA table_info(announcements)").all() as Array<{ name: string }>;
-	const existingColumns = new Set(tableInfo.map((col) => col.name));
+	// 迁移 announcements 表
+	const announcementsTableInfo = db.prepare("PRAGMA table_info(announcements)").all() as Array<{ name: string }>;
+	const announcementsColumns = new Set(announcementsTableInfo.map((col) => col.name));
 
-	// 定义需要的列及其类型
-	const requiredColumns = [
+	const announcementsRequiredColumns = [
 		{ name: "name", type: "TEXT" },
 		{ name: "url", type: "TEXT" },
 		{ name: "rec_time", type: "TEXT" },
 	];
 
-	// 检查并添加缺失的列
-	for (const column of requiredColumns) {
-		if (!existingColumns.has(column.name)) {
+	for (const column of announcementsRequiredColumns) {
+		if (!announcementsColumns.has(column.name)) {
 			console.log(`[DB Migration] 添加 announcements.${column.name} 列`);
 			try {
 				db.exec(`ALTER TABLE announcements ADD COLUMN ${column.name} ${column.type}`);
@@ -122,6 +121,24 @@ function migrateDatabase() {
 			} catch (error) {
 				console.error(`[DB Migration Error] 添加 announcements.${column.name} 列失败:`, error);
 			}
+		}
+	}
+
+	// 迁移 stocks 表，添加 is_favorite 字段
+	const stocksTableInfo = db.prepare("PRAGMA table_info(stocks)").all() as Array<{ name: string }>;
+	const stocksColumns = new Set(stocksTableInfo.map((col) => col.name));
+
+	if (!stocksColumns.has("is_favorite")) {
+		console.log("[DB Migration] 添加 stocks.is_favorite 列");
+		try {
+			db.exec("ALTER TABLE stocks ADD COLUMN is_favorite INTEGER DEFAULT 0");
+			console.log("[DB Migration] stocks.is_favorite 列添加成功");
+			
+			// 创建索引
+			db.exec("CREATE INDEX IF NOT EXISTS idx_stock_is_favorite ON stocks (is_favorite)");
+			console.log("[DB Migration] stocks.is_favorite 索引创建成功");
+		} catch (error) {
+			console.error("[DB Migration Error] 添加 stocks.is_favorite 列失败:", error);
 		}
 	}
 }
@@ -241,6 +258,79 @@ export const searchStocks = (keyword: string, limit: number = 50) => {
 		.all(likePattern, likePattern, likePattern, likePattern, keyword, keyword, keyword, limit);
 };
 
+// ============= 关注股票相关操作 =============
+
+/**
+ * 添加关注股票
+ */
+export const addFavoriteStock = (tsCode: string): boolean => {
+	try {
+		// 使用 stocks 表的 is_favorite 字段
+		const stmt = db.prepare("UPDATE stocks SET is_favorite = 1 WHERE ts_code = ?");
+		const result = stmt.run(tsCode);
+		return result.changes > 0;
+	} catch (error) {
+		console.error("Failed to add favorite stock:", error);
+		return false;
+	}
+};
+
+/**
+ * 取消关注股票
+ */
+export const removeFavoriteStock = (tsCode: string): boolean => {
+	try {
+		const stmt = db.prepare("UPDATE stocks SET is_favorite = 0 WHERE ts_code = ?");
+		const result = stmt.run(tsCode);
+		return result.changes > 0;
+	} catch (error) {
+		console.error("Failed to remove favorite stock:", error);
+		return false;
+	}
+};
+
+/**
+ * 检查股票是否已关注
+ */
+export const isFavoriteStock = (tsCode: string): boolean => {
+	try {
+		const stmt = db.prepare("SELECT is_favorite FROM stocks WHERE ts_code = ?");
+		const result: any = stmt.get(tsCode);
+		return result?.is_favorite === 1;
+	} catch (error) {
+		console.error("Failed to check favorite stock:", error);
+		return false;
+	}
+};
+
+/**
+ * 获取所有关注的股票代码
+ */
+export const getAllFavoriteStocks = (): string[] => {
+	try {
+		const stmt = db.prepare("SELECT ts_code FROM stocks WHERE is_favorite = 1 ORDER BY ts_code");
+		const results: any[] = stmt.all();
+		return results.map((r) => r.ts_code);
+	} catch (error) {
+		console.error("Failed to get all favorite stocks:", error);
+		return [];
+	}
+};
+
+/**
+ * 统计关注的股票数量
+ */
+export const countFavoriteStocks = (): number => {
+	try {
+		const stmt = db.prepare("SELECT COUNT(*) as count FROM stocks WHERE is_favorite = 1");
+		const result: any = stmt.get();
+		return result?.count || 0;
+	} catch (error) {
+		console.error("Failed to count favorite stocks:", error);
+		return 0;
+	}
+};
+
 // ============= 同步标志位相关操作 =============
 
 /**
@@ -278,61 +368,6 @@ export const isSyncedToday = (syncType: string): boolean => {
 	return lastSync === today;
 };
 
-// ============= 关注股票相关操作 =============
-
-/**
- * 添加关注股票
- */
-export const addFavoriteStock = (tsCode: string) => {
-	const now = new Date().toISOString();
-	try {
-		db.prepare(
-			`
-      INSERT INTO favorite_stocks (ts_code, created_at)
-      VALUES (?, ?)
-    `
-		).run(tsCode, now);
-		return true;
-	} catch (error: any) {
-		// 如果是重复插入，返回 false
-		if (error.code === "SQLITE_CONSTRAINT") {
-			return false;
-		}
-		throw error;
-	}
-};
-
-/**
- * 删除关注股票
- */
-export const removeFavoriteStock = (tsCode: string) => {
-	const result = db.prepare("DELETE FROM favorite_stocks WHERE ts_code = ?").run(tsCode);
-	return result.changes > 0;
-};
-
-/**
- * 检查股票是否已关注
- */
-export const isFavoriteStock = (tsCode: string): boolean => {
-	const row = db.prepare("SELECT COUNT(*) as count FROM favorite_stocks WHERE ts_code = ?").get(tsCode) as { count: number };
-	return row.count > 0;
-};
-
-/**
- * 获取所有关注的股票代码
- */
-export const getAllFavoriteStocks = (): string[] => {
-	const rows = db.prepare("SELECT ts_code FROM favorite_stocks ORDER BY created_at DESC").all() as Array<{ ts_code: string }>;
-	return rows.map((row) => row.ts_code);
-};
-
-/**
- * 统计关注股票数量
- */
-export const countFavoriteStocks = (): number => {
-	const row = db.prepare("SELECT COUNT(*) as count FROM favorite_stocks").get() as { count: number };
-	return row.count;
-};
 
 // ============= 十大股东数据相关操作 =============
 

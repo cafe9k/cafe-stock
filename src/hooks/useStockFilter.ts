@@ -24,9 +24,6 @@ export function useStockFilter(initialFilter?: Partial<StockFilter>) {
 	// 市场筛选
 	const [selectedMarket, setSelectedMarket] = useState<string>(initialFilter?.market || "all");
 
-	// 关注筛选
-	const [showFavoriteOnly, setShowFavoriteOnly] = useState<boolean>(initialFilter?.showFavoriteOnly || false);
-
 	// 搜索关键词
 	const [searchKeyword, setSearchKeyword] = useState<string>(initialFilter?.searchKeyword || "");
 
@@ -130,16 +127,14 @@ export function useStockFilter(initialFilter?: Partial<StockFilter>) {
 	const getFilter = useCallback((): StockFilter => {
 		return {
 			market: selectedMarket === "all" ? undefined : selectedMarket,
-			showFavoriteOnly,
 			searchKeyword: searchKeyword.trim() || undefined,
 			dateRange,
 		};
-	}, [selectedMarket, showFavoriteOnly, searchKeyword, dateRange]);
+	}, [selectedMarket, searchKeyword, dateRange]);
 
 	// 重置筛选条件
 	const resetFilter = useCallback(() => {
 		setSelectedMarket("all");
-		setShowFavoriteOnly(false);
 		setSearchKeyword("");
 		const defaultRange = getDefaultDateRange();
 		setDateRange(defaultRange);
@@ -150,14 +145,12 @@ export function useStockFilter(initialFilter?: Partial<StockFilter>) {
 	return {
 		// 状态
 		selectedMarket,
-		showFavoriteOnly,
 		searchKeyword,
 		dateRange,
 		dateRangeDisplay,
 		quickSelectValue,
 		// 设置方法
 		setSelectedMarket,
-		setShowFavoriteOnly,
 		setSearchKeyword,
 		setDateRange,
 		setDateRangeDisplay,

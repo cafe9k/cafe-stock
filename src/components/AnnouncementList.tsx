@@ -7,8 +7,6 @@ import {
 	HistoryOutlined,
 	CalendarOutlined,
 	FilePdfOutlined,
-	StarOutlined,
-	StarFilled,
 } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import dayjs, { Dayjs } from "dayjs";
@@ -16,7 +14,6 @@ import { PDFWebViewer } from "./PDFWebViewer";
 import { StockList } from "./StockList/index";
 import { useStockList } from "../hooks/useStockList";
 import { useStockFilter } from "../hooks/useStockFilter";
-import { useFavoriteStocks } from "../hooks/useFavoriteStocks";
 import type { StockGroup } from "../types/stock";
 
 const { Text: AntText } = Typography;
@@ -56,10 +53,7 @@ export function AnnouncementList() {
 		refresh,
 	} = useStockList<StockGroup>({
 		pageSize: 20,
-		enableFavoriteFilter: true,
 	});
-
-	const { favoriteCodes, toggleFavorite } = useFavoriteStocks();
 
 	// PDF 预览相关状态
 	const [pdfViewerOpen, setPdfViewerOpen] = useState(false);
@@ -72,7 +66,7 @@ export function AnnouncementList() {
 		currentFilter.searchKeyword = searchKeyword || undefined;
 		updateFilter(currentFilter);
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [filter.dateRange, filter.selectedMarket, filter.showFavoriteOnly, searchKeyword]);
+	}, [filter.dateRange, filter.selectedMarket, searchKeyword]);
 
 	// 分页状态（针对每个股票的展开详情）
 	const [expandedPageMap, setExpandedPageMap] = useState<Record<string, number>>({});
@@ -104,29 +98,9 @@ export function AnnouncementList() {
 		}
 	};
 
-	// 关注/取消关注股票
-	const handleToggleFavorite = async (tsCode: string, stockName: string, event: React.MouseEvent) => {
-		event.stopPropagation(); // 阻止事件冒泡，避免触发行展开
-
-		try {
-			await toggleFavorite(tsCode, stockName);
-			// 如果当前正在查看"我的关注"，刷新列表
-			if (filter.showFavoriteOnly) {
-				refresh();
-			}
-		} catch (err: any) {
-			console.error("Toggle favorite error:", err);
-		}
-	};
-
 	// 搜索功能
 	const handleSearch = async (value: string) => {
 		setSearchKeyword(value);
-		// 搜索时不支持"我的关注"过滤
-		if (filter.showFavoriteOnly && value.trim()) {
-			message.info('搜索时暂不支持"我的关注"过滤，已切换到全部股票');
-			filter.setShowFavoriteOnly(false);
-		}
 		// 筛选条件变化会触发 useEffect 自动更新
 	};
 
@@ -310,13 +284,12 @@ export function AnnouncementList() {
 				/>
 			</Space>
 
-			{/* 第二行：市场选择、我的关注和刷新 */}
+			{/* 第二行：市场选择和刷新 */}
 			<Space align="start" wrap size={[8, 8]}>
 				<Select
 					value={filter.selectedMarket}
 					onChange={filter.setSelectedMarket}
 					style={{ width: 120 }}
-					disabled={filter.showFavoriteOnly}
 					options={[
 						{ value: "all", label: "全部市场" },
 						{ value: "主板", label: "主板" },
@@ -325,20 +298,6 @@ export function AnnouncementList() {
 						{ value: "CDR", label: "CDR" },
 					]}
 				/>
-
-				<Button
-					type={filter.showFavoriteOnly ? "primary" : "default"}
-					icon={<StarOutlined />}
-					onClick={() => {
-						if (searchKeyword) {
-							setSearchKeyword("");
-						}
-						filter.setShowFavoriteOnly(!filter.showFavoriteOnly);
-					}}
-					disabled={!!searchKeyword}
-				>
-					我的关注
-				</Button>
 
 				<Button icon={<ReloadOutlined />} onClick={handleRefresh} loading={loading}>
 					刷新
@@ -370,16 +329,12 @@ export function AnnouncementList() {
 					pageSize={PAGE_SIZE}
 					onPageChange={goToPage}
 					columnConfig={{
-						showFavorite: true,
 						showName: true,
 						showMarket: true,
 						showIndustry: true,
 						showAnnouncementCount: true,
 						showLatestAnnTitle: true,
 						showLatestAnnDate: true,
-					}}
-					onFavoriteToggle={async (record) => {
-						await handleToggleFavorite(record.ts_code, record.stock_name, {} as React.MouseEvent);
 					}}
 					onRowClick={(record) => {
 						const key = record.ts_code;

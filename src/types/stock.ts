@@ -9,7 +9,7 @@ export interface Stock {
 	industry: string;
 	market: string;
 	list_date: string;
-	isFavorite?: boolean; // 是否关注
+	isFavorite?: boolean; // 是否已关注
 }
 
 /**
@@ -23,7 +23,7 @@ export interface StockGroup {
 	announcement_count: number;
 	latest_ann_date: string;
 	latest_ann_title?: string;
-	isFavorite?: boolean; // 是否关注
+	isFavorite?: boolean; // 是否已关注
 }
 
 /**
@@ -31,7 +31,6 @@ export interface StockGroup {
  */
 export interface StockFilter {
 	market?: string; // 市场：主板、创业板、科创板、CDR
-	showFavoriteOnly?: boolean; // 仅显示关注的股票
 	searchKeyword?: string; // 搜索关键词
 	dateRange?: [string, string]; // 日期范围 [startDate, endDate] YYYYMMDD格式
 }
@@ -54,12 +53,3 @@ export interface StockListQueryResult<T = Stock> {
 	page: number;
 	pageSize: number;
 }
-
-/**
- * 关注股票操作结果
- */
-export interface FavoriteStockResult {
-	success: boolean;
-	message?: string;
-}
-

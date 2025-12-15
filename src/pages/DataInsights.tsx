@@ -1,11 +1,8 @@
 import { useState, useEffect } from "react";
-import { Button, Select, Table, Card, Space, Spin, Typography, Tag, Progress, Statistic, Row, Col, Divider, App, Tabs } from "antd";
-import { SearchOutlined, SyncOutlined, StarOutlined, StarFilled } from "@ant-design/icons";
+import { Button, Select, Table, Card, Space, Spin, Typography, Tag, Progress, Statistic, Row, Col, Divider, App } from "antd";
+import { SearchOutlined, SyncOutlined } from "@ant-design/icons";
 import type { TableColumnsType } from "antd";
-import { StockList, StockSearch } from "../components/StockList";
 import { useStockSearch } from "../hooks/useStockSearch";
-import { useFavoriteStocks } from "../hooks/useFavoriteStocks";
-import * as stockService from "../services/stockService";
 import type { Stock } from "../types/stock";
 
 const { Text } = Typography;
@@ -47,17 +44,12 @@ export function DataInsights() {
 	const [syncProgress, setSyncProgress] = useState<SyncProgress | null>(null);
 	const [syncStats, setSyncStats] = useState<SyncStats | null>(null);
 	const [hasData, setHasData] = useState(false);
-	const [isFavorite, setIsFavorite] = useState(false);
-	const [searchMode, setSearchMode] = useState<"search" | "favorite">("search");
 	const [endDates, setEndDates] = useState<string[]>([]);
 	const [selectedEndDate, setSelectedEndDate] = useState<string | null>(null);
 	const [isPaused, setIsPaused] = useState(false);
 
 	// 使用新的 hooks
 	const { searchResults, searching, search } = useStockSearch();
-	const { favoriteCodes, toggleFavorite } = useFavoriteStocks();
-	const [favoriteStocks, setFavoriteStocks] = useState<Stock[]>([]);
-	const [loadingFavorites, setLoadingFavorites] = useState(false);
 
 	// 加载同步统计信息
 	const loadSyncStats = async () => {
@@ -80,24 +72,9 @@ export function DataInsights() {
 		}
 	};
 
-	// 加载关注的股票详细信息列表
-	const loadFavoriteStocksDetail = async () => {
-		try {
-			setLoadingFavorites(true);
-			const stocks = await stockService.getFavoriteStocksDetail();
-			setFavoriteStocks(stocks);
-		} catch (error: any) {
-			console.error("加载关注股票失败:", error);
-			message.error(`加载关注股票失败: ${error.message || "未知错误"}`);
-		} finally {
-			setLoadingFavorites(false);
-		}
-	};
-
-	// 组件加载时获取统计信息和关注列表
+	// 组件加载时获取统计信息
 	useEffect(() => {
 		loadSyncStats();
-		loadFavoriteStocksDetail();
 	}, []);
 
 	// 监听同步进度
@@ -126,9 +103,6 @@ export function DataInsights() {
 		try {
 			// 先检查是否有数据
 			await checkHasData(value);
-
-			// 检查是否已关注（从 hook 获取）
-			setIsFavorite(favoriteCodes.has(value));
 
 			// 获取所有报告期
 			const dates = await window.electronAPI.getTop10HoldersEndDates(value);
@@ -244,26 +218,6 @@ export function DataInsights() {
 		}
 	};
 
-	// 添加/取消关注
-	const handleToggleFavorite = async () => {
-		if (!selectedStock) {
-			message.warning("请先选择股票");
-			return;
-		}
-
-		try {
-			const stockInfo = searchResults.find((s) => s.ts_code === selectedStock) || favoriteStocks.find((s) => s.ts_code === selectedStock);
-			const stockName = stockInfo?.name || "";
-
-			// 使用 hook 的 toggleFavorite 方法
-			const newStatus = await toggleFavorite(selectedStock, stockName);
-			setIsFavorite(newStatus);
-			await loadFavoriteStocksDetail();
-		} catch (error: any) {
-			console.error("操作失败:", error);
-			message.error(`操作失败: ${error.message || "未知错误"}`);
-		}
-	};
 
 	// 暂停/恢复同步
 	const handleTogglePause = async () => {
@@ -368,10 +322,7 @@ export function DataInsights() {
 	];
 
 	// 获取选中股票的信息
-	const selectedStockInfo =
-		searchMode === "search"
-			? searchResults.find((stock) => stock.ts_code === selectedStock)
-			: favoriteStocks.find((stock) => stock.ts_code === selectedStock);
+	const selectedStockInfo = searchResults.find((stock) => stock.ts_code === selectedStock);
 
 	return (
 		<div style={{ padding: 24 }}>
@@ -458,128 +409,43 @@ export function DataInsights() {
 
 						<Divider style={{ margin: "8px 0" }} />
 
-						{/* 模式切换 */}
-						<Tabs
-							activeKey={searchMode}
-							onChange={(key) => {
-								setSearchMode(key as "search" | "favorite");
-								// 切换模式时清空选择
-								if (key === "favorite") {
-									setStockOptions([]);
-								}
-								setSelectedStock(null);
-								setHolders([]);
-							}}
-							items={[
-								{
-									key: "search",
-									label: (
-										<span>
-											<SearchOutlined /> 搜索股票
-										</span>
-									),
-								},
-								{
-									key: "favorite",
-									label: (
-										<span>
-											<StarFilled /> 我的关注 ({favoriteStocks.length})
-										</span>
-									),
-								},
-							]}
-						/>
-
-						{/* 搜索模式 */}
-						{searchMode === "search" && (
-							<Space size="middle" style={{ width: "100%" }} wrap>
-								<Select
-									showSearch
-									value={selectedStock}
-									placeholder="请输入股票代码或名称"
-									style={{ width: 400 }}
-									defaultActiveFirstOption={false}
-									suffixIcon={<SearchOutlined />}
-									filterOption={false}
-									onSearch={handleSearch}
-									onChange={handleStockSelect}
-									notFoundContent={searching ? <Spin size="small" /> : null}
-									options={searchResults.map((stock) => ({
-										value: stock.ts_code,
-										label: `${stock.name} (${stock.ts_code})`,
-									}))}
-								/>
-								{selectedStockInfo && (
-									<Space>
-										<Tag color="blue">{selectedStockInfo.industry}</Tag>
-										<Tag color="green">{selectedStockInfo.market}</Tag>
-										<Tag>{selectedStockInfo.area}</Tag>
-									</Space>
-								)}
-								{selectedStock && (
-									<>
-										<Button
-											type="default"
-											icon={<SyncOutlined />}
-											onClick={handleSyncSingle}
-											loading={loading}
-											title={hasData ? "更新最新数据" : "首次同步数据"}
-										>
-											{hasData ? "更新数据" : "同步数据"}
-										</Button>
-										<Button
-											type={favoriteCodes.has(selectedStock) ? "default" : "primary"}
-											icon={favoriteCodes.has(selectedStock) ? <StarFilled /> : <StarOutlined />}
-											onClick={handleToggleFavorite}
-											danger={favoriteCodes.has(selectedStock)}
-										>
-											{favoriteCodes.has(selectedStock) ? "取消关注" : "添加关注"}
-										</Button>
-									</>
-								)}
-							</Space>
-						)}
-
-						{/* 我的关注模式 */}
-						{searchMode === "favorite" && (
-							<div style={{ width: "100%" }}>
-								<StockList
-									data={favoriteStocks}
-									loading={loadingFavorites}
-									columnConfig={{
-										showFavorite: true,
-										showCode: true,
-										showName: true,
-										showMarket: true,
-										showIndustry: true,
-										showArea: true,
-										actionColumn: (record) => (
-											<Space size="small">
-												<Button
-													type="link"
-													size="small"
-													icon={<SearchOutlined />}
-													onClick={() => handleStockSelect(record.ts_code)}
-												>
-													查看股东
-												</Button>
-											</Space>
-										),
-									}}
-									onFavoriteToggle={async (record, newStatus) => {
-										if (!newStatus && selectedStock === record.ts_code) {
-											setSelectedStock(null);
-											setHolders([]);
-										}
-										await loadFavoriteStocksDetail();
-									}}
-									rowKey="ts_code"
-									pageSize={10}
-									emptyText="暂无关注的股票"
-									size="small"
-								/>
-							</div>
-						)}
+						{/* 搜索股票 */}
+						<Space size="middle" style={{ width: "100%" }} wrap>
+							<Select
+								showSearch
+								value={selectedStock}
+								placeholder="请输入股票代码或名称"
+								style={{ width: 400 }}
+								defaultActiveFirstOption={false}
+								suffixIcon={<SearchOutlined />}
+								filterOption={false}
+								onSearch={handleSearch}
+								onChange={handleStockSelect}
+								notFoundContent={searching ? <Spin size="small" /> : null}
+								options={searchResults.map((stock) => ({
+									value: stock.ts_code,
+									label: `${stock.name} (${stock.ts_code})`,
+								}))}
+							/>
+							{selectedStockInfo && (
+								<Space>
+									<Tag color="blue">{selectedStockInfo.industry}</Tag>
+									<Tag color="green">{selectedStockInfo.market}</Tag>
+									<Tag>{selectedStockInfo.area}</Tag>
+								</Space>
+							)}
+							{selectedStock && (
+								<Button
+									type="default"
+									icon={<SyncOutlined />}
+									onClick={handleSyncSingle}
+									loading={loading}
+									title={hasData ? "更新最新数据" : "首次同步数据"}
+								>
+									{hasData ? "更新数据" : "同步数据"}
+								</Button>
+							)}
+						</Space>
 					</Space>
 				</Card>
 

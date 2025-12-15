@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Card, Typography, Space, Tag, Tooltip, Button, App } from "antd";
-import { StockOutlined, StarOutlined, TeamOutlined, SyncOutlined, FileTextOutlined } from "@ant-design/icons";
+import { StockOutlined, StarOutlined, TeamOutlined, SyncOutlined } from "@ant-design/icons";
 
 const { Text } = Typography;
 
@@ -16,9 +16,6 @@ interface CacheDataStats {
 		stockCount: number;
 		recordCount: number;
 	};
-	announcements?: {
-		totalCount: number;
-	};
 }
 
 export function CacheDataIndicator() {
@@ -31,19 +28,6 @@ export function CacheDataIndicator() {
 		try {
 			setLoading(true);
 			const data = await window.electronAPI.getCacheDataStats();
-			
-			// 获取公告缓存统计
-			try {
-				const announcementStats = await window.electronAPI.getAnnouncementsCacheStats();
-				if (announcementStats.success) {
-					data.announcements = {
-						totalCount: announcementStats.totalCount,
-					};
-				}
-			} catch (error) {
-				console.error("Failed to load announcement cache stats:", error);
-			}
-			
 			setStats(data);
 		} catch (error) {
 			console.error("Failed to load cache data stats:", error);
@@ -76,7 +60,6 @@ export function CacheDataIndicator() {
 			return timeStr;
 		}
 	};
-
 
 	// 直接同步股票列表（无需弹窗）
 	const handleSyncAllStocks = async () => {
@@ -122,19 +105,13 @@ export function CacheDataIndicator() {
 				borderBottom: "none",
 				boxShadow: "0 -2px 8px rgba(0, 0, 0, 0.1)",
 			}}
-			styles={{ body: { padding: "8px 16px" } }}
+			bodyStyle={{ padding: "8px 16px" }}
 		>
 			<div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
 				<Space size="large" wrap>
 					{/* 同步按钮 + 股票列表 */}
 					<Space size="small">
-						<Button
-							size="small"
-							type="primary"
-							icon={<SyncOutlined />}
-							onClick={handleSyncAllStocks}
-							loading={syncingStocks}
-						>
+						<Button size="small" type="primary" icon={<SyncOutlined />} onClick={handleSyncAllStocks} loading={syncingStocks}>
 							同步
 						</Button>
 						<Tooltip title={`股票列表：${stats.stocks.count.toLocaleString()} 只股票`}>
@@ -172,20 +149,8 @@ export function CacheDataIndicator() {
 							</Text>
 						</Space>
 					</Tooltip>
-
-					{stats.announcements && stats.announcements.totalCount > 0 && (
-						<Tooltip title={`缓存的公告：${stats.announcements.totalCount.toLocaleString()} 条`}>
-							<Space size="small">
-								<FileTextOutlined style={{ color: "#1890ff" }} />
-								<Text style={{ fontSize: 12 }}>
-									公告缓存 <Tag color="blue">{stats.announcements.totalCount.toLocaleString()}</Tag>
-								</Text>
-							</Space>
-						</Tooltip>
-					)}
 				</Space>
 			</div>
 		</Card>
 	);
 }
-

@@ -5,9 +5,7 @@
 
 import { useMemo, memo } from "react";
 import { Table, Card, Tag, Typography, Button, Space, Badge } from "antd";
-import { StarOutlined, StarFilled } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
-import { useFavoriteStocks } from "../../hooks/useFavoriteStocks";
 import type { Stock, StockGroup } from "../../types/stock";
 
 const { Text: AntText } = Typography;
@@ -16,7 +14,6 @@ const { Text: AntText } = Typography;
  * 股票列表列配置
  */
 export interface StockListColumnConfig {
-	showFavorite?: boolean; // 显示关注列
 	showCode?: boolean; // 显示股票代码
 	showName?: boolean; // 显示股票名称
 	showMarket?: boolean; // 显示市场
@@ -40,7 +37,6 @@ export interface StockListProps<T extends Stock | StockGroup = Stock | StockGrou
 	pageSize?: number;
 	onPageChange?: (page: number) => void;
 	onRowClick?: (record: T) => void;
-	onFavoriteToggle?: (record: T, isFavorite?: boolean) => void;
 	columnConfig?: StockListColumnConfig;
 	rowKey?: string | ((record: T) => string);
 	showPagination?: boolean;
@@ -66,7 +62,6 @@ function StockListComponent<T extends Stock | StockGroup = Stock | StockGroup>({
 	pageSize = 20,
 	onPageChange,
 	onRowClick,
-	onFavoriteToggle,
 	columnConfig = {},
 	rowKey = "ts_code",
 	showPagination = true,
@@ -75,10 +70,7 @@ function StockListComponent<T extends Stock | StockGroup = Stock | StockGroup>({
 	emptyText,
 	expandable,
 }: StockListProps<T>) {
-	const { favoriteCodes, toggleFavorite } = useFavoriteStocks();
-
 	const {
-		showFavorite = true,
 		showCode = true,
 		showName = true,
 		showMarket = true,
@@ -102,38 +94,6 @@ function StockListComponent<T extends Stock | StockGroup = Stock | StockGroup>({
 	const columns: ColumnsType<T> = useMemo(() => {
 		const cols: ColumnsType<T> = [];
 
-		// 关注列
-		if (showFavorite) {
-			cols.push({
-				title: "",
-				key: "favorite",
-				width: 50,
-				fixed: "left",
-				render: (_: any, record: T) => {
-					const isFavorite = favoriteCodes.has(record.ts_code);
-					const stockName = "name" in record ? record.name : "stock_name" in record ? record.stock_name : "";
-					return (
-						<Button
-							type="text"
-							icon={isFavorite ? <StarFilled style={{ color: "#faad14" }} /> : <StarOutlined />}
-							onClick={(e) => {
-								e.stopPropagation();
-								toggleFavorite(record.ts_code, stockName).then((newStatus) => {
-									if (onFavoriteToggle) {
-										onFavoriteToggle(record, newStatus);
-									}
-								});
-							}}
-							title={isFavorite ? "取消关注" : "关注"}
-						/>
-					);
-				},
-				onCell: (record: T) => ({
-					className: favoriteCodes.has(record.ts_code) ? "favorite-stock-row-cell" : "",
-				}),
-			});
-		}
-
 		// 股票代码列
 		if (showCode) {
 			cols.push({
@@ -153,11 +113,7 @@ function StockListComponent<T extends Stock | StockGroup = Stock | StockGroup>({
 				dataIndex: nameKey,
 				key: "name",
 				width: 150,
-				fixed: showFavorite ? "left" : undefined,
 				render: (text: string) => <AntText strong>{text}</AntText>,
-				onCell: (record: T) => ({
-					className: favoriteCodes.has(record.ts_code) ? "favorite-stock-row-cell" : "",
-				}),
 			});
 		}
 
@@ -272,7 +228,6 @@ function StockListComponent<T extends Stock | StockGroup = Stock | StockGroup>({
 
 		return cols;
 	}, [
-		showFavorite,
 		showCode,
 		showName,
 		showMarket,
@@ -283,9 +238,6 @@ function StockListComponent<T extends Stock | StockGroup = Stock | StockGroup>({
 		showLatestAnnTitle,
 		customColumns,
 		actionColumn,
-		favoriteCodes,
-		toggleFavorite,
-		onFavoriteToggle,
 		hasNameField,
 		hasAreaField,
 		hasAnnouncementCountField,
@@ -293,66 +245,42 @@ function StockListComponent<T extends Stock | StockGroup = Stock | StockGroup>({
 		hasLatestAnnDateField,
 	]);
 
-	// 行样式
-	const rowClassName = (record: T) => {
-		return favoriteCodes.has(record.ts_code) ? "favorite-stock-row" : "";
-	};
-
 	return (
-		<>
-			<style>
-				{`
-					.favorite-stock-row > td {
-						background-color: #e6f7ff !important;
+		<Table
+			columns={columns}
+			dataSource={data}
+			rowKey={rowKey}
+			loading={loading}
+			pagination={
+				showPagination
+					? {
+							current: page,
+							total,
+							pageSize,
+							onChange: onPageChange,
+							showSizeChanger: true,
+							showTotal: (total) => `共 ${total} 条记录`,
+							pageSizeOptions: ["10", "20", "50", "100"],
+					  }
+					: false
+			}
+			expandable={expandable}
+			onRow={(record) => ({
+				onClick: () => {
+					if (onRowClick) {
+						onRowClick(record);
 					}
-					.ant-table-cell-fix-left.favorite-stock-row-cell {
-						background-color: #e6f7ff !important;
-					}
-					.ant-table-tbody > tr:hover > td {
-						background-color: #bae7ff !important;
-					}
-					.ant-table-tbody > tr:hover .ant-table-cell-fix-left {
-						background-color: #bae7ff !important;
-					}
-				`}
-			</style>
-			<Table
-				columns={columns}
-				dataSource={data}
-				rowKey={rowKey}
-				loading={loading}
-				pagination={
-					showPagination
-						? {
-								current: page,
-								total,
-								pageSize,
-								onChange: onPageChange,
-								showSizeChanger: true,
-								showTotal: (total) => `共 ${total} 条记录`,
-								pageSizeOptions: ["10", "20", "50", "100"],
-						  }
-						: false
-				}
-				expandable={expandable}
-				onRow={(record) => ({
-					onClick: () => {
-						if (onRowClick) {
-							onRowClick(record);
-						}
-					},
-					style: {
-						cursor: onRowClick ? "pointer" : "default",
-					},
-				})}
-				rowClassName={rowClassName}
-				scroll={scroll}
-				size={size}
-				locale={{
-					emptyText: emptyText || (loading ? "加载中..." : "暂无数据"),
-				}}
-			/>
-		</>
+				},
+				style: {
+					cursor: onRowClick ? "pointer" : "default",
+				},
+			})}
+			scroll={scroll}
+			size={size}
+			locale={{
+				emptyText: emptyText || (loading ? "加载中..." : "暂无数据"),
+			}}
+		/>
 	);
 }
 
