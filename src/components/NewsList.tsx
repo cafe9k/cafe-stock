@@ -265,41 +265,41 @@ export function NewsList() {
 		<div style={{ padding: "24px" }}>
 			{/* 操作栏 */}
 			<div style={{ marginBottom: 16 }}>
-				{/* 第一行：新闻源选择和刷新 */}
-				<Space style={{ marginBottom: 12 }} align="start">
-					<Select
-						value={selectedSource}
-						onChange={handleSourceChange}
-						style={{ width: 150 }}
-						options={NEWS_SOURCES}
-						placeholder="选择新闻源"
-					/>
+			{/* 第一行：新闻源选择和刷新 */}
+			<Space style={{ marginBottom: 12 }} align="start" wrap size={[8, 8]}>
+				<Select
+					value={selectedSource}
+					onChange={handleSourceChange}
+					style={{ width: 150 }}
+					options={NEWS_SOURCES}
+					placeholder="选择新闻源"
+				/>
 
-					<Button icon={<ReloadOutlined />} onClick={handleRefresh} loading={loading}>
-						刷新
-					</Button>
-				</Space>
+				<Button icon={<ReloadOutlined />} onClick={handleRefresh} loading={loading}>
+					刷新
+				</Button>
+			</Space>
 
-				{/* 第二行：时间范围选择 */}
-				<Space style={{ width: "100%" }} align="start">
-					<Radio.Group value={quickSelectValue} onChange={(e) => handleQuickSelect(e.target.value)} buttonStyle="solid" size="middle">
-						<Radio.Button value="today">今天</Radio.Button>
-						<Radio.Button value="yesterday">昨天</Radio.Button>
-						<Radio.Button value="week">最近一周</Radio.Button>
-						<Radio.Button value="month">最近一个月</Radio.Button>
-						<Radio.Button value="custom">自定义</Radio.Button>
-					</Radio.Group>
+			{/* 第二行：时间范围选择 */}
+			<Space style={{ width: "100%" }} align="start" wrap size={[8, 8]}>
+				<Radio.Group value={quickSelectValue} onChange={(e) => handleQuickSelect(e.target.value)} buttonStyle="solid" size="middle">
+					<Radio.Button value="today">今天</Radio.Button>
+					<Radio.Button value="yesterday">昨天</Radio.Button>
+					<Radio.Button value="week">最近一周</Radio.Button>
+					<Radio.Button value="month">最近一个月</Radio.Button>
+					<Radio.Button value="custom">自定义</Radio.Button>
+				</Radio.Group>
 
-					<RangePicker
-						value={dateRangeDisplay}
-						onChange={handleDateRangeChange}
-						format="YYYY-MM-DD"
-						placeholder={["开始日期", "结束日期"]}
-						style={{ width: 240 }}
-						allowClear={false}
-						suffixIcon={<CalendarOutlined />}
-					/>
-				</Space>
+				<RangePicker
+					value={dateRangeDisplay}
+					onChange={handleDateRangeChange}
+					format="YYYY-MM-DD"
+					placeholder={["开始日期", "结束日期"]}
+					style={{ width: 240, minWidth: 240 }}
+					allowClear={false}
+					suffixIcon={<CalendarOutlined />}
+				/>
+			</Space>
 			</div>
 
 			{/* 资讯表格 */}
@@ -353,4 +353,5 @@ export function NewsList() {
 		</div>
 	);
 }
+
 

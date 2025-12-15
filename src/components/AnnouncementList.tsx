@@ -272,79 +272,79 @@ export function AnnouncementList() {
 					}
 				`}
 			</style>
-			{/* 操作栏 */}
-			<div style={{ marginBottom: 16 }}>
-				{/* 第一行：市场选择、我的关注和刷新 */}
-				<Space style={{ marginBottom: 12 }} align="start">
-					<Select
-						value={filter.selectedMarket}
-						onChange={filter.setSelectedMarket}
-						style={{ width: 120 }}
-						disabled={filter.showFavoriteOnly}
-						options={[
-							{ value: "all", label: "全部市场" },
-							{ value: "主板", label: "主板" },
-							{ value: "创业板", label: "创业板" },
-							{ value: "科创板", label: "科创板" },
-							{ value: "CDR", label: "CDR" },
-						]}
-					/>
+		{/* 操作栏 */}
+		<div style={{ marginBottom: 16 }}>
+			{/* 第一行：搜索、时间范围选择 */}
+			<Space style={{ width: "100%", marginBottom: 12 }} align="start" wrap size={[8, 8]}>
+				<Search
+					placeholder="搜索股票名称或代码"
+					allowClear
+					enterButton={<SearchOutlined />}
+					onSearch={handleSearch}
+					onChange={(e) => {
+						setSearchKeyword(e.target.value);
+						if (!e.target.value) {
+							handleSearch("");
+						}
+					}}
+					style={{ width: 300, minWidth: 200 }}
+					value={searchKeyword}
+				/>
 
-					<Button
-						type={filter.showFavoriteOnly ? "primary" : "default"}
-						icon={<StarOutlined />}
-						onClick={() => {
-							if (searchKeyword) {
-								setSearchKeyword("");
-							}
-							filter.setShowFavoriteOnly(!filter.showFavoriteOnly);
-						}}
-						disabled={!!searchKeyword}
-					>
-						我的关注
-					</Button>
+				<Radio.Group value={filter.quickSelectValue} onChange={(e) => filter.handleQuickSelect(e.target.value)} buttonStyle="solid" size="middle">
+					<Radio.Button value="today">今天</Radio.Button>
+					<Radio.Button value="yesterday">昨天</Radio.Button>
+					<Radio.Button value="week">最近一周</Radio.Button>
+					<Radio.Button value="month">最近一个月</Radio.Button>
+					<Radio.Button value="quarter">最近三个月</Radio.Button>
+				</Radio.Group>
 
-					<Button icon={<ReloadOutlined />} onClick={handleRefresh} loading={loading}>
-						刷新
-					</Button>
-				</Space>
+				<RangePicker
+					value={filter.dateRangeDisplay}
+					onChange={filter.handleDateRangeChange}
+					format="YYYY-MM-DD"
+					placeholder={["开始日期", "结束日期"]}
+					style={{ width: 240, minWidth: 240 }}
+					allowClear
+					suffixIcon={<CalendarOutlined />}
+				/>
+			</Space>
 
-				{/* 第二行：搜索、时间范围选择 */}
-				<Space style={{ width: "100%" }} align="start">
-					<Search
-						placeholder="搜索股票名称或代码"
-						allowClear
-						enterButton={<SearchOutlined />}
-						onSearch={handleSearch}
-						onChange={(e) => {
-							setSearchKeyword(e.target.value);
-							if (!e.target.value) {
-								handleSearch("");
-							}
-						}}
-						style={{ width: 300 }}
-						value={searchKeyword}
-					/>
+			{/* 第二行：市场选择、我的关注和刷新 */}
+			<Space align="start" wrap size={[8, 8]}>
+				<Select
+					value={filter.selectedMarket}
+					onChange={filter.setSelectedMarket}
+					style={{ width: 120 }}
+					disabled={filter.showFavoriteOnly}
+					options={[
+						{ value: "all", label: "全部市场" },
+						{ value: "主板", label: "主板" },
+						{ value: "创业板", label: "创业板" },
+						{ value: "科创板", label: "科创板" },
+						{ value: "CDR", label: "CDR" },
+					]}
+				/>
 
-					<Radio.Group value={filter.quickSelectValue} onChange={(e) => filter.handleQuickSelect(e.target.value)} buttonStyle="solid" size="middle">
-						<Radio.Button value="today">今天</Radio.Button>
-						<Radio.Button value="yesterday">昨天</Radio.Button>
-						<Radio.Button value="week">最近一周</Radio.Button>
-						<Radio.Button value="month">最近一个月</Radio.Button>
-						<Radio.Button value="quarter">最近三个月</Radio.Button>
-					</Radio.Group>
+				<Button
+					type={filter.showFavoriteOnly ? "primary" : "default"}
+					icon={<StarOutlined />}
+					onClick={() => {
+						if (searchKeyword) {
+							setSearchKeyword("");
+						}
+						filter.setShowFavoriteOnly(!filter.showFavoriteOnly);
+					}}
+					disabled={!!searchKeyword}
+				>
+					我的关注
+				</Button>
 
-					<RangePicker
-						value={filter.dateRangeDisplay}
-						onChange={filter.handleDateRangeChange}
-						format="YYYY-MM-DD"
-						placeholder={["开始日期", "结束日期"]}
-						style={{ width: 240 }}
-						allowClear
-						suffixIcon={<CalendarOutlined />}
-					/>
-				</Space>
-			</div>
+				<Button icon={<ReloadOutlined />} onClick={handleRefresh} loading={loading}>
+					刷新
+				</Button>
+			</Space>
+		</div>
 
 			{/* 加载历史状态提示 */}
 			{loadingHistory && (
