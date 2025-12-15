@@ -535,29 +535,6 @@ function setupIPC() {
         try {
             console.log(`[IPC] get-stock-announcements: tsCode=${tsCode}, limit=${limit}, dateRange=${startDate}-${endDate}`);
             const announcements = await TushareClient.getAnnouncements(tsCode, undefined, startDate, endDate, limit, 0);
-            // #region agent log
-            fetch("http://127.0.0.1:7242/ingest/67286581-beef-43bb-8e6c-59afa2dd6840", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    location: "main.ts:755",
-                    message: "Backend received getStockAnnouncements request and API response",
-                    data: {
-                        tsCode,
-                        limit,
-                        startDate,
-                        endDate,
-                        responseCount: announcements.length,
-                        first3: announcements.slice(0, 3).map((a) => ({ ann_date: a.ann_date, title: a.title?.substring(0, 30) })),
-                        last3: announcements.slice(-3).map((a) => ({ ann_date: a.ann_date, title: a.title?.substring(0, 30) })),
-                    },
-                    timestamp: Date.now(),
-                    sessionId: "debug-session",
-                    runId: "expand-test",
-                    hypothesisId: "M",
-                }),
-            }).catch(() => { });
-            // #endregion
             // 按日期和时间排序
             announcements.sort((a, b) => {
                 const dateCompare = (b.ann_date || "").localeCompare(a.ann_date || "");

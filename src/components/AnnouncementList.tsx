@@ -85,21 +85,12 @@ export function AnnouncementList() {
 			try {
 				// 传入当前筛选的时间范围
 				const currentFilter = filter.getFilter();
-				
-				// #region agent log
-				fetch('http://127.0.0.1:7242/ingest/67286581-beef-43bb-8e6c-59afa2dd6840',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AnnouncementList.tsx:88',message:'Requesting stock announcements with date range',data:{tsCode:record.ts_code,startDate:currentFilter.dateRange?.[0],endDate:currentFilter.dateRange?.[1]},timestamp:Date.now(),sessionId:'debug-session',runId:'expand-test',hypothesisId:'K'})}).catch(()=>{});
-				// #endregion
-				
 				const announcements = await window.electronAPI.getStockAnnouncements(
 					record.ts_code,
 					1000, // 获取足够多的数据
 					currentFilter.dateRange?.[0],
 					currentFilter.dateRange?.[1]
 				);
-				
-				// #region agent log
-				fetch('http://127.0.0.1:7242/ingest/67286581-beef-43bb-8e6c-59afa2dd6840',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AnnouncementList.tsx:100',message:'Received stock announcements',data:{tsCode:record.ts_code,count:announcements.length,first3:announcements.slice(0,3).map((a:any)=>({ann_date:a.ann_date,title:a.title?.substring(0,30)})),last3:announcements.slice(-3).map((a:any)=>({ann_date:a.ann_date,title:a.title?.substring(0,30)}))},timestamp:Date.now(),sessionId:'debug-session',runId:'expand-test',hypothesisId:'L'})}).catch(()=>{});
-				// #endregion
 				
 				setExpandedData((prev) => ({ ...prev, [record.ts_code]: announcements }));
 				// 初始化分页为第1页
