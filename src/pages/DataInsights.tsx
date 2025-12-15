@@ -2,18 +2,13 @@ import { useState, useEffect } from "react";
 import { Button, Select, Table, Card, Space, Spin, Typography, Tag, Progress, Statistic, Row, Col, Divider, App, Tabs } from "antd";
 import { SearchOutlined, SyncOutlined, StarOutlined, StarFilled } from "@ant-design/icons";
 import type { TableColumnsType } from "antd";
+import { StockList, StockSearch } from "../components/StockList";
+import { useStockSearch } from "../hooks/useStockSearch";
+import { useFavoriteStocks } from "../hooks/useFavoriteStocks";
+import * as stockService from "../services/stockService";
+import type { Stock } from "../types/stock";
 
 const { Text } = Typography;
-
-interface Stock {
-	ts_code: string;
-	symbol: string;
-	name: string;
-	area: string;
-	industry: string;
-	market: string;
-	list_date: string;
-}
 
 interface Top10Holder {
 	ts_code: string;
@@ -45,9 +40,6 @@ interface SyncStats {
 
 export function DataInsights() {
 	const { message, modal } = App.useApp();
-	const [_searchKeyword, _setSearchKeyword] = useState("");
-	const [stockOptions, setStockOptions] = useState<Stock[]>([]);
-	const [searching, setSearching] = useState(false);
 	const [selectedStock, setSelectedStock] = useState<string | null>(null);
 	const [holders, setHolders] = useState<Top10Holder[]>([]);
 	const [loading, setLoading] = useState(false);
@@ -55,13 +47,17 @@ export function DataInsights() {
 	const [syncProgress, setSyncProgress] = useState<SyncProgress | null>(null);
 	const [syncStats, setSyncStats] = useState<SyncStats | null>(null);
 	const [hasData, setHasData] = useState(false);
-	const [favoriteStocks, setFavoriteStocks] = useState<Stock[]>([]);
-	const [loadingFavorites, setLoadingFavorites] = useState(false);
 	const [isFavorite, setIsFavorite] = useState(false);
 	const [searchMode, setSearchMode] = useState<"search" | "favorite">("search");
 	const [endDates, setEndDates] = useState<string[]>([]);
 	const [selectedEndDate, setSelectedEndDate] = useState<string | null>(null);
 	const [isPaused, setIsPaused] = useState(false);
+
+	// 使用新的 hooks
+	const { searchResults, searching, search } = useStockSearch();
+	const { favoriteCodes, toggleFavorite } = useFavoriteStocks();
+	const [favoriteStocks, setFavoriteStocks] = useState<Stock[]>([]);
+	const [loadingFavorites, setLoadingFavorites] = useState(false);
 
 	// 加载同步统计信息
 	const loadSyncStats = async () => {
@@ -84,24 +80,12 @@ export function DataInsights() {
 		}
 	};
 
-	// 加载关注的股票列表
-	const loadFavoriteStocks = async () => {
+	// 加载关注的股票详细信息列表
+	const loadFavoriteStocksDetail = async () => {
 		try {
 			setLoadingFavorites(true);
-			const favoriteCodes = await window.electronAPI.getAllFavoriteStocks();
-			if (favoriteCodes.length > 0) {
-				// 获取股票详细信息
-				const stocksData: Stock[] = [];
-				for (const code of favoriteCodes) {
-					const results = await window.electronAPI.searchStocks(code, 1);
-					if (results.length > 0) {
-						stocksData.push(results[0]);
-					}
-				}
-				setFavoriteStocks(stocksData);
-			} else {
-				setFavoriteStocks([]);
-			}
+			const stocks = await stockService.getFavoriteStocksDetail();
+			setFavoriteStocks(stocks);
 		} catch (error: any) {
 			console.error("加载关注股票失败:", error);
 			message.error(`加载关注股票失败: ${error.message || "未知错误"}`);
@@ -110,21 +94,10 @@ export function DataInsights() {
 		}
 	};
 
-	// 检查当前股票是否已关注
-	const checkIsFavorite = async (tsCode: string) => {
-		try {
-			const result = await window.electronAPI.isFavoriteStock(tsCode);
-			setIsFavorite(result);
-		} catch (error: any) {
-			console.error("检查关注状态失败:", error);
-			setIsFavorite(false);
-		}
-	};
-
 	// 组件加载时获取统计信息和关注列表
 	useEffect(() => {
 		loadSyncStats();
-		loadFavoriteStocks();
+		loadFavoriteStocksDetail();
 	}, []);
 
 	// 监听同步进度
@@ -140,23 +113,9 @@ export function DataInsights() {
 		};
 	}, []);
 
-	// 搜索股票
+	// 搜索股票（使用 hook）
 	const handleSearch = async (value: string) => {
-		if (!value || value.trim().length === 0) {
-			setStockOptions([]);
-			return;
-		}
-
-		setSearching(true);
-		try {
-			const results = await window.electronAPI.searchStocks(value.trim(), 20);
-			setStockOptions(results);
-		} catch (error: any) {
-			console.error("搜索股票失败:", error);
-			message.error(`搜索股票失败: ${error.message || "未知错误"}`);
-		} finally {
-			setSearching(false);
-		}
+		await search(value, 20);
 	};
 
 	// 选择股票后获取十大股东（优先从数据库）
@@ -168,8 +127,8 @@ export function DataInsights() {
 			// 先检查是否有数据
 			await checkHasData(value);
 
-			// 检查是否已关注
-			await checkIsFavorite(value);
+			// 检查是否已关注（从 hook 获取）
+			setIsFavorite(favoriteCodes.has(value));
 
 			// 获取所有报告期
 			const dates = await window.electronAPI.getTop10HoldersEndDates(value);
@@ -293,27 +252,13 @@ export function DataInsights() {
 		}
 
 		try {
-			if (isFavorite) {
-				// 取消关注
-				const result = await window.electronAPI.removeFavoriteStock(selectedStock);
-				if (result.success) {
-					message.success("已取消关注");
-					setIsFavorite(false);
-					await loadFavoriteStocks();
-				} else {
-					message.error(result.message || "取消关注失败");
-				}
-			} else {
-				// 添加关注
-				const result = await window.electronAPI.addFavoriteStock(selectedStock);
-				if (result.success) {
-					message.success("已添加关注");
-					setIsFavorite(true);
-					await loadFavoriteStocks();
-				} else {
-					message.error(result.message || "添加关注失败");
-				}
-			}
+			const stockInfo = searchResults.find((s) => s.ts_code === selectedStock) || favoriteStocks.find((s) => s.ts_code === selectedStock);
+			const stockName = stockInfo?.name || "";
+
+			// 使用 hook 的 toggleFavorite 方法
+			const newStatus = await toggleFavorite(selectedStock, stockName);
+			setIsFavorite(newStatus);
+			await loadFavoriteStocksDetail();
 		} catch (error: any) {
 			console.error("操作失败:", error);
 			message.error(`操作失败: ${error.message || "未知错误"}`);
@@ -425,7 +370,7 @@ export function DataInsights() {
 	// 获取选中股票的信息
 	const selectedStockInfo =
 		searchMode === "search"
-			? stockOptions.find((stock) => stock.ts_code === selectedStock)
+			? searchResults.find((stock) => stock.ts_code === selectedStock)
 			: favoriteStocks.find((stock) => stock.ts_code === selectedStock);
 
 	return (
@@ -559,7 +504,7 @@ export function DataInsights() {
 									onSearch={handleSearch}
 									onChange={handleStockSelect}
 									notFoundContent={searching ? <Spin size="small" /> : null}
-									options={stockOptions.map((stock) => ({
+									options={searchResults.map((stock) => ({
 										value: stock.ts_code,
 										label: `${stock.name} (${stock.ts_code})`,
 									}))}
@@ -583,12 +528,12 @@ export function DataInsights() {
 											{hasData ? "更新数据" : "同步数据"}
 										</Button>
 										<Button
-											type={isFavorite ? "default" : "primary"}
-											icon={isFavorite ? <StarFilled /> : <StarOutlined />}
+											type={favoriteCodes.has(selectedStock) ? "default" : "primary"}
+											icon={favoriteCodes.has(selectedStock) ? <StarFilled /> : <StarOutlined />}
 											onClick={handleToggleFavorite}
-											danger={isFavorite}
+											danger={favoriteCodes.has(selectedStock)}
 										>
-											{isFavorite ? "取消关注" : "添加关注"}
+											{favoriteCodes.has(selectedStock) ? "取消关注" : "添加关注"}
 										</Button>
 									</>
 								)}
@@ -598,97 +543,39 @@ export function DataInsights() {
 						{/* 我的关注模式 */}
 						{searchMode === "favorite" && (
 							<div style={{ width: "100%" }}>
-								<Table
+								<StockList
+									data={favoriteStocks}
 									loading={loadingFavorites}
-									columns={[
-										{
-											title: "股票代码",
-											dataIndex: "ts_code",
-											key: "ts_code",
-											width: 120,
-											sorter: (a, b) => a.ts_code.localeCompare(b.ts_code),
-										},
-										{
-											title: "股票名称",
-											dataIndex: "name",
-											key: "name",
-											width: 150,
-										},
-										{
-											title: "行业",
-											dataIndex: "industry",
-											key: "industry",
-											width: 120,
-											render: (value: string) => <Tag color="blue">{value}</Tag>,
-										},
-										{
-											title: "市场",
-											dataIndex: "market",
-											key: "market",
-											width: 100,
-											render: (value: string) => <Tag color="green">{value}</Tag>,
-										},
-										{
-											title: "地区",
-											dataIndex: "area",
-											key: "area",
-											width: 100,
-										},
-										{
-											title: "操作",
-											key: "action",
-											width: 200,
-											render: (_: any, record: Stock) => (
-												<Space size="small">
-													<Button
-														type="link"
-														size="small"
-														icon={<SearchOutlined />}
-														onClick={() => handleStockSelect(record.ts_code)}
-													>
-														查看股东
-													</Button>
-													<Button
-														type="link"
-														size="small"
-														danger
-														icon={<StarFilled />}
-														onClick={async () => {
-															try {
-																const result = await window.electronAPI.removeFavoriteStock(record.ts_code);
-																if (result.success) {
-																	message.success("已取消关注");
-																	await loadFavoriteStocks();
-																	if (selectedStock === record.ts_code) {
-																		setSelectedStock(null);
-																		setHolders([]);
-																	}
-																} else {
-																	message.error(result.message || "取消关注失败");
-																}
-															} catch (error: any) {
-																console.error("取消关注失败:", error);
-																message.error(`取消关注失败: ${error.message || "未知错误"}`);
-															}
-														}}
-													>
-														取消关注
-													</Button>
-												</Space>
-											),
-										},
-									]}
-									dataSource={favoriteStocks}
+									columnConfig={{
+										showFavorite: true,
+										showCode: true,
+										showName: true,
+										showMarket: true,
+										showIndustry: true,
+										showArea: true,
+										actionColumn: (record) => (
+											<Space size="small">
+												<Button
+													type="link"
+													size="small"
+													icon={<SearchOutlined />}
+													onClick={() => handleStockSelect(record.ts_code)}
+												>
+													查看股东
+												</Button>
+											</Space>
+										),
+									}}
+									onFavoriteToggle={async (record, newStatus) => {
+										if (!newStatus && selectedStock === record.ts_code) {
+											setSelectedStock(null);
+											setHolders([]);
+										}
+										await loadFavoriteStocksDetail();
+									}}
 									rowKey="ts_code"
-									pagination={{
-										defaultPageSize: 10,
-										showSizeChanger: true,
-										showTotal: (total) => `共 ${total} 只关注股票`,
-										pageSizeOptions: ["10", "20", "50"],
-									}}
-									locale={{
-										emptyText: "暂无关注的股票",
-									}}
+									pageSize={10}
+									emptyText="暂无关注的股票"
 									size="small"
 								/>
 							</div>

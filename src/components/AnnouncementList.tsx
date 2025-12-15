@@ -13,20 +13,15 @@ import {
 import type { ColumnsType } from "antd/es/table";
 import dayjs, { Dayjs } from "dayjs";
 import { PDFWebViewer } from "./PDFWebViewer";
+import { StockList } from "./StockList/index";
+import { useStockList } from "../hooks/useStockList";
+import { useStockFilter } from "../hooks/useStockFilter";
+import { useFavoriteStocks } from "../hooks/useFavoriteStocks";
+import type { StockGroup } from "../types/stock";
 
 const { Text: AntText } = Typography;
 const { Search } = Input;
 const { RangePicker } = DatePicker;
-
-interface StockGroup {
-	ts_code: string;
-	stock_name: string;
-	industry: string;
-	market: string;
-	announcement_count: number;
-	latest_ann_date: string;
-	latest_ann_title?: string;
-}
 
 interface Announcement {
 	ts_code: string;
@@ -38,89 +33,72 @@ interface Announcement {
 	file_path?: string;
 }
 
-const PAGE_SIZE = 20;
-
 export function AnnouncementList() {
 	const { message } = App.useApp();
-	const [stockGroups, setStockGroups] = useState<StockGroup[]>([]);
-	const [loading, setLoading] = useState(true);
-	const [page, setPage] = useState(1);
-	const [total, setTotal] = useState(0);
 	const [loadingHistory, setLoadingHistory] = useState(false);
 	const [searchKeyword, setSearchKeyword] = useState("");
 	const [expandedRowKeys, setExpandedRowKeys] = useState<string[]>([]);
 	const [expandedData, setExpandedData] = useState<Record<string, Announcement[]>>({});
 	const [loadingExpanded, setLoadingExpanded] = useState<Record<string, boolean>>({});
 
-	// 日期范围筛选相关状态 - 默认最近一周
-	const getDefaultDateRange = (): [string, string] => {
-		const today = dayjs().format("YYYYMMDD");
-		const weekAgo = dayjs().subtract(7, "day").format("YYYYMMDD");
-		return [weekAgo, today];
-	};
+	// 使用新的 hooks
+	const filter = useStockFilter();
+	const {
+		data: stockGroups,
+		loading,
+		page,
+		total,
+		pageSize: PAGE_SIZE,
+		updateFilter,
+		goToPage,
+		prevPage,
+		nextPage,
+		refresh,
+	} = useStockList<StockGroup>({
+		pageSize: 20,
+		enableFavoriteFilter: true,
+	});
 
-	const [dateRange, setDateRange] = useState<[string, string]>(getDefaultDateRange());
-	const [dateRangeDisplay, setDateRangeDisplay] = useState<[Dayjs, Dayjs]>([
-		dayjs().subtract(7, "day"),
-		dayjs(),
-	]);
-	const [quickSelectValue, setQuickSelectValue] = useState<string>("week");
-
-	// 市场筛选状态
-	const [selectedMarket, setSelectedMarket] = useState<string>("all");
-
-	// 我的关注筛选状态
-	const [showFavoriteOnly, setShowFavoriteOnly] = useState<boolean>(false);
-	const [favoriteStocks, setFavoriteStocks] = useState<Set<string>>(new Set());
+	const { favoriteCodes, toggleFavorite } = useFavoriteStocks();
 
 	// PDF 预览相关状态
 	const [pdfViewerOpen, setPdfViewerOpen] = useState(false);
 	const [currentPdfUrl, setCurrentPdfUrl] = useState("");
 	const [currentPdfTitle, setCurrentPdfTitle] = useState("");
 
-	// 加载股票聚合数据
-	const fetchGroupedData = useCallback(
-		async (pageNum: number) => {
-			setLoading(true);
-			try {
-				if (!window.electronAPI) {
-					throw new Error("Electron API not available");
-				}
+	// 当筛选条件变化时更新数据
+	useEffect(() => {
+		const currentFilter = filter.getFilter();
+		currentFilter.searchKeyword = searchKeyword || undefined;
+		updateFilter(currentFilter);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [filter.dateRange, filter.selectedMarket, filter.showFavoriteOnly, searchKeyword]);
 
-				let result;
-				if (showFavoriteOnly) {
-					// 加载关注的股票
-					result = await window.electronAPI.getFavoriteStocksAnnouncementsGrouped(pageNum, PAGE_SIZE, dateRange[0], dateRange[1]);
-				} else {
-					// 加载所有股票
-					result = await window.electronAPI.getAnnouncementsGrouped(
-						pageNum,
-						PAGE_SIZE,
-						dateRange[0],
-						dateRange[1],
-						selectedMarket === "all" ? undefined : selectedMarket
-					);
-				}
-
-				setStockGroups(result.items);
-				setTotal(result.total);
-			} catch (err: any) {
-				console.error("Fetch error:", err);
-				message.error(err.message || "加载失败");
-			} finally {
-				setLoading(false);
-			}
-		},
-		[dateRange, selectedMarket, showFavoriteOnly]
-	);
+	// 分页状态（针对每个股票的展开详情）
+	const [expandedPageMap, setExpandedPageMap] = useState<Record<string, number>>({});
+	const EXPANDED_PAGE_SIZE = 10; // 展开列表每页10条
 
 	// 展开行时加载该股票的公告
 	const onExpand = async (expanded: boolean, record: StockGroup) => {
 		if (expanded && !expandedData[record.ts_code]) {
 			setLoadingExpanded((prev) => ({ ...prev, [record.ts_code]: true }));
 			try {
-				const announcements = await window.electronAPI.getStockAnnouncements(record.ts_code);
+				// 传入当前筛选的时间范围
+				const currentFilter = filter.getFilter();
+				const announcements = await window.electronAPI.getStockAnnouncements(
+					record.ts_code,
+					1000, // 获取足够多的数据
+					currentFilter.dateRange?.[0],
+					currentFilter.dateRange?.[1]
+				);
+				
+				// #region agent log
+				fetch('http://127.0.0.1:7242/ingest/67286581-beef-43bb-8e6c-59afa2dd6840',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AnnouncementList.tsx:94',message:'Frontend received announcements',data:{tsCode:record.ts_code,count:announcements.length,first3:announcements.slice(0,3).map((a:any)=>({ann_date:a.ann_date,pub_time:a.pub_time,title:a.title?.substring(0,30)}))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+				// #endregion
+				
 				setExpandedData((prev) => ({ ...prev, [record.ts_code]: announcements }));
+				// 初始化分页为第1页
+				setExpandedPageMap((prev) => ({ ...prev, [record.ts_code]: 1 }));
 			} catch (err: any) {
 				console.error("Load announcements error:", err);
 				message.error("加载公告失败");
@@ -130,204 +108,35 @@ export function AnnouncementList() {
 		}
 	};
 
-	// 加载关注股票列表
-	const loadFavoriteStocks = useCallback(async () => {
-		try {
-			const favorites = await window.electronAPI.getAllFavoriteStocks();
-			setFavoriteStocks(new Set(favorites));
-		} catch (err: any) {
-			console.error("Load favorite stocks error:", err);
-		}
-	}, []);
-
 	// 关注/取消关注股票
-	const toggleFavorite = async (tsCode: string, stockName: string, event: React.MouseEvent) => {
+	const handleToggleFavorite = async (tsCode: string, stockName: string, event: React.MouseEvent) => {
 		event.stopPropagation(); // 阻止事件冒泡，避免触发行展开
 
-		const isFavorite = favoriteStocks.has(tsCode);
 		try {
-			if (isFavorite) {
-				const result = await window.electronAPI.removeFavoriteStock(tsCode);
-				if (result.success) {
-					setFavoriteStocks((prev) => {
-						const newSet = new Set(prev);
-						newSet.delete(tsCode);
-						return newSet;
-					});
-					message.success(`已取消关注 ${stockName}`);
-
-					// 如果当前正在查看"我的关注"，刷新列表
-					if (showFavoriteOnly) {
-						fetchGroupedData(page);
-					}
-				} else {
-					message.error(result.message || "取消关注失败");
-				}
-			} else {
-				const result = await window.electronAPI.addFavoriteStock(tsCode);
-				if (result.success) {
-					setFavoriteStocks((prev) => new Set(prev).add(tsCode));
-					message.success(`已关注 ${stockName}`);
-				} else {
-					message.error(result.message || "关注失败");
-				}
+			await toggleFavorite(tsCode, stockName);
+			// 如果当前正在查看"我的关注"，刷新列表
+			if (filter.showFavoriteOnly) {
+				refresh();
 			}
 		} catch (err: any) {
 			console.error("Toggle favorite error:", err);
-			message.error("操作失败");
 		}
 	};
 
 	// 搜索功能
 	const handleSearch = async (value: string) => {
 		setSearchKeyword(value);
-		setPage(1); // 重置到第一页
-
-		if (!value.trim()) {
-			fetchGroupedData(1);
-			return;
-		}
-
 		// 搜索时不支持"我的关注"过滤
-		if (showFavoriteOnly) {
+		if (filter.showFavoriteOnly && value.trim()) {
 			message.info('搜索时暂不支持"我的关注"过滤，已切换到全部股票');
-			setShowFavoriteOnly(false);
+			filter.setShowFavoriteOnly(false);
 		}
-
-		setLoading(true);
-		try {
-			const result = await window.electronAPI.searchAnnouncementsGrouped(
-				value,
-				1,
-				PAGE_SIZE,
-				dateRange[0],
-				dateRange[1],
-				selectedMarket === "all" ? undefined : selectedMarket
-			);
-
-			setStockGroups(result.items);
-			setTotal(result.total);
-		} catch (err: any) {
-			console.error("Search error:", err);
-			message.error("搜索失败");
-		} finally {
-			setLoading(false);
-		}
+		// 筛选条件变化会触发 useEffect 自动更新
 	};
 
 	// 刷新当前页
 	const handleRefresh = () => {
-		if (searchKeyword) {
-			handleSearch(searchKeyword);
-		} else {
-			fetchGroupedData(page);
-		}
-	};
-
-	// 市场选择变化处理
-	const handleMarketChange = (value: string) => {
-		setSelectedMarket(value);
-		setPage(1); // 重置到第一页
-	};
-
-	// 我的关注过滤变化处理
-	const handleFavoriteFilterChange = (checked: boolean) => {
-		setShowFavoriteOnly(checked);
-		setPage(1); // 重置到第一页
-		if (searchKeyword && checked) {
-			// 如果有搜索关键词，清空搜索
-			setSearchKeyword("");
-		}
-	};
-
-	// 日期格式化辅助函数：Dayjs -> YYYYMMDD
-	const formatDateToString = (date: Dayjs): string => {
-		return date.format("YYYYMMDD");
-	};
-
-	// 日期格式化辅助函数：YYYYMMDD -> Dayjs
-	const parseDateString = (dateStr: string): Dayjs => {
-		return dayjs(dateStr, "YYYYMMDD");
-	};
-
-	// 计算 N 天前的日期
-	const getDaysAgo = (days: number): string => {
-		return dayjs().subtract(days, "day").format("YYYYMMDD");
-	};
-
-	// 快速日期范围选择处理
-	const handleQuickSelect = async (value: string) => {
-		setQuickSelectValue(value);
-		setPage(1);
-
-		const today = dayjs().format("YYYYMMDD");
-		let newDateRange: [string, string];
-		let newDateRangeDisplay: [Dayjs, Dayjs];
-
-		switch (value) {
-			case "today":
-				// 今天
-				newDateRange = [today, today];
-				newDateRangeDisplay = [parseDateString(today), parseDateString(today)];
-				break;
-			case "yesterday":
-				// 昨天
-				const yesterday = getDaysAgo(1);
-				newDateRange = [yesterday, yesterday];
-				newDateRangeDisplay = [parseDateString(yesterday), parseDateString(yesterday)];
-				break;
-			case "week":
-				// 最近一周
-				const weekAgo = getDaysAgo(7);
-				newDateRange = [weekAgo, today];
-				newDateRangeDisplay = [parseDateString(weekAgo), parseDateString(today)];
-				break;
-			case "month":
-				// 最近一个月
-				const monthAgo = getDaysAgo(30);
-				newDateRange = [monthAgo, today];
-				newDateRangeDisplay = [parseDateString(monthAgo), parseDateString(today)];
-				break;
-			case "quarter":
-				// 最近三个月
-				const quarterAgo = getDaysAgo(90);
-				newDateRange = [quarterAgo, today];
-				newDateRangeDisplay = [parseDateString(quarterAgo), parseDateString(today)];
-				break;
-			default:
-				// 默认最近一周
-				const defaultWeekAgo = getDaysAgo(7);
-				newDateRange = [defaultWeekAgo, today];
-				newDateRangeDisplay = [parseDateString(defaultWeekAgo), parseDateString(today)];
-		}
-
-		setDateRange(newDateRange);
-		setDateRangeDisplay(newDateRangeDisplay);
-	};
-
-	// 日期范围选择 - 用户输入起始时间即认为自定义
-	const handleDateRangeChange = (dates: [Dayjs | null, Dayjs | null] | null) => {
-		setPage(1);
-
-		if (dates && dates[0] && dates[1]) {
-			const startDate = formatDateToString(dates[0]);
-			const endDate = formatDateToString(dates[1]);
-			setDateRange([startDate, endDate]);
-			setDateRangeDisplay([dates[0], dates[1]]);
-			// 用户输入了起始时间，即认为自定义，不设置 quickSelectValue
-		} else if (dates && dates[0]) {
-			// 只选择了起始时间，等待用户选择结束时间
-			const startDate = formatDateToString(dates[0]);
-			const today = dayjs().format("YYYYMMDD");
-			setDateRange([startDate, today]);
-			setDateRangeDisplay([dates[0], dayjs()]);
-		} else {
-			// 清空时恢复默认最近一周
-			const defaultRange = getDefaultDateRange();
-			setDateRange(defaultRange);
-			setDateRangeDisplay([dayjs().subtract(7, "day"), dayjs()]);
-			setQuickSelectValue("week");
-		}
+		refresh();
 	};
 
 	// 处理 PDF 预览
@@ -367,15 +176,12 @@ export function AnnouncementList() {
 	useEffect(() => {
 		console.log("AnnouncementList mounted. Checking API:", !!window.electronAPI);
 
-		// 加载关注股票列表
-		loadFavoriteStocks();
-
 		const unsubscribe = window.electronAPI.onDataUpdated((data) => {
 			console.log("Data updated:", data);
 			if (data.type === "incremental") {
 				// 增量同步完成后，如果在第一页，刷新数据
 				if (page === 1 && !searchKeyword) {
-					fetchGroupedData(1);
+					refresh();
 				}
 			} else if (data.type === "historical") {
 				setLoadingHistory(true);
@@ -385,140 +191,8 @@ export function AnnouncementList() {
 		return () => {
 			unsubscribe();
 		};
-	}, [page, searchKeyword, fetchGroupedData, loadFavoriteStocks]);
+	}, [page, searchKeyword, refresh]);
 
-	// 初始加载数据
-	useEffect(() => {
-		const loadData = async () => {
-			if (searchKeyword) {
-				setLoading(true);
-				try {
-					const result = await window.electronAPI.searchAnnouncementsGrouped(
-						searchKeyword,
-						page,
-						PAGE_SIZE,
-						dateRange[0],
-						dateRange[1],
-						selectedMarket === "all" ? undefined : selectedMarket
-					);
-
-					setStockGroups(result.items);
-					setTotal(result.total);
-				} catch (err: any) {
-					console.error("Search error:", err);
-					message.error("搜索失败");
-				} finally {
-					setLoading(false);
-				}
-			} else {
-				fetchGroupedData(page);
-			}
-		};
-		loadData();
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [page, dateRange, searchKeyword, selectedMarket, showFavoriteOnly]);
-
-	const handlePrevPage = () => {
-		if (page > 1) {
-			setPage((p) => p - 1);
-		}
-	};
-
-	const handleNextPage = () => {
-		const totalPages = Math.ceil(total / PAGE_SIZE);
-		if (page < totalPages) {
-			setPage((p) => p + 1);
-		}
-	};
-
-	// 主表格列定义
-	const columns: ColumnsType<StockGroup> = [
-		{
-			title: "",
-			key: "favorite",
-			width: 50,
-			fixed: "left",
-			render: (_, record) => {
-				const isFavorite = favoriteStocks.has(record.ts_code);
-				return (
-					<Button
-						type="text"
-						icon={isFavorite ? <StarFilled style={{ color: "#faad14" }} /> : <StarOutlined />}
-						onClick={(e) => toggleFavorite(record.ts_code, record.stock_name, e)}
-						title={isFavorite ? "取消关注" : "关注"}
-					/>
-				);
-			},
-			onCell: (record) => ({
-				className: favoriteStocks.has(record.ts_code) ? "favorite-stock-row-cell" : "",
-			}),
-		},
-		{
-			title: "股票名称",
-			dataIndex: "stock_name",
-			key: "stock_name",
-			width: 150,
-			fixed: "left",
-			render: (text) => <AntText strong>{text}</AntText>,
-			onCell: (record) => ({
-				className: favoriteStocks.has(record.ts_code) ? "favorite-stock-row-cell" : "",
-			}),
-		},
-		{
-			title: "市场",
-			dataIndex: "market",
-			key: "market",
-			width: 100,
-			render: (text) => {
-				const colorMap: { [key: string]: string } = {
-					主板: "blue",
-					创业板: "orange",
-					科创板: "red",
-					CDR: "purple",
-				};
-				return <Tag color={colorMap[text] || "default"}>{text || "-"}</Tag>;
-			},
-		},
-		{
-			title: "行业",
-			dataIndex: "industry",
-			key: "industry",
-			width: 120,
-		},
-		{
-			title: "公告数量",
-			dataIndex: "announcement_count",
-			key: "announcement_count",
-			width: 100,
-			render: (count) => (
-				<Badge
-					count={count}
-					showZero
-					style={{
-						backgroundColor: count > 10 ? "#f5222d" : count > 5 ? "#fa8c16" : "#52c41a",
-					}}
-				/>
-			),
-		},
-		{
-			title: "最新公告",
-			dataIndex: "latest_ann_title",
-			key: "latest_ann_title",
-			ellipsis: true,
-			render: (title) => (
-				<AntText ellipsis={{ tooltip: title }} style={{ fontSize: 13, color: "#666" }}>
-					{title || "-"}
-				</AntText>
-			),
-		},
-		{
-			title: "最新公告日期",
-			dataIndex: "latest_ann_date",
-			key: "latest_ann_date",
-			width: 130,
-			render: (date) => <AntText style={{ fontFamily: "monospace" }}>{date ? date.replace(/(\d{4})(\d{2})(\d{2})/, "$1-$2-$3") : "-"}</AntText>,
-		},
-	];
 
 	// 嵌套表格列定义
 	const nestedColumns: ColumnsType<Announcement> = [
@@ -552,12 +226,36 @@ export function AnnouncementList() {
 	const expandedRowRender = (record: StockGroup) => {
 		const announcements = expandedData[record.ts_code] || [];
 		const loading = loadingExpanded[record.ts_code] || false;
+		const currentPage = expandedPageMap[record.ts_code] || 1;
+
+		// #region agent log
+		if (announcements.length > 0) {
+			const pageStart = (currentPage - 1) * EXPANDED_PAGE_SIZE;
+			const pageEnd = pageStart + EXPANDED_PAGE_SIZE;
+			const currentPageData = announcements.slice(pageStart, pageEnd);
+			fetch('http://127.0.0.1:7242/ingest/67286581-beef-43bb-8e6c-59afa2dd6840',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AnnouncementList.tsx:227',message:'Rendering expanded row - showing current page data',data:{tsCode:record.ts_code,totalCount:announcements.length,currentPage,pageSize:EXPANDED_PAGE_SIZE,currentPageCount:currentPageData.length,allFirst5:announcements.slice(0,5).map((a:any)=>({ann_date:a.ann_date,title:a.title?.substring(0,30)})),allLast5:announcements.slice(-5).map((a:any)=>({ann_date:a.ann_date,title:a.title?.substring(0,30)})),currentPageFirst3:currentPageData.slice(0,3).map((a:any)=>({ann_date:a.ann_date,title:a.title?.substring(0,30)}))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
+		}
+		// #endregion
 
 		return (
 			<Table
 				columns={nestedColumns}
 				dataSource={announcements}
-				pagination={false}
+				pagination={
+					announcements.length > EXPANDED_PAGE_SIZE
+						? {
+								current: currentPage,
+								pageSize: EXPANDED_PAGE_SIZE,
+								total: announcements.length,
+								size: "small",
+								showSizeChanger: false,
+								showTotal: (total) => `共 ${total} 条公告`,
+								onChange: (page) => {
+									setExpandedPageMap((prev) => ({ ...prev, [record.ts_code]: page }));
+								},
+						  }
+						: false
+				}
 				loading={loading}
 				size="small"
 				rowKey={(record) => `${record.ts_code}-${record.ann_date}-${record.title}`}
@@ -568,6 +266,12 @@ export function AnnouncementList() {
 			/>
 		);
 	};
+
+	// #region agent log
+	if (stockGroups.length > 0 && !loading) {
+		fetch('http://127.0.0.1:7242/ingest/67286581-beef-43bb-8e6c-59afa2dd6840',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AnnouncementList.tsx:270',message:'Component rendering with stock groups',data:{count:stockGroups.length,first5:stockGroups.slice(0,5).map((s:any)=>({ts_code:s.ts_code,stock_name:s.stock_name||s.name,latest_ann_date:s.latest_ann_date,latest_ann_title:s.latest_ann_title?.substring(0,30)})),last5:stockGroups.slice(-5).map((s:any)=>({ts_code:s.ts_code,stock_name:s.stock_name||s.name,latest_ann_date:s.latest_ann_date,latest_ann_title:s.latest_ann_title?.substring(0,30)}))},timestamp:Date.now(),sessionId:'debug-session',runId:'new-run',hypothesisId:'J'})}).catch(()=>{});
+	}
+	// #endregion
 
 	return (
 		<div style={{ padding: "24px" }}>
@@ -589,8 +293,43 @@ export function AnnouncementList() {
 			</style>
 			{/* 操作栏 */}
 			<div style={{ marginBottom: 16 }}>
-				{/* 第一行：搜索、市场选择、我的关注和刷新 */}
+				{/* 第一行：市场选择、我的关注和刷新 */}
 				<Space style={{ marginBottom: 12 }} align="start">
+					<Select
+						value={filter.selectedMarket}
+						onChange={filter.setSelectedMarket}
+						style={{ width: 120 }}
+						disabled={filter.showFavoriteOnly}
+						options={[
+							{ value: "all", label: "全部市场" },
+							{ value: "主板", label: "主板" },
+							{ value: "创业板", label: "创业板" },
+							{ value: "科创板", label: "科创板" },
+							{ value: "CDR", label: "CDR" },
+						]}
+					/>
+
+					<Button
+						type={filter.showFavoriteOnly ? "primary" : "default"}
+						icon={<StarOutlined />}
+						onClick={() => {
+							if (searchKeyword) {
+								setSearchKeyword("");
+							}
+							filter.setShowFavoriteOnly(!filter.showFavoriteOnly);
+						}}
+						disabled={!!searchKeyword}
+					>
+						我的关注
+					</Button>
+
+					<Button icon={<ReloadOutlined />} onClick={handleRefresh} loading={loading}>
+						刷新
+					</Button>
+				</Space>
+
+				{/* 第二行：搜索、时间范围选择 */}
+				<Space style={{ width: "100%" }} align="start">
 					<Search
 						placeholder="搜索股票名称或代码"
 						allowClear
@@ -606,37 +345,7 @@ export function AnnouncementList() {
 						value={searchKeyword}
 					/>
 
-					<Select
-						value={selectedMarket}
-						onChange={handleMarketChange}
-						style={{ width: 120 }}
-						disabled={showFavoriteOnly}
-						options={[
-							{ value: "all", label: "全部市场" },
-							{ value: "主板", label: "主板" },
-							{ value: "创业板", label: "创业板" },
-							{ value: "科创板", label: "科创板" },
-							{ value: "CDR", label: "CDR" },
-						]}
-					/>
-
-					<Button
-						type={showFavoriteOnly ? "primary" : "default"}
-						icon={<StarOutlined />}
-						onClick={() => handleFavoriteFilterChange(!showFavoriteOnly)}
-						disabled={!!searchKeyword}
-					>
-						我的关注
-					</Button>
-
-					<Button icon={<ReloadOutlined />} onClick={handleRefresh} loading={loading}>
-						刷新
-					</Button>
-				</Space>
-
-				{/* 第二行：时间范围选择 */}
-				<Space style={{ width: "100%" }} align="start">
-					<Radio.Group value={quickSelectValue} onChange={(e) => handleQuickSelect(e.target.value)} buttonStyle="solid" size="middle">
+					<Radio.Group value={filter.quickSelectValue} onChange={(e) => filter.handleQuickSelect(e.target.value)} buttonStyle="solid" size="middle">
 						<Radio.Button value="today">今天</Radio.Button>
 						<Radio.Button value="yesterday">昨天</Radio.Button>
 						<Radio.Button value="week">最近一周</Radio.Button>
@@ -645,8 +354,8 @@ export function AnnouncementList() {
 					</Radio.Group>
 
 					<RangePicker
-						value={dateRangeDisplay}
-						onChange={handleDateRangeChange}
+						value={filter.dateRangeDisplay}
+						onChange={filter.handleDateRangeChange}
 						format="YYYY-MM-DD"
 						placeholder={["开始日期", "结束日期"]}
 						style={{ width: 240 }}
@@ -672,40 +381,46 @@ export function AnnouncementList() {
 
 			{/* 股票聚合表格 */}
 			<Card>
-				<Table
-					columns={columns}
-					dataSource={stockGroups}
-					rowKey="ts_code"
+				<StockList
+					data={stockGroups}
 					loading={loading}
-					pagination={false}
+					page={page}
+					total={total}
+					pageSize={PAGE_SIZE}
+					onPageChange={goToPage}
+					columnConfig={{
+						showFavorite: true,
+						showName: true,
+						showMarket: true,
+						showIndustry: true,
+						showAnnouncementCount: true,
+						showLatestAnnTitle: true,
+						showLatestAnnDate: true,
+					}}
+					onFavoriteToggle={async (record) => {
+						await handleToggleFavorite(record.ts_code, record.stock_name, {} as React.MouseEvent);
+					}}
+					onRowClick={(record) => {
+						const key = record.ts_code;
+						const isExpanded = expandedRowKeys.includes(key);
+						if (isExpanded) {
+							setExpandedRowKeys(expandedRowKeys.filter((k) => k !== key));
+						} else {
+							setExpandedRowKeys([...expandedRowKeys, key]);
+							onExpand(true, record);
+						}
+					}}
 					expandable={{
 						expandedRowRender,
-						onExpand,
 						expandedRowKeys,
 						onExpandedRowsChange: (keys) => setExpandedRowKeys(keys as string[]),
 						showExpandColumn: false,
 					}}
-					rowClassName={(record) => (favoriteStocks.has(record.ts_code) ? "favorite-stock-row" : "")}
-					onRow={(record) => ({
-						onClick: () => {
-							const key = record.ts_code;
-							const isExpanded = expandedRowKeys.includes(key);
-							if (isExpanded) {
-								setExpandedRowKeys(expandedRowKeys.filter((k) => k !== key));
-							} else {
-								setExpandedRowKeys([...expandedRowKeys, key]);
-								onExpand(true, record);
-							}
-						},
-						style: {
-							cursor: "pointer",
-						},
-					})}
+					rowKey="ts_code"
+					showPagination={false}
 					scroll={{ x: 800 }}
 					size="small"
-					locale={{
-						emptyText: loading ? "加载中..." : searchKeyword ? "没有找到匹配的股票" : "暂无数据",
-					}}
+					emptyText={loading ? "加载中..." : searchKeyword ? "没有找到匹配的股票" : "暂无数据"}
 				/>
 
 				{/* 自定义分页 */}
@@ -731,10 +446,10 @@ export function AnnouncementList() {
 							)}
 						</AntText>
 						<div style={{ display: "flex", gap: 8 }}>
-							<Button onClick={handlePrevPage} disabled={page === 1}>
+							<Button onClick={prevPage} disabled={page === 1}>
 								上一页
 							</Button>
-							<Button onClick={handleNextPage} disabled={page >= Math.ceil(total / PAGE_SIZE)}>
+							<Button onClick={nextPage} disabled={page >= Math.ceil(total / PAGE_SIZE)}>
 								下一页
 							</Button>
 						</div>

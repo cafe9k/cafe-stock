@@ -13880,6 +13880,33 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_top10_end_date ON top10_holders (end_date DESC);
   CREATE INDEX IF NOT EXISTS idx_top10_holder_name ON top10_holders (holder_name);
   CREATE INDEX IF NOT EXISTS idx_top10_ts_end_date ON top10_holders (ts_code, end_date DESC);
+
+  CREATE TABLE IF NOT EXISTS announcements (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ann_date TEXT NOT NULL,
+    ts_code TEXT NOT NULL,
+    name TEXT,
+    title TEXT NOT NULL,
+    url TEXT NOT NULL,
+    rec_time TEXT,
+    created_at TEXT NOT NULL,
+    UNIQUE(ts_code, ann_date, title)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_ann_date ON announcements (ann_date DESC);
+  CREATE INDEX IF NOT EXISTS idx_ann_ts_code ON announcements (ts_code);
+  CREATE INDEX IF NOT EXISTS idx_ann_ts_code_date ON announcements (ts_code, ann_date DESC);
+
+  CREATE TABLE IF NOT EXISTS announcement_sync_ranges (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ts_code TEXT,
+    start_date TEXT NOT NULL,
+    end_date TEXT NOT NULL,
+    synced_at TEXT NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_sync_range_ts_code ON announcement_sync_ranges (ts_code);
+  CREATE INDEX IF NOT EXISTS idx_sync_range_dates ON announcement_sync_ranges (start_date, end_date);
 `);
 const upsertStocks = (items) => {
   const now = (/* @__PURE__ */ new Date()).toISOString();
@@ -14124,6 +14151,250 @@ const deleteTop10HoldersByStock = (tsCode) => {
   const result = db.prepare("DELETE FROM top10_holders WHERE ts_code = ?").run(tsCode);
   return result.changes;
 };
+const upsertAnnouncements = (items) => {
+  const now = (/* @__PURE__ */ new Date()).toISOString();
+  const upsert = db.prepare(`
+    INSERT INTO announcements (
+      ann_date, ts_code, name, title, url, rec_time, created_at
+    )
+    VALUES (
+      @ann_date, @ts_code, @name, @title, @url, @rec_time, @created_at
+    )
+    ON CONFLICT(ts_code, ann_date, title) DO UPDATE SET
+      name = excluded.name,
+      url = excluded.url,
+      rec_time = excluded.rec_time,
+      created_at = excluded.created_at
+  `);
+  const upsertMany = db.transaction((announcements) => {
+    for (const ann of announcements) {
+      upsert.run({
+        ann_date: ann.ann_date || null,
+        ts_code: ann.ts_code || null,
+        name: ann.name || null,
+        title: ann.title || null,
+        url: ann.url || null,
+        rec_time: ann.rec_time || null,
+        created_at: now
+      });
+    }
+  });
+  upsertMany(items);
+};
+const isAnnouncementRangeSynced = (tsCode, startDate, endDate) => {
+  let query;
+  let params;
+  if (tsCode) {
+    query = `
+      SELECT start_date, end_date 
+      FROM announcement_sync_ranges 
+      WHERE ts_code = ?
+        AND start_date <= ?
+        AND end_date >= ?
+      ORDER BY start_date
+    `;
+    params = [tsCode, endDate, startDate];
+  } else {
+    query = `
+      SELECT start_date, end_date 
+      FROM announcement_sync_ranges 
+      WHERE ts_code IS NULL
+        AND start_date <= ?
+        AND end_date >= ?
+      ORDER BY start_date
+    `;
+    params = [endDate, startDate];
+  }
+  const ranges = db.prepare(query).all(...params);
+  if (ranges.length === 0) {
+    return false;
+  }
+  for (const range2 of ranges) {
+    if (range2.start_date <= startDate && range2.end_date >= endDate) {
+      return true;
+    }
+  }
+  return false;
+};
+const getUnsyncedAnnouncementRanges = (tsCode, startDate, endDate) => {
+  let query;
+  let params;
+  if (tsCode) {
+    query = `
+      SELECT start_date, end_date 
+      FROM announcement_sync_ranges 
+      WHERE ts_code = ?
+        AND NOT (end_date < ? OR start_date > ?)
+      ORDER BY start_date
+    `;
+    params = [tsCode, startDate, endDate];
+  } else {
+    query = `
+      SELECT start_date, end_date 
+      FROM announcement_sync_ranges 
+      WHERE ts_code IS NULL
+        AND NOT (end_date < ? OR start_date > ?)
+      ORDER BY start_date
+    `;
+    params = [startDate, endDate];
+  }
+  const syncedRanges = db.prepare(query).all(...params);
+  if (syncedRanges.length === 0) {
+    return [{ start_date: startDate, end_date: endDate }];
+  }
+  const unsyncedRanges = [];
+  let currentStart = startDate;
+  for (const range2 of syncedRanges) {
+    if (currentStart < range2.start_date) {
+      const gapEnd = getPreviousDay(range2.start_date);
+      unsyncedRanges.push({
+        start_date: currentStart,
+        end_date: gapEnd
+      });
+    }
+    currentStart = getNextDay(range2.end_date);
+  }
+  if (currentStart <= endDate) {
+    unsyncedRanges.push({
+      start_date: currentStart,
+      end_date: endDate
+    });
+  }
+  return unsyncedRanges;
+};
+const recordAnnouncementSyncRange = (tsCode, startDate, endDate) => {
+  const now = (/* @__PURE__ */ new Date()).toISOString();
+  if (tsCode) {
+    db.prepare(`
+      INSERT INTO announcement_sync_ranges (ts_code, start_date, end_date, synced_at)
+      VALUES (?, ?, ?, ?)
+    `).run(tsCode, startDate, endDate, now);
+  } else {
+    db.prepare(`
+      INSERT INTO announcement_sync_ranges (ts_code, start_date, end_date, synced_at)
+      VALUES (NULL, ?, ?, ?)
+    `).run(startDate, endDate, now);
+  }
+  mergeAnnouncementSyncRanges(tsCode);
+};
+const mergeAnnouncementSyncRanges = (tsCode) => {
+  var _a, _b;
+  let query;
+  let params;
+  if (tsCode) {
+    query = "SELECT id, start_date, end_date FROM announcement_sync_ranges WHERE ts_code = ? ORDER BY start_date";
+    params = [tsCode];
+  } else {
+    query = "SELECT id, start_date, end_date FROM announcement_sync_ranges WHERE ts_code IS NULL ORDER BY start_date";
+    params = [];
+  }
+  const ranges = db.prepare(query).all(...params);
+  if (ranges.length <= 1) {
+    return;
+  }
+  const toDelete = [];
+  const toUpdate = [];
+  let current = ranges[0];
+  for (let i = 1; i < ranges.length; i++) {
+    const next = ranges[i];
+    if (getNextDay(current.end_date) >= next.start_date) {
+      current = {
+        id: current.id,
+        start_date: current.start_date,
+        end_date: next.end_date > current.end_date ? next.end_date : current.end_date
+      };
+      toDelete.push(next.id);
+    } else {
+      if (current.end_date !== ((_a = ranges.find((r) => r.id === current.id)) == null ? void 0 : _a.end_date)) {
+        toUpdate.push(current);
+      }
+      current = next;
+    }
+  }
+  if (current.end_date !== ((_b = ranges.find((r) => r.id === current.id)) == null ? void 0 : _b.end_date)) {
+    toUpdate.push(current);
+  }
+  const updateStmt = db.prepare("UPDATE announcement_sync_ranges SET end_date = ? WHERE id = ?");
+  const deleteStmt = db.prepare("DELETE FROM announcement_sync_ranges WHERE id = ?");
+  db.transaction(() => {
+    for (const range2 of toUpdate) {
+      updateStmt.run(range2.end_date, range2.id);
+    }
+    for (const id of toDelete) {
+      deleteStmt.run(id);
+    }
+  })();
+};
+const getAnnouncementsByStock = (tsCode, limit = 100) => {
+  return db.prepare(
+    `
+    SELECT * FROM announcements 
+    WHERE ts_code = ?
+    ORDER BY ann_date DESC, rec_time DESC
+    LIMIT ?
+  `
+  ).all(tsCode, limit);
+};
+const getAnnouncementsByDateRange = (startDate, endDate, tsCode, limit = 200) => {
+  if (tsCode) {
+    return db.prepare(
+      `
+      SELECT * FROM announcements 
+      WHERE ts_code = ? AND ann_date >= ? AND ann_date <= ?
+      ORDER BY ann_date DESC, rec_time DESC
+      LIMIT ?
+    `
+    ).all(tsCode, startDate, endDate, limit);
+  } else {
+    return db.prepare(
+      `
+      SELECT * FROM announcements 
+      WHERE ann_date >= ? AND ann_date <= ?
+      ORDER BY ann_date DESC, rec_time DESC
+      LIMIT ?
+    `
+    ).all(startDate, endDate, limit);
+  }
+};
+const searchAnnouncements = (keyword, limit = 100) => {
+  const likePattern = `%${keyword}%`;
+  return db.prepare(
+    `
+    SELECT a.*, s.name as stock_name 
+    FROM announcements a
+    LEFT JOIN stocks s ON a.ts_code = s.ts_code
+    WHERE a.title LIKE ? OR a.ts_code LIKE ? OR s.name LIKE ?
+    ORDER BY a.ann_date DESC, a.rec_time DESC
+    LIMIT ?
+  `
+  ).all(likePattern, likePattern, likePattern, limit);
+};
+const countAnnouncements = () => {
+  const row = db.prepare("SELECT COUNT(*) as count FROM announcements").get();
+  return row.count;
+};
+const getPreviousDay = (dateStr) => {
+  const year = parseInt(dateStr.substring(0, 4));
+  const month = parseInt(dateStr.substring(4, 6)) - 1;
+  const day = parseInt(dateStr.substring(6, 8));
+  const date = new Date(year, month, day);
+  date.setDate(date.getDate() - 1);
+  return formatDateToYYYYMMDD(date);
+};
+const getNextDay = (dateStr) => {
+  const year = parseInt(dateStr.substring(0, 4));
+  const month = parseInt(dateStr.substring(4, 6)) - 1;
+  const day = parseInt(dateStr.substring(6, 8));
+  const date = new Date(year, month, day);
+  date.setDate(date.getDate() + 1);
+  return formatDateToYYYYMMDD(date);
+};
+const formatDateToYYYYMMDD = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}${month}${day}`;
+};
 db.pragma("journal_mode = WAL");
 db.pragma("synchronous = NORMAL");
 db.pragma("cache_size = -64000");
@@ -14164,6 +14435,7 @@ const db$1 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty
   __proto__: null,
   addFavoriteStock,
   analyzeQuery,
+  countAnnouncements,
   countFavoriteStocks,
   countStocks,
   countStocksWithTop10Holders,
@@ -14171,6 +14443,8 @@ const db$1 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty
   deleteTop10HoldersByStock,
   getAllFavoriteStocks,
   getAllStocks,
+  getAnnouncementsByDateRange,
+  getAnnouncementsByStock,
   getCacheDataStats,
   getDbPath,
   getLastSyncDate,
@@ -14180,13 +14454,18 @@ const db$1 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty
   getTop10HoldersByStock,
   getTop10HoldersByStockAndEndDate,
   getTop10HoldersEndDates,
+  getUnsyncedAnnouncementRanges,
   hasTop10HoldersData,
+  isAnnouncementRangeSynced,
   isFavoriteStock,
   isSyncedToday,
+  recordAnnouncementSyncRange,
   removeFavoriteStock,
+  searchAnnouncements,
   searchHoldersByName,
   searchStocks,
   updateSyncFlag,
+  upsertAnnouncements,
   upsertStocks,
   upsertTop10Holders
 }, Symbol.toStringTag, { value: "Module" }));
@@ -14217,13 +14496,24 @@ const _TushareClient = class _TushareClient {
         return [];
       }
       const { fields: columns, items } = res.data;
-      return items.map((item) => {
+      const result = items.map((item) => {
         const obj = {};
         columns.forEach((col, index) => {
           obj[col] = item[index];
         });
         return obj;
       });
+      if (apiName === "anns_d" && result.length > 0) {
+        fetch("http://127.0.0.1:7242/ingest/67286581-beef-43bb-8e6c-59afa2dd6840", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ location: "tushare.ts:72", message: "Tushare API response for anns_d", data: { apiName, params, count: result.length, first3: result.slice(0, 3).map((r) => {
+          var _a;
+          return { ann_date: r.ann_date, pub_time: r.pub_time, title: (_a = r.title) == null ? void 0 : _a.substring(0, 30) };
+        }), last3: result.slice(-3).map((r) => {
+          var _a;
+          return { ann_date: r.ann_date, pub_time: r.pub_time, title: (_a = r.title) == null ? void 0 : _a.substring(0, 30) };
+        }) }, timestamp: Date.now(), sessionId: "debug-session", hypothesisId: "D" }) }).catch(() => {
+        });
+      }
+      return result;
     } catch (error2) {
       console.error("Tushare Request Failed:", error2);
       throw error2;
@@ -14338,7 +14628,7 @@ const _TushareClient = class _TushareClient {
     });
   }
   /**
-   * 获取公告原文 URL
+   * 获取公告原文 URL（单次请求）
    * 文档: https://tushare.pro/document/2?doc_id=176
    * 接口：anns_d
    * 描述：获取全量公告数据，提供 PDF 下载 URL
@@ -14366,6 +14656,172 @@ const _TushareClient = class _TushareClient {
       start_date: startDate,
       end_date: endDate
     });
+  }
+  /**
+   * 获取公告原文 URL（迭代获取完整数据）
+   * 处理单次 2000 条的限制，自动迭代直到获取完所有数据
+   * 
+   * @param tsCode 股票代码（可选）
+   * @param startDate 开始日期 YYYYMMDD
+   * @param endDate 结束日期 YYYYMMDD
+   * @param onProgress 进度回调 (currentCount, totalFetched)
+   * @returns 所有公告数据
+   */
+  static async getAnnouncementsIterative(tsCode, startDate, endDate, onProgress) {
+    const allAnnouncements = [];
+    let currentEndDate = endDate;
+    const BATCH_SIZE = 2e3;
+    let hasMore = true;
+    while (hasMore) {
+      console.log(`[Tushare] 获取公告: ts_code=${tsCode || "全市场"}, start=${startDate}, end=${currentEndDate}`);
+      const batch = await this.getAnnouncementFiles(tsCode, void 0, startDate, currentEndDate);
+      if (!batch || batch.length === 0) {
+        console.log(`[Tushare] 没有更多公告数据`);
+        hasMore = false;
+        break;
+      }
+      allAnnouncements.push(...batch);
+      if (onProgress) {
+        onProgress(batch.length, allAnnouncements.length);
+      }
+      console.log(`[Tushare] 获取到 ${batch.length} 条公告，累计 ${allAnnouncements.length} 条`);
+      if (batch.length < BATCH_SIZE) {
+        hasMore = false;
+        break;
+      }
+      const lastAnnDate = batch[batch.length - 1].ann_date;
+      if (lastAnnDate <= startDate) {
+        console.log(`[Tushare] 已到达起始日期，停止迭代`);
+        hasMore = false;
+        break;
+      }
+      currentEndDate = this.getPreviousDay(lastAnnDate);
+      if (currentEndDate < startDate) {
+        hasMore = false;
+        break;
+      }
+      await this.sleep(300);
+    }
+    console.log(`[Tushare] 公告获取完成，共 ${allAnnouncements.length} 条`);
+    return allAnnouncements;
+  }
+  /**
+   * 获取日期的前一天（YYYYMMDD格式）
+   */
+  static getPreviousDay(dateStr) {
+    const year = parseInt(dateStr.substring(0, 4));
+    const month = parseInt(dateStr.substring(4, 6)) - 1;
+    const day = parseInt(dateStr.substring(6, 8));
+    const date = new Date(year, month, day);
+    date.setDate(date.getDate() - 1);
+    return this.formatDateToYYYYMMDD(date);
+  }
+  /**
+   * 格式化日期为 YYYYMMDD
+   */
+  static formatDateToYYYYMMDD(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}${month}${day}`;
+  }
+  /**
+   * 延迟函数
+   */
+  static sleep(ms2) {
+    return new Promise((resolve) => setTimeout(resolve, ms2));
+  }
+  /**
+   * 完整获取指定日期范围的公告（确保覆盖整个范围）
+   * 采用双向迭代策略：既向前获取更新数据，也向后获取历史数据
+   */
+  static async getAnnouncementsComplete(tsCode, startDate, endDate, onProgress) {
+    const allAnnouncements = [];
+    const BATCH_SIZE = 2e3;
+    console.log(`[Tushare] 开始获取完整公告数据: ${startDate} - ${endDate}`);
+    let batch = await this.getAnnouncements(tsCode, void 0, startDate, endDate, BATCH_SIZE, 0);
+    console.log(`[Tushare] 首次获取 ${batch.length} 条公告`);
+    if (!batch || batch.length === 0) {
+      console.log(`[Tushare] 该时间范围内没有公告数据`);
+      return [];
+    }
+    allAnnouncements.push(...batch);
+    if (onProgress) {
+      onProgress(`已获取 ${allAnnouncements.length} 条`, allAnnouncements.length, allAnnouncements.length);
+    }
+    if (batch.length < BATCH_SIZE) {
+      console.log(`[Tushare] 数据量小于批次大小，获取完成`);
+      return allAnnouncements;
+    }
+    const dates = batch.map((a) => a.ann_date).sort();
+    const oldestDate = dates[0];
+    const newestDate = dates[dates.length - 1];
+    console.log(`[Tushare] 首批数据日期范围: ${oldestDate} - ${newestDate}`);
+    if (oldestDate > startDate) {
+      console.log(`[Tushare] 向后获取更早的数据...`);
+      let currentEndDate = this.getPreviousDay(oldestDate);
+      while (currentEndDate >= startDate) {
+        console.log(`[Tushare] 获取历史数据: ${startDate} - ${currentEndDate}`);
+        const historyBatch = await this.getAnnouncements(tsCode, void 0, startDate, currentEndDate, BATCH_SIZE, 0);
+        if (!historyBatch || historyBatch.length === 0) {
+          console.log(`[Tushare] 没有更早的数据`);
+          break;
+        }
+        allAnnouncements.push(...historyBatch);
+        console.log(`[Tushare] 获取到 ${historyBatch.length} 条历史公告，累计 ${allAnnouncements.length} 条`);
+        if (onProgress) {
+          onProgress(`已获取 ${allAnnouncements.length} 条`, allAnnouncements.length, allAnnouncements.length);
+        }
+        if (historyBatch.length < BATCH_SIZE) {
+          break;
+        }
+        const oldestInBatch = historyBatch.map((a) => a.ann_date).sort()[0];
+        if (oldestInBatch <= startDate) {
+          break;
+        }
+        currentEndDate = this.getPreviousDay(oldestInBatch);
+        await this.sleep(300);
+      }
+    }
+    if (newestDate < endDate) {
+      console.log(`[Tushare] 向前获取更新的数据...`);
+      let currentStartDate = this.getNextDay(newestDate);
+      while (currentStartDate <= endDate) {
+        console.log(`[Tushare] 获取最新数据: ${currentStartDate} - ${endDate}`);
+        const futureBatch = await this.getAnnouncements(tsCode, void 0, currentStartDate, endDate, BATCH_SIZE, 0);
+        if (!futureBatch || futureBatch.length === 0) {
+          console.log(`[Tushare] 没有更新的数据`);
+          break;
+        }
+        allAnnouncements.push(...futureBatch);
+        console.log(`[Tushare] 获取到 ${futureBatch.length} 条最新公告，累计 ${allAnnouncements.length} 条`);
+        if (onProgress) {
+          onProgress(`已获取 ${allAnnouncements.length} 条`, allAnnouncements.length, allAnnouncements.length);
+        }
+        if (futureBatch.length < BATCH_SIZE) {
+          break;
+        }
+        const newestInBatch = futureBatch.map((a) => a.ann_date).sort()[futureBatch.length - 1];
+        if (newestInBatch >= endDate) {
+          break;
+        }
+        currentStartDate = this.getNextDay(newestInBatch);
+        await this.sleep(300);
+      }
+    }
+    console.log(`[Tushare] 公告获取完成，共 ${allAnnouncements.length} 条`);
+    return allAnnouncements;
+  }
+  /**
+   * 获取日期的后一天（YYYYMMDD格式）
+   */
+  static getNextDay(dateStr) {
+    const year = parseInt(dateStr.substring(0, 4));
+    const month = parseInt(dateStr.substring(4, 6)) - 1;
+    const day = parseInt(dateStr.substring(6, 8));
+    const date = new Date(year, month, day);
+    date.setDate(date.getDate() + 1);
+    return this.formatDateToYYYYMMDD(date);
   }
   /**
    * 获取财经新闻
@@ -14621,14 +15077,47 @@ async function getAnnouncementsGroupedFromAPI(page, pageSize, startDate, endDate
   if (market && market !== "all") {
     filteredStocks = allStocks.filter((s) => s.market === market);
   }
-  const announcements = await TushareClient.getAnnouncements(
-    void 0,
-    void 0,
-    startDate,
-    endDate,
-    2e3,
-    0
-  );
+  let announcements = [];
+  if (startDate && endDate) {
+    console.log(`[getAnnouncementsGroupedFromAPI] 使用完整获取方式获取公告: ${startDate} - ${endDate}`);
+    announcements = await TushareClient.getAnnouncementsComplete(
+      void 0,
+      // 全市场
+      startDate,
+      endDate,
+      (message, current, total2) => {
+        console.log(`[getAnnouncementsGroupedFromAPI] ${message}`);
+      }
+    );
+  } else {
+    announcements = await TushareClient.getAnnouncements(void 0, void 0, startDate, endDate, 2e3, 0);
+  }
+  fetch("http://127.0.0.1:7242/ingest/67286581-beef-43bb-8e6c-59afa2dd6840", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      location: "main.ts:304",
+      message: "Raw announcements from Tushare API for grouping",
+      data: {
+        startDate,
+        endDate,
+        totalCount: announcements.length,
+        first5: announcements.slice(0, 5).map((a) => {
+          var _a;
+          return { ts_code: a.ts_code, ann_date: a.ann_date, pub_time: a.pub_time, title: (_a = a.title) == null ? void 0 : _a.substring(0, 30) };
+        }),
+        last5: announcements.slice(-5).map((a) => {
+          var _a;
+          return { ts_code: a.ts_code, ann_date: a.ann_date, pub_time: a.pub_time, title: (_a = a.title) == null ? void 0 : _a.substring(0, 30) };
+        })
+      },
+      timestamp: Date.now(),
+      sessionId: "debug-session",
+      runId: "post-fix",
+      hypothesisId: "F"
+    })
+  }).catch(() => {
+  });
   const stockMap = /* @__PURE__ */ new Map();
   filteredStocks.forEach((stock) => {
     stockMap.set(stock.ts_code, {
@@ -14669,9 +15158,74 @@ async function getAnnouncementsGroupedFromAPI(page, pageSize, startDate, endDate
     if (dateCompare !== 0) return dateCompare;
     return ((a == null ? void 0 : a.stock_name) || "").localeCompare((b == null ? void 0 : b.stock_name) || "");
   });
+  fetch("http://127.0.0.1:7242/ingest/67286581-beef-43bb-8e6c-59afa2dd6840", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      location: "main.ts:385",
+      message: "After grouping and sorting stocks by latest announcement",
+      data: {
+        totalStocks: groupedData.length,
+        first5: groupedData.slice(0, 5).map((s) => {
+          var _a;
+          return {
+            ts_code: s.ts_code,
+            stock_name: s.stock_name,
+            latest_ann_date: s.latest_ann_date,
+            latest_ann_title: (_a = s.latest_ann_title) == null ? void 0 : _a.substring(0, 30),
+            announcement_count: s.announcement_count
+          };
+        }),
+        last5: groupedData.slice(-5).map((s) => {
+          var _a;
+          return {
+            ts_code: s.ts_code,
+            stock_name: s.stock_name,
+            latest_ann_date: s.latest_ann_date,
+            latest_ann_title: (_a = s.latest_ann_title) == null ? void 0 : _a.substring(0, 30),
+            announcement_count: s.announcement_count
+          };
+        })
+      },
+      timestamp: Date.now(),
+      sessionId: "debug-session",
+      runId: "new-run",
+      hypothesisId: "G"
+    })
+  }).catch(() => {
+  });
   const total = groupedData.length;
   const offset = (page - 1) * pageSize;
   const items = groupedData.slice(offset, offset + pageSize);
+  fetch("http://127.0.0.1:7242/ingest/67286581-beef-43bb-8e6c-59afa2dd6840", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      location: "main.ts:397",
+      message: "After pagination - stocks to be returned",
+      data: {
+        page,
+        pageSize,
+        offset,
+        pagedCount: items.length,
+        pagedItems: items.map((s) => {
+          var _a;
+          return {
+            ts_code: s.ts_code,
+            stock_name: s.stock_name,
+            latest_ann_date: s.latest_ann_date,
+            latest_ann_title: (_a = s.latest_ann_title) == null ? void 0 : _a.substring(0, 30),
+            announcement_count: s.announcement_count
+          };
+        })
+      },
+      timestamp: Date.now(),
+      sessionId: "debug-session",
+      runId: "new-run",
+      hypothesisId: "H"
+    })
+  }).catch(() => {
+  });
   return { items, total };
 }
 async function searchAnnouncementsGroupedFromAPI(keyword, page, pageSize, startDate, endDate, market) {
@@ -14684,14 +15238,7 @@ async function searchAnnouncementsGroupedFromAPI(keyword, page, pageSize, startD
     return { items: [], total: 0 };
   }
   const tsCodes = filteredStocks.map((s) => s.ts_code).join(",");
-  const announcements = await TushareClient.getAnnouncements(
-    tsCodes,
-    void 0,
-    startDate,
-    endDate,
-    2e3,
-    0
-  );
+  const announcements = await TushareClient.getAnnouncements(tsCodes, void 0, startDate, endDate, 2e3, 0);
   const stockMap = /* @__PURE__ */ new Map();
   filteredStocks.forEach((stock) => {
     stockMap.set(stock.ts_code, {
@@ -14745,14 +15292,7 @@ async function getFavoriteStocksAnnouncementsGroupedFromAPI(page, pageSize, star
   const allStocks = getAllStocks();
   const favoriteStockInfos = allStocks.filter((s) => favoriteStocks.includes(s.ts_code));
   const tsCodes = favoriteStocks.join(",");
-  const announcements = await TushareClient.getAnnouncements(
-    tsCodes,
-    void 0,
-    startDate,
-    endDate,
-    2e3,
-    0
-  );
+  const announcements = await TushareClient.getAnnouncements(tsCodes, void 0, startDate, endDate, 2e3, 0);
   const stockMap = /* @__PURE__ */ new Map();
   favoriteStockInfos.forEach((stock) => {
     stockMap.set(stock.ts_code, {
@@ -14877,9 +15417,7 @@ function setupIPC() {
           `[IPC] get-announcements-grouped: page=${page}, pageSize=${pageSize}, dateRange=${startDate}-${endDate}, market=${market}`
         );
         const result = await getAnnouncementsGroupedFromAPI(page, pageSize, startDate, endDate, market);
-        console.log(
-          `[IPC] get-announcements-grouped: page=${page}, items=${result.items.length}, total=${result.total}`
-        );
+        console.log(`[IPC] get-announcements-grouped: page=${page}, items=${result.items.length}, total=${result.total}`);
         return {
           items: result.items,
           total: result.total,
@@ -14892,14 +15430,67 @@ function setupIPC() {
       }
     }
   );
-  ipcMain.handle("get-stock-announcements", async (_event, tsCode, limit = 100) => {
+  ipcMain.handle("get-stock-announcements", async (_event, tsCode, limit = 100, startDate, endDate) => {
     try {
-      console.log(`[IPC] get-stock-announcements: tsCode=${tsCode}, limit=${limit}`);
-      const announcements = await TushareClient.getAnnouncements(tsCode, void 0, void 0, void 0, limit, 0);
+      console.log(`[IPC] get-stock-announcements: tsCode=${tsCode}, limit=${limit}, dateRange=${startDate}-${endDate}`);
+      const announcements = await TushareClient.getAnnouncements(tsCode, void 0, startDate, endDate, limit, 0);
+      fetch("http://127.0.0.1:7242/ingest/67286581-beef-43bb-8e6c-59afa2dd6840", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          location: "main.ts:753",
+          message: "Before sort - first 3 announcements",
+          data: {
+            count: announcements.length,
+            first3: announcements.slice(0, 3).map((a) => {
+              var _a;
+              return { ann_date: a.ann_date, pub_time: a.pub_time, title: (_a = a.title) == null ? void 0 : _a.substring(0, 30) };
+            })
+          },
+          timestamp: Date.now(),
+          sessionId: "debug-session",
+          hypothesisId: "A"
+        })
+      }).catch(() => {
+      });
       announcements.sort((a, b) => {
         const dateCompare = (b.ann_date || "").localeCompare(a.ann_date || "");
+        if (announcements.indexOf(a) < 3 && announcements.indexOf(b) < 3) {
+          fetch("http://127.0.0.1:7242/ingest/67286581-beef-43bb-8e6c-59afa2dd6840", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              location: "main.ts:759",
+              message: "Sort comparison",
+              data: { a_date: a.ann_date, b_date: b.ann_date, dateCompare, a_time: a.pub_time, b_time: b.pub_time },
+              timestamp: Date.now(),
+              sessionId: "debug-session",
+              hypothesisId: "B"
+            })
+          }).catch(() => {
+          });
+        }
         if (dateCompare !== 0) return dateCompare;
         return (b.pub_time || "").localeCompare(a.pub_time || "");
+      });
+      fetch("http://127.0.0.1:7242/ingest/67286581-beef-43bb-8e6c-59afa2dd6840", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          location: "main.ts:763",
+          message: "After sort - first 3 announcements",
+          data: {
+            count: announcements.length,
+            first3: announcements.slice(0, 3).map((a) => {
+              var _a;
+              return { ann_date: a.ann_date, pub_time: a.pub_time, title: (_a = a.title) == null ? void 0 : _a.substring(0, 30) };
+            })
+          },
+          timestamp: Date.now(),
+          sessionId: "debug-session",
+          hypothesisId: "A"
+        })
+      }).catch(() => {
       });
       return announcements.map((ann) => ({
         ts_code: ann.ts_code,
@@ -15319,9 +15910,7 @@ function setupIPC() {
     "get-favorite-stocks-announcements-grouped",
     async (_event, page, pageSize, startDate, endDate) => {
       try {
-        console.log(
-          `[IPC] get-favorite-stocks-announcements-grouped: page=${page}, pageSize=${pageSize}, dateRange=${startDate}-${endDate}`
-        );
+        console.log(`[IPC] get-favorite-stocks-announcements-grouped: page=${page}, pageSize=${pageSize}, dateRange=${startDate}-${endDate}`);
         const result = await getFavoriteStocksAnnouncementsGroupedFromAPI(page, pageSize, startDate, endDate);
         console.log(`[IPC] get-favorite-stocks-announcements-grouped: page=${page}, items=${result.items.length}, total=${result.total}`);
         return {
@@ -15624,6 +16213,146 @@ function setupIPC() {
         favoriteStocks: { count: 0 },
         top10Holders: { stockCount: 0, recordCount: 0 },
         syncFlags: []
+      };
+    }
+  });
+  ipcMain.handle(
+    "get-announcements-with-cache",
+    async (_event, tsCode, startDate, endDate, onProgressCallback) => {
+      try {
+        console.log(`[IPC] get-announcements-with-cache: tsCode=${tsCode || "all"}, startDate=${startDate}, endDate=${endDate}`);
+        if (isAnnouncementRangeSynced(tsCode, startDate, endDate)) {
+          console.log(`[IPC] 时间范围 ${startDate}-${endDate} 已缓存，从本地读取`);
+          const announcements2 = getAnnouncementsByDateRange(startDate, endDate, tsCode || void 0);
+          return {
+            success: true,
+            data: announcements2,
+            source: "cache",
+            count: announcements2.length
+          };
+        }
+        const unsyncedRanges = getUnsyncedAnnouncementRanges(tsCode, startDate, endDate);
+        console.log(
+          `[IPC] 需要同步 ${unsyncedRanges.length} 个时间段:`,
+          unsyncedRanges.map((r) => `${r.start_date}-${r.end_date}`)
+        );
+        for (const range2 of unsyncedRanges) {
+          console.log(`[IPC] 开始同步时间段: ${range2.start_date} - ${range2.end_date}`);
+          const announcements2 = await TushareClient.getAnnouncementsIterative(
+            tsCode || void 0,
+            range2.start_date,
+            range2.end_date,
+            onProgressCallback ? (currentCount, totalFetched) => {
+              mainWindow == null ? void 0 : mainWindow.webContents.send("announcement-sync-progress", {
+                tsCode: tsCode || "all",
+                startDate: range2.start_date,
+                endDate: range2.end_date,
+                currentBatch: currentCount,
+                totalFetched
+              });
+            } : void 0
+          );
+          if (announcements2.length > 0) {
+            upsertAnnouncements(announcements2);
+            console.log(`[IPC] 已缓存 ${announcements2.length} 条公告到本地数据库`);
+          }
+          recordAnnouncementSyncRange(tsCode, range2.start_date, range2.end_date);
+        }
+        const announcements = getAnnouncementsByDateRange(startDate, endDate, tsCode || void 0);
+        console.log(`[IPC] 返回 ${announcements.length} 条公告（来源：API + 缓存）`);
+        return {
+          success: true,
+          data: announcements,
+          source: "api",
+          count: announcements.length
+        };
+      } catch (error2) {
+        console.error("Failed to get announcements with cache:", error2);
+        return {
+          success: false,
+          error: error2.message || "获取公告失败",
+          data: [],
+          source: "error",
+          count: 0
+        };
+      }
+    }
+  );
+  ipcMain.handle("get-announcements-from-cache", async (_event, tsCode, startDate, endDate) => {
+    try {
+      console.log(`[IPC] get-announcements-from-cache: tsCode=${tsCode || "all"}, startDate=${startDate}, endDate=${endDate}`);
+      const announcements = getAnnouncementsByDateRange(startDate, endDate, tsCode || void 0);
+      const isCached = isAnnouncementRangeSynced(tsCode, startDate, endDate);
+      return {
+        success: true,
+        data: announcements,
+        isCached,
+        count: announcements.length
+      };
+    } catch (error2) {
+      console.error("Failed to get announcements from cache:", error2);
+      return {
+        success: false,
+        error: error2.message || "读取缓存失败",
+        data: [],
+        isCached: false,
+        count: 0
+      };
+    }
+  });
+  ipcMain.handle("check-announcement-range-synced", async (_event, tsCode, startDate, endDate) => {
+    try {
+      console.log(`[IPC] check-announcement-range-synced: tsCode=${tsCode || "all"}, startDate=${startDate}, endDate=${endDate}`);
+      const isSynced = isAnnouncementRangeSynced(tsCode, startDate, endDate);
+      const unsyncedRanges = isSynced ? [] : getUnsyncedAnnouncementRanges(tsCode, startDate, endDate);
+      return {
+        success: true,
+        isSynced,
+        unsyncedRanges
+      };
+    } catch (error2) {
+      console.error("Failed to check announcement range:", error2);
+      return {
+        success: false,
+        error: error2.message || "检查失败",
+        isSynced: false,
+        unsyncedRanges: []
+      };
+    }
+  });
+  ipcMain.handle("search-announcements-from-cache", async (_event, keyword, limit = 100) => {
+    try {
+      console.log(`[IPC] search-announcements-from-cache: keyword=${keyword}, limit=${limit}`);
+      const announcements = searchAnnouncements(keyword, limit);
+      return {
+        success: true,
+        data: announcements,
+        count: announcements.length
+      };
+    } catch (error2) {
+      console.error("Failed to search announcements:", error2);
+      return {
+        success: false,
+        error: error2.message || "搜索失败",
+        data: [],
+        count: 0
+      };
+    }
+  });
+  ipcMain.handle("get-announcements-cache-stats", async () => {
+    try {
+      console.log("[IPC] get-announcements-cache-stats");
+      const totalCount = countAnnouncements();
+      return {
+        success: true,
+        totalCount
+      };
+    } catch (error2) {
+      console.error("Failed to get announcements cache stats:", error2);
+      return {
+        success: false,
+        error: error2.message || "获取统计失败",
+        totalCount: 0
       };
     }
   });

@@ -280,4 +280,38 @@ contextBridge.exposeInMainWorld("electronAPI", {
 	getCacheDataStats: () => {
 		return ipcRenderer.invoke("get-cache-data-stats");
 	},
+
+	// ============= 公告缓存相关 =============
+
+	// 获取公告（智能缓存）
+	getAnnouncementsWithCache: (tsCode: string | null, startDate: string, endDate: string, onProgress?: boolean) => {
+		return ipcRenderer.invoke("get-announcements-with-cache", tsCode, startDate, endDate, onProgress);
+	},
+
+	// 获取公告（仅从缓存）
+	getAnnouncementsFromCache: (tsCode: string | null, startDate: string, endDate: string) => {
+		return ipcRenderer.invoke("get-announcements-from-cache", tsCode, startDate, endDate);
+	},
+
+	// 检查公告时间范围是否已缓存
+	checkAnnouncementRangeSynced: (tsCode: string | null, startDate: string, endDate: string) => {
+		return ipcRenderer.invoke("check-announcement-range-synced", tsCode, startDate, endDate);
+	},
+
+	// 搜索公告（从缓存）
+	searchAnnouncementsFromCache: (keyword: string, limit?: number) => {
+		return ipcRenderer.invoke("search-announcements-from-cache", keyword, limit);
+	},
+
+	// 获取缓存的公告统计信息
+	getAnnouncementsCacheStats: () => {
+		return ipcRenderer.invoke("get-announcements-cache-stats");
+	},
+
+	// 监听公告同步进度
+	onAnnouncementSyncProgress: (callback: (progress: any) => void) => {
+		const subscription = (_event: any, progress: any) => callback(progress);
+		ipcRenderer.on("announcement-sync-progress", subscription);
+		return () => ipcRenderer.removeListener("announcement-sync-progress", subscription);
+	},
 });

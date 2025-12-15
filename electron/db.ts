@@ -65,6 +65,33 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_top10_end_date ON top10_holders (end_date DESC);
   CREATE INDEX IF NOT EXISTS idx_top10_holder_name ON top10_holders (holder_name);
   CREATE INDEX IF NOT EXISTS idx_top10_ts_end_date ON top10_holders (ts_code, end_date DESC);
+
+  CREATE TABLE IF NOT EXISTS announcements (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ann_date TEXT NOT NULL,
+    ts_code TEXT NOT NULL,
+    name TEXT,
+    title TEXT NOT NULL,
+    url TEXT NOT NULL,
+    rec_time TEXT,
+    created_at TEXT NOT NULL,
+    UNIQUE(ts_code, ann_date, title)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_ann_date ON announcements (ann_date DESC);
+  CREATE INDEX IF NOT EXISTS idx_ann_ts_code ON announcements (ts_code);
+  CREATE INDEX IF NOT EXISTS idx_ann_ts_code_date ON announcements (ts_code, ann_date DESC);
+
+  CREATE TABLE IF NOT EXISTS announcement_sync_ranges (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ts_code TEXT,
+    start_date TEXT NOT NULL,
+    end_date TEXT NOT NULL,
+    synced_at TEXT NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_sync_range_ts_code ON announcement_sync_ranges (ts_code);
+  CREATE INDEX IF NOT EXISTS idx_sync_range_dates ON announcement_sync_ranges (start_date, end_date);
 `);
 
 // ============= 股票数据相关操作 =============
@@ -427,6 +454,361 @@ export const getStocksByHolder = (holderName: string) => {
 export const deleteTop10HoldersByStock = (tsCode: string) => {
 	const result = db.prepare("DELETE FROM top10_holders WHERE ts_code = ?").run(tsCode);
 	return result.changes;
+};
+
+// ============= 公告数据相关操作 =============
+
+/**
+ * 批量插入或更新公告数据
+ */
+export const upsertAnnouncements = (items: any[]) => {
+	const now = new Date().toISOString();
+	const upsert = db.prepare(`
+    INSERT INTO announcements (
+      ann_date, ts_code, name, title, url, rec_time, created_at
+    )
+    VALUES (
+      @ann_date, @ts_code, @name, @title, @url, @rec_time, @created_at
+    )
+    ON CONFLICT(ts_code, ann_date, title) DO UPDATE SET
+      name = excluded.name,
+      url = excluded.url,
+      rec_time = excluded.rec_time,
+      created_at = excluded.created_at
+  `);
+
+	const upsertMany = db.transaction((announcements) => {
+		for (const ann of announcements) {
+			upsert.run({
+				ann_date: ann.ann_date || null,
+				ts_code: ann.ts_code || null,
+				name: ann.name || null,
+				title: ann.title || null,
+				url: ann.url || null,
+				rec_time: ann.rec_time || null,
+				created_at: now,
+			});
+		}
+	});
+
+	upsertMany(items);
+};
+
+/**
+ * 检查时间范围是否已同步
+ * @param tsCode 股票代码（可选，null 表示全市场）
+ * @param startDate 开始日期 YYYYMMDD
+ * @param endDate 结束日期 YYYYMMDD
+ * @returns 是否完全覆盖
+ */
+export const isAnnouncementRangeSynced = (tsCode: string | null, startDate: string, endDate: string): boolean => {
+	// 查找所有可能覆盖该范围的同步记录
+	let query: string;
+	let params: any[];
+
+	if (tsCode) {
+		query = `
+      SELECT start_date, end_date 
+      FROM announcement_sync_ranges 
+      WHERE ts_code = ?
+        AND start_date <= ?
+        AND end_date >= ?
+      ORDER BY start_date
+    `;
+		params = [tsCode, endDate, startDate];
+	} else {
+		query = `
+      SELECT start_date, end_date 
+      FROM announcement_sync_ranges 
+      WHERE ts_code IS NULL
+        AND start_date <= ?
+        AND end_date >= ?
+      ORDER BY start_date
+    `;
+		params = [endDate, startDate];
+	}
+
+	const ranges = db.prepare(query).all(...params) as Array<{ start_date: string; end_date: string }>;
+
+	if (ranges.length === 0) {
+		return false;
+	}
+
+	// 检查是否有完全覆盖的范围
+	for (const range of ranges) {
+		if (range.start_date <= startDate && range.end_date >= endDate) {
+			return true;
+		}
+	}
+
+	return false;
+};
+
+/**
+ * 获取需要同步的时间段（排除已同步的部分）
+ * @param tsCode 股票代码（可选）
+ * @param startDate 开始日期
+ * @param endDate 结束日期
+ * @returns 需要同步的时间段数组
+ */
+export const getUnsyncedAnnouncementRanges = (
+	tsCode: string | null,
+	startDate: string,
+	endDate: string
+): Array<{ start_date: string; end_date: string }> => {
+	// 获取所有相关的已同步范围
+	let query: string;
+	let params: any[];
+
+	if (tsCode) {
+		query = `
+      SELECT start_date, end_date 
+      FROM announcement_sync_ranges 
+      WHERE ts_code = ?
+        AND NOT (end_date < ? OR start_date > ?)
+      ORDER BY start_date
+    `;
+		params = [tsCode, startDate, endDate];
+	} else {
+		query = `
+      SELECT start_date, end_date 
+      FROM announcement_sync_ranges 
+      WHERE ts_code IS NULL
+        AND NOT (end_date < ? OR start_date > ?)
+      ORDER BY start_date
+    `;
+		params = [startDate, endDate];
+	}
+
+	const syncedRanges = db.prepare(query).all(...params) as Array<{ start_date: string; end_date: string }>;
+
+	// 如果没有已同步的范围，返回整个请求范围
+	if (syncedRanges.length === 0) {
+		return [{ start_date: startDate, end_date: endDate }];
+	}
+
+	// 计算未同步的时间段
+	const unsyncedRanges: Array<{ start_date: string; end_date: string }> = [];
+	let currentStart = startDate;
+
+	for (const range of syncedRanges) {
+		// 如果当前起点在已同步范围之前，添加这段空白
+		if (currentStart < range.start_date) {
+			// 计算前一天的日期
+			const gapEnd = getPreviousDay(range.start_date);
+			unsyncedRanges.push({
+				start_date: currentStart,
+				end_date: gapEnd,
+			});
+		}
+		// 更新当前起点到已同步范围的后一天
+		currentStart = getNextDay(range.end_date);
+	}
+
+	// 检查最后一个已同步范围之后是否还有未同步的部分
+	if (currentStart <= endDate) {
+		unsyncedRanges.push({
+			start_date: currentStart,
+			end_date: endDate,
+		});
+	}
+
+	return unsyncedRanges;
+};
+
+/**
+ * 记录已同步的时间范围，并自动合并连续范围
+ */
+export const recordAnnouncementSyncRange = (tsCode: string | null, startDate: string, endDate: string) => {
+	const now = new Date().toISOString();
+
+	// 插入新范围
+	if (tsCode) {
+		db.prepare(`
+      INSERT INTO announcement_sync_ranges (ts_code, start_date, end_date, synced_at)
+      VALUES (?, ?, ?, ?)
+    `).run(tsCode, startDate, endDate, now);
+	} else {
+		db.prepare(`
+      INSERT INTO announcement_sync_ranges (ts_code, start_date, end_date, synced_at)
+      VALUES (NULL, ?, ?, ?)
+    `).run(startDate, endDate, now);
+	}
+
+	// 合并连续或重叠的范围
+	mergeAnnouncementSyncRanges(tsCode);
+};
+
+/**
+ * 合并连续或重叠的同步范围
+ */
+const mergeAnnouncementSyncRanges = (tsCode: string | null) => {
+	let query: string;
+	let params: any[];
+
+	if (tsCode) {
+		query = "SELECT id, start_date, end_date FROM announcement_sync_ranges WHERE ts_code = ? ORDER BY start_date";
+		params = [tsCode];
+	} else {
+		query = "SELECT id, start_date, end_date FROM announcement_sync_ranges WHERE ts_code IS NULL ORDER BY start_date";
+		params = [];
+	}
+
+	const ranges = db.prepare(query).all(...params) as Array<{ id: number; start_date: string; end_date: string }>;
+
+	if (ranges.length <= 1) {
+		return;
+	}
+
+	const toDelete: number[] = [];
+	const toUpdate: Array<{ id: number; start_date: string; end_date: string }> = [];
+
+	let current = ranges[0];
+
+	for (let i = 1; i < ranges.length; i++) {
+		const next = ranges[i];
+
+		// 检查是否连续或重叠（包括相邻日期）
+		if (getNextDay(current.end_date) >= next.start_date) {
+			// 合并范围
+			current = {
+				id: current.id,
+				start_date: current.start_date,
+				end_date: next.end_date > current.end_date ? next.end_date : current.end_date,
+			};
+			toDelete.push(next.id);
+		} else {
+			// 保存当前合并结果
+			if (current.end_date !== ranges.find((r) => r.id === current.id)?.end_date) {
+				toUpdate.push(current);
+			}
+			current = next;
+		}
+	}
+
+	// 保存最后一个范围的更新
+	if (current.end_date !== ranges.find((r) => r.id === current.id)?.end_date) {
+		toUpdate.push(current);
+	}
+
+	// 执行更新和删除
+	const updateStmt = db.prepare("UPDATE announcement_sync_ranges SET end_date = ? WHERE id = ?");
+	const deleteStmt = db.prepare("DELETE FROM announcement_sync_ranges WHERE id = ?");
+
+	db.transaction(() => {
+		for (const range of toUpdate) {
+			updateStmt.run(range.end_date, range.id);
+		}
+		for (const id of toDelete) {
+			deleteStmt.run(id);
+		}
+	})();
+};
+
+/**
+ * 获取指定股票的公告列表
+ */
+export const getAnnouncementsByStock = (tsCode: string, limit: number = 100) => {
+	return db
+		.prepare(
+			`
+    SELECT * FROM announcements 
+    WHERE ts_code = ?
+    ORDER BY ann_date DESC, rec_time DESC
+    LIMIT ?
+  `
+		)
+		.all(tsCode, limit);
+};
+
+/**
+ * 根据日期范围获取公告
+ */
+export const getAnnouncementsByDateRange = (startDate: string, endDate: string, tsCode?: string, limit: number = 200) => {
+	if (tsCode) {
+		return db
+			.prepare(
+				`
+      SELECT * FROM announcements 
+      WHERE ts_code = ? AND ann_date >= ? AND ann_date <= ?
+      ORDER BY ann_date DESC, rec_time DESC
+      LIMIT ?
+    `
+			)
+			.all(tsCode, startDate, endDate, limit);
+	} else {
+		return db
+			.prepare(
+				`
+      SELECT * FROM announcements 
+      WHERE ann_date >= ? AND ann_date <= ?
+      ORDER BY ann_date DESC, rec_time DESC
+      LIMIT ?
+    `
+			)
+			.all(startDate, endDate, limit);
+	}
+};
+
+/**
+ * 搜索公告标题
+ */
+export const searchAnnouncements = (keyword: string, limit: number = 100) => {
+	const likePattern = `%${keyword}%`;
+	return db
+		.prepare(
+			`
+    SELECT a.*, s.name as stock_name 
+    FROM announcements a
+    LEFT JOIN stocks s ON a.ts_code = s.ts_code
+    WHERE a.title LIKE ? OR a.ts_code LIKE ? OR s.name LIKE ?
+    ORDER BY a.ann_date DESC, a.rec_time DESC
+    LIMIT ?
+  `
+		)
+		.all(likePattern, likePattern, likePattern, limit);
+};
+
+/**
+ * 统计公告数量
+ */
+export const countAnnouncements = (): number => {
+	const row = db.prepare("SELECT COUNT(*) as count FROM announcements").get() as { count: number };
+	return row.count;
+};
+
+/**
+ * 获取日期的前一天（YYYYMMDD格式）
+ */
+const getPreviousDay = (dateStr: string): string => {
+	const year = parseInt(dateStr.substring(0, 4));
+	const month = parseInt(dateStr.substring(4, 6)) - 1; // JS月份从0开始
+	const day = parseInt(dateStr.substring(6, 8));
+	const date = new Date(year, month, day);
+	date.setDate(date.getDate() - 1);
+	return formatDateToYYYYMMDD(date);
+};
+
+/**
+ * 获取日期的后一天（YYYYMMDD格式）
+ */
+const getNextDay = (dateStr: string): string => {
+	const year = parseInt(dateStr.substring(0, 4));
+	const month = parseInt(dateStr.substring(4, 6)) - 1;
+	const day = parseInt(dateStr.substring(6, 8));
+	const date = new Date(year, month, day);
+	date.setDate(date.getDate() + 1);
+	return formatDateToYYYYMMDD(date);
+};
+
+/**
+ * 格式化日期为 YYYYMMDD
+ */
+const formatDateToYYYYMMDD = (date: Date): string => {
+	const year = date.getFullYear();
+	const month = String(date.getMonth() + 1).padStart(2, "0");
+	const day = String(date.getDate()).padStart(2, "0");
+	return `${year}${month}${day}`;
 };
 
 // 开启 WAL 模式以提高并发性能

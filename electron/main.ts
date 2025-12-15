@@ -29,6 +29,14 @@ import {
 	updateSyncFlag,
 	isSyncedToday,
 	getCacheDataStats,
+	upsertAnnouncements,
+	isAnnouncementRangeSynced,
+	getUnsyncedAnnouncementRanges,
+	recordAnnouncementSyncRange,
+	getAnnouncementsByStock,
+	getAnnouncementsByDateRange,
+	searchAnnouncements,
+	countAnnouncements,
 } from "./db.js";
 import { TushareClient } from "./tushare.js";
 
@@ -286,31 +294,69 @@ async function getAnnouncementsGroupedFromAPI(
 }> {
 	// 获取所有股票列表
 	const allStocks = getAllStocks();
-	
+
 	// 过滤市场
 	let filteredStocks = allStocks;
 	if (market && market !== "all") {
 		filteredStocks = allStocks.filter((s: any) => s.market === market);
 	}
 
-	// 从 Tushare API 获取公告数据
-	const announcements = await TushareClient.getAnnouncements(
-		undefined,
-		undefined,
-		startDate,
-		endDate,
-		2000,
-		0
-	);
+	// 从 Tushare API 完整获取所有公告数据
+	let announcements: any[] = [];
+
+	if (startDate && endDate) {
+		// 如果有日期范围，使用完整获取方式确保覆盖整个日期范围
+		console.log(`[getAnnouncementsGroupedFromAPI] 使用完整获取方式获取公告: ${startDate} - ${endDate}`);
+		announcements = await TushareClient.getAnnouncementsComplete(
+			undefined, // 全市场
+			startDate,
+			endDate,
+			(message, current, total) => {
+				console.log(`[getAnnouncementsGroupedFromAPI] ${message}`);
+			}
+		);
+	} else {
+		// 没有日期范围，使用单次请求（限制2000条）
+		announcements = await TushareClient.getAnnouncements(undefined, undefined, startDate, endDate, 2000, 0);
+	}
+
+	// #region agent log
+	fetch("http://127.0.0.1:7242/ingest/67286581-beef-43bb-8e6c-59afa2dd6840", {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({
+			location: "main.ts:304",
+			message: "Raw announcements from Tushare API for grouping",
+			data: {
+				startDate,
+				endDate,
+				totalCount: announcements.length,
+				first5: announcements
+					.slice(0, 5)
+					.map((a: any) => ({ ts_code: a.ts_code, ann_date: a.ann_date, pub_time: a.pub_time, title: a.title?.substring(0, 30) })),
+				last5: announcements
+					.slice(-5)
+					.map((a: any) => ({ ts_code: a.ts_code, ann_date: a.ann_date, pub_time: a.pub_time, title: a.title?.substring(0, 30) })),
+			},
+			timestamp: Date.now(),
+			sessionId: "debug-session",
+			runId: "post-fix",
+			hypothesisId: "F",
+		}),
+	}).catch(() => {});
+	// #endregion
 
 	// 按股票聚合公告数据
-	const stockMap = new Map<string, {
-		ts_code: string;
-		stock_name: string;
-		industry: string;
-		market: string;
-		announcements: any[];
-	}>();
+	const stockMap = new Map<
+		string,
+		{
+			ts_code: string;
+			stock_name: string;
+			industry: string;
+			market: string;
+			announcements: any[];
+		}
+	>();
 
 	// 初始化股票映射
 	filteredStocks.forEach((stock: any) => {
@@ -337,7 +383,7 @@ async function getAnnouncementsGroupedFromAPI(
 			if (stock.announcements.length === 0) {
 				return null;
 			}
-			
+
 			// 按日期和时间排序
 			stock.announcements.sort((a, b) => {
 				const dateCompare = (b.ann_date || "").localeCompare(a.ann_date || "");
@@ -362,18 +408,82 @@ async function getAnnouncementsGroupedFromAPI(
 			if (dateCompare !== 0) return dateCompare;
 			return (a?.stock_name || "").localeCompare(b?.stock_name || "");
 		}) as Array<{
-			ts_code: string;
-			stock_name: string;
-			industry: string;
-			market: string;
-			announcement_count: number;
-			latest_ann_date: string;
-			latest_ann_title?: string;
-		}>;
+		ts_code: string;
+		stock_name: string;
+		industry: string;
+		market: string;
+		announcement_count: number;
+		latest_ann_date: string;
+		latest_ann_title?: string;
+	}>;
+
+	// #region agent log
+	fetch("http://127.0.0.1:7242/ingest/67286581-beef-43bb-8e6c-59afa2dd6840", {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({
+			location: "main.ts:385",
+			message: "After grouping and sorting stocks by latest announcement",
+			data: {
+				totalStocks: groupedData.length,
+				first5: groupedData
+					.slice(0, 5)
+					.map((s: any) => ({
+						ts_code: s.ts_code,
+						stock_name: s.stock_name,
+						latest_ann_date: s.latest_ann_date,
+						latest_ann_title: s.latest_ann_title?.substring(0, 30),
+						announcement_count: s.announcement_count,
+					})),
+				last5: groupedData
+					.slice(-5)
+					.map((s: any) => ({
+						ts_code: s.ts_code,
+						stock_name: s.stock_name,
+						latest_ann_date: s.latest_ann_date,
+						latest_ann_title: s.latest_ann_title?.substring(0, 30),
+						announcement_count: s.announcement_count,
+					})),
+			},
+			timestamp: Date.now(),
+			sessionId: "debug-session",
+			runId: "new-run",
+			hypothesisId: "G",
+		}),
+	}).catch(() => {});
+	// #endregion
 
 	const total = groupedData.length;
 	const offset = (page - 1) * pageSize;
 	const items = groupedData.slice(offset, offset + pageSize);
+
+	// #region agent log
+	fetch("http://127.0.0.1:7242/ingest/67286581-beef-43bb-8e6c-59afa2dd6840", {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({
+			location: "main.ts:397",
+			message: "After pagination - stocks to be returned",
+			data: {
+				page,
+				pageSize,
+				offset,
+				pagedCount: items.length,
+				pagedItems: items.map((s: any) => ({
+					ts_code: s.ts_code,
+					stock_name: s.stock_name,
+					latest_ann_date: s.latest_ann_date,
+					latest_ann_title: s.latest_ann_title?.substring(0, 30),
+					announcement_count: s.announcement_count,
+				})),
+			},
+			timestamp: Date.now(),
+			sessionId: "debug-session",
+			runId: "new-run",
+			hypothesisId: "H",
+		}),
+	}).catch(() => {});
+	// #endregion
 
 	return { items, total };
 }
@@ -400,7 +510,7 @@ async function searchAnnouncementsGroupedFromAPI(
 }> {
 	// 搜索匹配的股票
 	const matchedStocks = searchStocks(keyword, 1000);
-	
+
 	// 过滤市场
 	let filteredStocks = matchedStocks;
 	if (market && market !== "all") {
@@ -415,23 +525,19 @@ async function searchAnnouncementsGroupedFromAPI(
 	const tsCodes = filteredStocks.map((s: any) => s.ts_code).join(",");
 
 	// 从 Tushare API 获取公告数据
-	const announcements = await TushareClient.getAnnouncements(
-		tsCodes,
-		undefined,
-		startDate,
-		endDate,
-		2000,
-		0
-	);
+	const announcements = await TushareClient.getAnnouncements(tsCodes, undefined, startDate, endDate, 2000, 0);
 
 	// 按股票聚合公告数据
-	const stockMap = new Map<string, {
-		ts_code: string;
-		stock_name: string;
-		industry: string;
-		market: string;
-		announcements: any[];
-	}>();
+	const stockMap = new Map<
+		string,
+		{
+			ts_code: string;
+			stock_name: string;
+			industry: string;
+			market: string;
+			announcements: any[];
+		}
+	>();
 
 	// 初始化股票映射
 	filteredStocks.forEach((stock: any) => {
@@ -458,7 +564,7 @@ async function searchAnnouncementsGroupedFromAPI(
 			if (stock.announcements.length === 0) {
 				return null;
 			}
-			
+
 			// 按日期和时间排序
 			stock.announcements.sort((a, b) => {
 				const dateCompare = (b.ann_date || "").localeCompare(a.ann_date || "");
@@ -483,14 +589,14 @@ async function searchAnnouncementsGroupedFromAPI(
 			if (dateCompare !== 0) return dateCompare;
 			return (a?.stock_name || "").localeCompare(b?.stock_name || "");
 		}) as Array<{
-			ts_code: string;
-			stock_name: string;
-			industry: string;
-			market: string;
-			announcement_count: number;
-			latest_ann_date: string;
-			latest_ann_title?: string;
-		}>;
+		ts_code: string;
+		stock_name: string;
+		industry: string;
+		market: string;
+		announcement_count: number;
+		latest_ann_date: string;
+		latest_ann_title?: string;
+	}>;
 
 	const total = groupedData.length;
 	const offset = (page - 1) * pageSize;
@@ -519,7 +625,7 @@ async function getFavoriteStocksAnnouncementsGroupedFromAPI(
 }> {
 	// 获取所有关注的股票代码
 	const favoriteStocks = getAllFavoriteStocks();
-	
+
 	if (favoriteStocks.length === 0) {
 		return { items: [], total: 0 };
 	}
@@ -532,23 +638,19 @@ async function getFavoriteStocksAnnouncementsGroupedFromAPI(
 	const tsCodes = favoriteStocks.join(",");
 
 	// 从 Tushare API 获取公告数据
-	const announcements = await TushareClient.getAnnouncements(
-		tsCodes,
-		undefined,
-		startDate,
-		endDate,
-		2000,
-		0
-	);
+	const announcements = await TushareClient.getAnnouncements(tsCodes, undefined, startDate, endDate, 2000, 0);
 
 	// 按股票聚合公告数据
-	const stockMap = new Map<string, {
-		ts_code: string;
-		stock_name: string;
-		industry: string;
-		market: string;
-		announcements: any[];
-	}>();
+	const stockMap = new Map<
+		string,
+		{
+			ts_code: string;
+			stock_name: string;
+			industry: string;
+			market: string;
+			announcements: any[];
+		}
+	>();
 
 	// 初始化股票映射
 	favoriteStockInfos.forEach((stock: any) => {
@@ -575,7 +677,7 @@ async function getFavoriteStocksAnnouncementsGroupedFromAPI(
 			if (stock.announcements.length === 0) {
 				return null;
 			}
-			
+
 			// 按日期和时间排序
 			stock.announcements.sort((a, b) => {
 				const dateCompare = (b.ann_date || "").localeCompare(a.ann_date || "");
@@ -600,14 +702,14 @@ async function getFavoriteStocksAnnouncementsGroupedFromAPI(
 			if (dateCompare !== 0) return dateCompare;
 			return (a?.stock_name || "").localeCompare(b?.stock_name || "");
 		}) as Array<{
-			ts_code: string;
-			stock_name: string;
-			industry: string;
-			market: string;
-			announcement_count: number;
-			latest_ann_date: string;
-			latest_ann_title?: string;
-		}>;
+		ts_code: string;
+		stock_name: string;
+		industry: string;
+		market: string;
+		announcement_count: number;
+		latest_ann_date: string;
+		latest_ann_title?: string;
+	}>;
 
 	const total = groupedData.length;
 	const offset = (page - 1) * pageSize;
@@ -720,9 +822,7 @@ function setupIPC() {
 
 				const result = await getAnnouncementsGroupedFromAPI(page, pageSize, startDate, endDate, market);
 
-				console.log(
-					`[IPC] get-announcements-grouped: page=${page}, items=${result.items.length}, total=${result.total}`
-				);
+				console.log(`[IPC] get-announcements-grouped: page=${page}, items=${result.items.length}, total=${result.total}`);
 
 				return {
 					items: result.items,
@@ -738,18 +838,74 @@ function setupIPC() {
 	);
 
 	// 获取特定股票的公告列表（从 Tushare API 实时获取）
-	ipcMain.handle("get-stock-announcements", async (_event, tsCode: string, limit: number = 100) => {
+	ipcMain.handle("get-stock-announcements", async (_event, tsCode: string, limit: number = 100, startDate?: string, endDate?: string) => {
 		try {
-			console.log(`[IPC] get-stock-announcements: tsCode=${tsCode}, limit=${limit}`);
-			
-			const announcements = await TushareClient.getAnnouncements(tsCode, undefined, undefined, undefined, limit, 0);
-			
+			console.log(`[IPC] get-stock-announcements: tsCode=${tsCode}, limit=${limit}, dateRange=${startDate}-${endDate}`);
+
+			const announcements = await TushareClient.getAnnouncements(tsCode, undefined, startDate, endDate, limit, 0);
+
+			// #region agent log
+			fetch("http://127.0.0.1:7242/ingest/67286581-beef-43bb-8e6c-59afa2dd6840", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					location: "main.ts:753",
+					message: "Before sort - first 3 announcements",
+					data: {
+						count: announcements.length,
+						first3: announcements
+							.slice(0, 3)
+							.map((a: any) => ({ ann_date: a.ann_date, pub_time: a.pub_time, title: a.title?.substring(0, 30) })),
+					},
+					timestamp: Date.now(),
+					sessionId: "debug-session",
+					hypothesisId: "A",
+				}),
+			}).catch(() => {});
+			// #endregion
+
 			// 按日期和时间排序
 			announcements.sort((a: any, b: any) => {
 				const dateCompare = (b.ann_date || "").localeCompare(a.ann_date || "");
+				// #region agent log
+				if (announcements.indexOf(a) < 3 && announcements.indexOf(b) < 3) {
+					fetch("http://127.0.0.1:7242/ingest/67286581-beef-43bb-8e6c-59afa2dd6840", {
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify({
+							location: "main.ts:759",
+							message: "Sort comparison",
+							data: { a_date: a.ann_date, b_date: b.ann_date, dateCompare, a_time: a.pub_time, b_time: b.pub_time },
+							timestamp: Date.now(),
+							sessionId: "debug-session",
+							hypothesisId: "B",
+						}),
+					}).catch(() => {});
+				}
+				// #endregion
 				if (dateCompare !== 0) return dateCompare;
 				return (b.pub_time || "").localeCompare(a.pub_time || "");
 			});
+
+			// #region agent log
+			fetch("http://127.0.0.1:7242/ingest/67286581-beef-43bb-8e6c-59afa2dd6840", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					location: "main.ts:763",
+					message: "After sort - first 3 announcements",
+					data: {
+						count: announcements.length,
+						first3: announcements
+							.slice(0, 3)
+							.map((a: any) => ({ ann_date: a.ann_date, pub_time: a.pub_time, title: a.title?.substring(0, 30) })),
+					},
+					timestamp: Date.now(),
+					sessionId: "debug-session",
+					hypothesisId: "A",
+				}),
+			}).catch(() => {});
+			// #endregion
 
 			// 转换为前端期望的格式（移除 id 字段）
 			return announcements.map((ann: any) => ({
@@ -1259,9 +1415,7 @@ function setupIPC() {
 		"get-favorite-stocks-announcements-grouped",
 		async (_event, page: number, pageSize: number, startDate?: string, endDate?: string) => {
 			try {
-				console.log(
-					`[IPC] get-favorite-stocks-announcements-grouped: page=${page}, pageSize=${pageSize}, dateRange=${startDate}-${endDate}`
-				);
+				console.log(`[IPC] get-favorite-stocks-announcements-grouped: page=${page}, pageSize=${pageSize}, dateRange=${startDate}-${endDate}`);
 
 				const result = await getFavoriteStocksAnnouncementsGroupedFromAPI(page, pageSize, startDate, endDate);
 
@@ -1638,6 +1792,196 @@ function setupIPC() {
 				favoriteStocks: { count: 0 },
 				top10Holders: { stockCount: 0, recordCount: 0 },
 				syncFlags: [],
+			};
+		}
+	});
+
+	// ============= 公告缓存相关 IPC =============
+
+	/**
+	 * 获取公告（智能缓存）
+	 * 如果本地已缓存，则从本地读取；否则从 Tushare API 获取并缓存
+	 */
+	ipcMain.handle(
+		"get-announcements-with-cache",
+		async (_event, tsCode: string | null, startDate: string, endDate: string, onProgressCallback?: boolean) => {
+			try {
+				console.log(`[IPC] get-announcements-with-cache: tsCode=${tsCode || "all"}, startDate=${startDate}, endDate=${endDate}`);
+
+				// 检查时间范围是否已完全同步
+				if (isAnnouncementRangeSynced(tsCode, startDate, endDate)) {
+					console.log(`[IPC] 时间范围 ${startDate}-${endDate} 已缓存，从本地读取`);
+					// 从本地数据库读取
+					const announcements = getAnnouncementsByDateRange(startDate, endDate, tsCode || undefined);
+					return {
+						success: true,
+						data: announcements,
+						source: "cache",
+						count: announcements.length,
+					};
+				}
+
+				// 获取需要同步的时间段
+				const unsyncedRanges = getUnsyncedAnnouncementRanges(tsCode, startDate, endDate);
+				console.log(
+					`[IPC] 需要同步 ${unsyncedRanges.length} 个时间段:`,
+					unsyncedRanges.map((r) => `${r.start_date}-${r.end_date}`)
+				);
+
+				// 对每个未同步的时间段，迭代获取数据
+				for (const range of unsyncedRanges) {
+					console.log(`[IPC] 开始同步时间段: ${range.start_date} - ${range.end_date}`);
+
+					// 使用迭代方法获取该时间段的所有公告
+					const announcements = await TushareClient.getAnnouncementsIterative(
+						tsCode || undefined,
+						range.start_date,
+						range.end_date,
+						onProgressCallback
+							? (currentCount: number, totalFetched: number) => {
+									// 发送进度给渲染进程
+									mainWindow?.webContents.send("announcement-sync-progress", {
+										tsCode: tsCode || "all",
+										startDate: range.start_date,
+										endDate: range.end_date,
+										currentBatch: currentCount,
+										totalFetched: totalFetched,
+									});
+							  }
+							: undefined
+					);
+
+					if (announcements.length > 0) {
+						// 保存到本地数据库
+						upsertAnnouncements(announcements);
+						console.log(`[IPC] 已缓存 ${announcements.length} 条公告到本地数据库`);
+					}
+
+					// 记录该时间段已同步
+					recordAnnouncementSyncRange(tsCode, range.start_date, range.end_date);
+				}
+
+				// 从本地数据库读取完整数据
+				const announcements = getAnnouncementsByDateRange(startDate, endDate, tsCode || undefined);
+				console.log(`[IPC] 返回 ${announcements.length} 条公告（来源：API + 缓存）`);
+
+				return {
+					success: true,
+					data: announcements,
+					source: "api",
+					count: announcements.length,
+				};
+			} catch (error: any) {
+				console.error("Failed to get announcements with cache:", error);
+				return {
+					success: false,
+					error: error.message || "获取公告失败",
+					data: [],
+					source: "error",
+					count: 0,
+				};
+			}
+		}
+	);
+
+	/**
+	 * 获取公告（仅从缓存）
+	 */
+	ipcMain.handle("get-announcements-from-cache", async (_event, tsCode: string | null, startDate: string, endDate: string) => {
+		try {
+			console.log(`[IPC] get-announcements-from-cache: tsCode=${tsCode || "all"}, startDate=${startDate}, endDate=${endDate}`);
+
+			const announcements = getAnnouncementsByDateRange(startDate, endDate, tsCode || undefined);
+			const isCached = isAnnouncementRangeSynced(tsCode, startDate, endDate);
+
+			return {
+				success: true,
+				data: announcements,
+				isCached,
+				count: announcements.length,
+			};
+		} catch (error: any) {
+			console.error("Failed to get announcements from cache:", error);
+			return {
+				success: false,
+				error: error.message || "读取缓存失败",
+				data: [],
+				isCached: false,
+				count: 0,
+			};
+		}
+	});
+
+	/**
+	 * 检查公告时间范围是否已缓存
+	 */
+	ipcMain.handle("check-announcement-range-synced", async (_event, tsCode: string | null, startDate: string, endDate: string) => {
+		try {
+			console.log(`[IPC] check-announcement-range-synced: tsCode=${tsCode || "all"}, startDate=${startDate}, endDate=${endDate}`);
+
+			const isSynced = isAnnouncementRangeSynced(tsCode, startDate, endDate);
+			const unsyncedRanges = isSynced ? [] : getUnsyncedAnnouncementRanges(tsCode, startDate, endDate);
+
+			return {
+				success: true,
+				isSynced,
+				unsyncedRanges,
+			};
+		} catch (error: any) {
+			console.error("Failed to check announcement range:", error);
+			return {
+				success: false,
+				error: error.message || "检查失败",
+				isSynced: false,
+				unsyncedRanges: [],
+			};
+		}
+	});
+
+	/**
+	 * 搜索公告（从缓存）
+	 */
+	ipcMain.handle("search-announcements-from-cache", async (_event, keyword: string, limit: number = 100) => {
+		try {
+			console.log(`[IPC] search-announcements-from-cache: keyword=${keyword}, limit=${limit}`);
+
+			const announcements = searchAnnouncements(keyword, limit);
+
+			return {
+				success: true,
+				data: announcements,
+				count: announcements.length,
+			};
+		} catch (error: any) {
+			console.error("Failed to search announcements:", error);
+			return {
+				success: false,
+				error: error.message || "搜索失败",
+				data: [],
+				count: 0,
+			};
+		}
+	});
+
+	/**
+	 * 获取缓存的公告统计信息
+	 */
+	ipcMain.handle("get-announcements-cache-stats", async () => {
+		try {
+			console.log("[IPC] get-announcements-cache-stats");
+
+			const totalCount = countAnnouncements();
+
+			return {
+				success: true,
+				totalCount,
+			};
+		} catch (error: any) {
+			console.error("Failed to get announcements cache stats:", error);
+			return {
+				success: false,
+				error: error.message || "获取统计失败",
+				totalCount: 0,
 			};
 		}
 	});

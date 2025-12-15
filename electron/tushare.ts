@@ -59,13 +59,21 @@ export class TushareClient {
 			}
 
 			const { fields: columns, items } = res.data;
-			return items.map((item) => {
+			const result = items.map((item) => {
 				const obj: any = {};
 				columns.forEach((col, index) => {
 					obj[col] = item[index];
 				});
 				return obj as T;
 			});
+
+			// #region agent log
+			if (apiName === 'anns_d' && result.length > 0) {
+				fetch('http://127.0.0.1:7242/ingest/67286581-beef-43bb-8e6c-59afa2dd6840',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'tushare.ts:72',message:'Tushare API response for anns_d',data:{apiName,params,count:result.length,first3:result.slice(0,3).map((r:any)=>({ann_date:r.ann_date,pub_time:r.pub_time,title:r.title?.substring(0,30)})),last3:result.slice(-3).map((r:any)=>({ann_date:r.ann_date,pub_time:r.pub_time,title:r.title?.substring(0,30)}))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
+			}
+			// #endregion
+
+			return result;
 		} catch (error) {
 			console.error("Tushare Request Failed:", error);
 			throw error;
@@ -192,7 +200,7 @@ export class TushareClient {
 	}
 
 	/**
-	 * 获取公告原文 URL
+	 * 获取公告原文 URL（单次请求）
 	 * 文档: https://tushare.pro/document/2?doc_id=176
 	 * 接口：anns_d
 	 * 描述：获取全量公告数据，提供 PDF 下载 URL
@@ -220,6 +228,240 @@ export class TushareClient {
 			start_date: startDate,
 			end_date: endDate,
 		});
+	}
+
+	/**
+	 * 获取公告原文 URL（迭代获取完整数据）
+	 * 处理单次 2000 条的限制，自动迭代直到获取完所有数据
+	 * 
+	 * @param tsCode 股票代码（可选）
+	 * @param startDate 开始日期 YYYYMMDD
+	 * @param endDate 结束日期 YYYYMMDD
+	 * @param onProgress 进度回调 (currentCount, totalFetched)
+	 * @returns 所有公告数据
+	 */
+	static async getAnnouncementsIterative(
+		tsCode: string | undefined,
+		startDate: string,
+		endDate: string,
+		onProgress?: (currentCount: number, totalFetched: number) => void
+	): Promise<any[]> {
+		const allAnnouncements: any[] = [];
+		let currentEndDate = endDate;
+		const BATCH_SIZE = 2000;
+		let hasMore = true;
+
+		while (hasMore) {
+			console.log(`[Tushare] 获取公告: ts_code=${tsCode || "全市场"}, start=${startDate}, end=${currentEndDate}`);
+
+			// 获取一批数据
+			const batch = await this.getAnnouncementFiles(tsCode, undefined, startDate, currentEndDate);
+
+			if (!batch || batch.length === 0) {
+				console.log(`[Tushare] 没有更多公告数据`);
+				hasMore = false;
+				break;
+			}
+
+			allAnnouncements.push(...batch);
+
+			// 触发进度回调
+			if (onProgress) {
+				onProgress(batch.length, allAnnouncements.length);
+			}
+
+			console.log(`[Tushare] 获取到 ${batch.length} 条公告，累计 ${allAnnouncements.length} 条`);
+
+			// 如果返回的数据少于 2000 条，说明已经获取完毕
+			if (batch.length < BATCH_SIZE) {
+				hasMore = false;
+				break;
+			}
+
+			// 如果返回了 2000 条，需要继续迭代
+			// 获取最早的公告日期，作为下一次请求的结束日期
+			const lastAnnDate = batch[batch.length - 1].ann_date;
+			
+			// 如果最后一条公告的日期已经到达或超过起始日期，停止迭代
+			if (lastAnnDate <= startDate) {
+				console.log(`[Tushare] 已到达起始日期，停止迭代`);
+				hasMore = false;
+				break;
+			}
+
+			// 计算前一天作为新的结束日期
+			currentEndDate = this.getPreviousDay(lastAnnDate);
+
+			// 如果新的结束日期早于起始日期，停止迭代
+			if (currentEndDate < startDate) {
+				hasMore = false;
+				break;
+			}
+
+			// 添加延迟，避免请求过快
+			await this.sleep(300); // 300ms 延迟
+		}
+
+		console.log(`[Tushare] 公告获取完成，共 ${allAnnouncements.length} 条`);
+		return allAnnouncements;
+	}
+
+	/**
+	 * 获取日期的前一天（YYYYMMDD格式）
+	 */
+	private static getPreviousDay(dateStr: string): string {
+		const year = parseInt(dateStr.substring(0, 4));
+		const month = parseInt(dateStr.substring(4, 6)) - 1; // JS月份从0开始
+		const day = parseInt(dateStr.substring(6, 8));
+		const date = new Date(year, month, day);
+		date.setDate(date.getDate() - 1);
+		return this.formatDateToYYYYMMDD(date);
+	}
+
+	/**
+	 * 格式化日期为 YYYYMMDD
+	 */
+	private static formatDateToYYYYMMDD(date: Date): string {
+		const year = date.getFullYear();
+		const month = String(date.getMonth() + 1).padStart(2, "0");
+		const day = String(date.getDate()).padStart(2, "0");
+		return `${year}${month}${day}`;
+	}
+
+	/**
+	 * 延迟函数
+	 */
+	private static sleep(ms: number): Promise<void> {
+		return new Promise((resolve) => setTimeout(resolve, ms));
+	}
+
+	/**
+	 * 完整获取指定日期范围的公告（确保覆盖整个范围）
+	 * 采用双向迭代策略：既向前获取更新数据，也向后获取历史数据
+	 */
+	static async getAnnouncementsComplete(
+		tsCode: string | undefined,
+		startDate: string,
+		endDate: string,
+		onProgress?: (message: string, current: number, total: number) => void
+	): Promise<any[]> {
+		const allAnnouncements: any[] = [];
+		const BATCH_SIZE = 2000;
+
+		console.log(`[Tushare] 开始获取完整公告数据: ${startDate} - ${endDate}`);
+
+		// 第一次请求，获取初始数据
+		let batch = await this.getAnnouncements(tsCode, undefined, startDate, endDate, BATCH_SIZE, 0);
+		console.log(`[Tushare] 首次获取 ${batch.length} 条公告`);
+		
+		if (!batch || batch.length === 0) {
+			console.log(`[Tushare] 该时间范围内没有公告数据`);
+			return [];
+		}
+
+		allAnnouncements.push(...batch);
+
+		if (onProgress) {
+			onProgress(`已获取 ${allAnnouncements.length} 条`, allAnnouncements.length, allAnnouncements.length);
+		}
+
+		// 如果返回的数据少于批次大小，说明已经获取完整个范围
+		if (batch.length < BATCH_SIZE) {
+			console.log(`[Tushare] 数据量小于批次大小，获取完成`);
+			return allAnnouncements;
+		}
+
+		// 检查返回数据的日期范围
+		const dates = batch.map((a: any) => a.ann_date).sort();
+		const oldestDate = dates[0];
+		const newestDate = dates[dates.length - 1];
+
+		console.log(`[Tushare] 首批数据日期范围: ${oldestDate} - ${newestDate}`);
+
+		// 向后迭代：如果最旧的日期 > startDate，继续获取更早的数据
+		if (oldestDate > startDate) {
+			console.log(`[Tushare] 向后获取更早的数据...`);
+			let currentEndDate = this.getPreviousDay(oldestDate);
+			
+			while (currentEndDate >= startDate) {
+				console.log(`[Tushare] 获取历史数据: ${startDate} - ${currentEndDate}`);
+				const historyBatch = await this.getAnnouncements(tsCode, undefined, startDate, currentEndDate, BATCH_SIZE, 0);
+				
+				if (!historyBatch || historyBatch.length === 0) {
+					console.log(`[Tushare] 没有更早的数据`);
+					break;
+				}
+
+				allAnnouncements.push(...historyBatch);
+				console.log(`[Tushare] 获取到 ${historyBatch.length} 条历史公告，累计 ${allAnnouncements.length} 条`);
+
+				if (onProgress) {
+					onProgress(`已获取 ${allAnnouncements.length} 条`, allAnnouncements.length, allAnnouncements.length);
+				}
+
+				if (historyBatch.length < BATCH_SIZE) {
+					break;
+				}
+
+				// 更新结束日期为最早的公告日期的前一天
+				const oldestInBatch = historyBatch.map((a: any) => a.ann_date).sort()[0];
+				if (oldestInBatch <= startDate) {
+					break;
+				}
+				currentEndDate = this.getPreviousDay(oldestInBatch);
+				await this.sleep(300);
+			}
+		}
+
+		// 向前迭代：如果最新的日期 < endDate，继续获取更新的数据
+		if (newestDate < endDate) {
+			console.log(`[Tushare] 向前获取更新的数据...`);
+			let currentStartDate = this.getNextDay(newestDate);
+			
+			while (currentStartDate <= endDate) {
+				console.log(`[Tushare] 获取最新数据: ${currentStartDate} - ${endDate}`);
+				const futureBatch = await this.getAnnouncements(tsCode, undefined, currentStartDate, endDate, BATCH_SIZE, 0);
+				
+				if (!futureBatch || futureBatch.length === 0) {
+					console.log(`[Tushare] 没有更新的数据`);
+					break;
+				}
+
+				allAnnouncements.push(...futureBatch);
+				console.log(`[Tushare] 获取到 ${futureBatch.length} 条最新公告，累计 ${allAnnouncements.length} 条`);
+
+				if (onProgress) {
+					onProgress(`已获取 ${allAnnouncements.length} 条`, allAnnouncements.length, allAnnouncements.length);
+				}
+
+				if (futureBatch.length < BATCH_SIZE) {
+					break;
+				}
+
+				// 更新起始日期为最新的公告日期的后一天
+				const newestInBatch = futureBatch.map((a: any) => a.ann_date).sort()[futureBatch.length - 1];
+				if (newestInBatch >= endDate) {
+					break;
+				}
+				currentStartDate = this.getNextDay(newestInBatch);
+				await this.sleep(300);
+			}
+		}
+
+		console.log(`[Tushare] 公告获取完成，共 ${allAnnouncements.length} 条`);
+		return allAnnouncements;
+	}
+
+	/**
+	 * 获取日期的后一天（YYYYMMDD格式）
+	 */
+	private static getNextDay(dateStr: string): string {
+		const year = parseInt(dateStr.substring(0, 4));
+		const month = parseInt(dateStr.substring(4, 6)) - 1;
+		const day = parseInt(dateStr.substring(6, 8));
+		const date = new Date(year, month, day);
+		date.setDate(date.getDate() + 1);
+		return this.formatDateToYYYYMMDD(date);
 	}
 
 	/**

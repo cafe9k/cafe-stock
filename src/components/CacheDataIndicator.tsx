@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Card, Typography, Space, Tag, Tooltip, Button, App } from "antd";
-import { StockOutlined, StarOutlined, TeamOutlined, SyncOutlined } from "@ant-design/icons";
+import { StockOutlined, StarOutlined, TeamOutlined, SyncOutlined, FileTextOutlined } from "@ant-design/icons";
 
 const { Text } = Typography;
 
@@ -16,6 +16,9 @@ interface CacheDataStats {
 		stockCount: number;
 		recordCount: number;
 	};
+	announcements?: {
+		totalCount: number;
+	};
 }
 
 export function CacheDataIndicator() {
@@ -28,6 +31,19 @@ export function CacheDataIndicator() {
 		try {
 			setLoading(true);
 			const data = await window.electronAPI.getCacheDataStats();
+			
+			// 获取公告缓存统计
+			try {
+				const announcementStats = await window.electronAPI.getAnnouncementsCacheStats();
+				if (announcementStats.success) {
+					data.announcements = {
+						totalCount: announcementStats.totalCount,
+					};
+				}
+			} catch (error) {
+				console.error("Failed to load announcement cache stats:", error);
+			}
+			
 			setStats(data);
 		} catch (error) {
 			console.error("Failed to load cache data stats:", error);
@@ -156,6 +172,17 @@ export function CacheDataIndicator() {
 							</Text>
 						</Space>
 					</Tooltip>
+
+					{stats.announcements && stats.announcements.totalCount > 0 && (
+						<Tooltip title={`缓存的公告：${stats.announcements.totalCount.toLocaleString()} 条`}>
+							<Space size="small">
+								<FileTextOutlined style={{ color: "#1890ff" }} />
+								<Text style={{ fontSize: 12 }}>
+									公告缓存 <Tag color="blue">{stats.announcements.totalCount.toLocaleString()}</Tag>
+								</Text>
+							</Space>
+						</Tooltip>
+					)}
 				</Space>
 			</div>
 		</Card>

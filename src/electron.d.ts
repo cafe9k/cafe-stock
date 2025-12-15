@@ -41,7 +41,9 @@ export interface ElectronAPI {
 	}>;
 	getStockAnnouncements: (
 		tsCode: string,
-		limit?: number
+		limit?: number,
+		startDate?: string,
+		endDate?: string
 	) => Promise<
 		Array<{
 			ts_code: string;
@@ -367,6 +369,101 @@ export interface ElectronAPI {
 			updatedAt: string;
 		}>;
 	}>;
+
+	// ============= 公告缓存相关 =============
+
+	// 获取公告（智能缓存）
+	getAnnouncementsWithCache: (
+		tsCode: string | null,
+		startDate: string,
+		endDate: string,
+		onProgress?: boolean
+	) => Promise<{
+		success: boolean;
+		data: Array<{
+			ann_date: string;
+			ts_code: string;
+			name: string;
+			title: string;
+			url: string;
+			rec_time: string;
+		}>;
+		source: "cache" | "api" | "error";
+		count: number;
+		error?: string;
+	}>;
+
+	// 获取公告（仅从缓存）
+	getAnnouncementsFromCache: (
+		tsCode: string | null,
+		startDate: string,
+		endDate: string
+	) => Promise<{
+		success: boolean;
+		data: Array<{
+			ann_date: string;
+			ts_code: string;
+			name: string;
+			title: string;
+			url: string;
+			rec_time: string;
+		}>;
+		isCached: boolean;
+		count: number;
+		error?: string;
+	}>;
+
+	// 检查公告时间范围是否已缓存
+	checkAnnouncementRangeSynced: (
+		tsCode: string | null,
+		startDate: string,
+		endDate: string
+	) => Promise<{
+		success: boolean;
+		isSynced: boolean;
+		unsyncedRanges: Array<{
+			start_date: string;
+			end_date: string;
+		}>;
+		error?: string;
+	}>;
+
+	// 搜索公告（从缓存）
+	searchAnnouncementsFromCache: (
+		keyword: string,
+		limit?: number
+	) => Promise<{
+		success: boolean;
+		data: Array<{
+			ann_date: string;
+			ts_code: string;
+			name: string;
+			title: string;
+			url: string;
+			rec_time: string;
+			stock_name?: string;
+		}>;
+		count: number;
+		error?: string;
+	}>;
+
+	// 获取缓存的公告统计信息
+	getAnnouncementsCacheStats: () => Promise<{
+		success: boolean;
+		totalCount: number;
+		error?: string;
+	}>;
+
+	// 监听公告同步进度
+	onAnnouncementSyncProgress: (
+		callback: (progress: {
+			tsCode: string;
+			startDate: string;
+			endDate: string;
+			currentBatch: number;
+			totalFetched: number;
+		}) => void
+	) => () => void;
 }
 
 declare global {
