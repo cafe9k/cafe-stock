@@ -15103,21 +15103,7 @@ async function getAnnouncementsGroupedFromAPI(page, pageSize, startDate, endDate
     filteredStocks = allStocks.filter((s) => s.market === market);
   }
   let announcements = [];
-  const apiStartTime = Date.now();
   const isSynced = startDate && endDate ? isAnnouncementRangeSynced(null, startDate, endDate) : false;
-  fetch("http://127.0.0.1:7242/ingest/67286581-beef-43bb-8e6c-59afa2dd6840", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      location: "main.ts:346",
-      message: "缓存检查结果",
-      data: { isSynced, startDate, endDate },
-      timestamp: Date.now(),
-      sessionId: "debug-session",
-      hypothesisId: "A"
-    })
-  }).catch(() => {
-  });
   if (isSynced) {
     console.log(`[DB Cache Hit] 从数据库读取公告: ${startDate} - ${endDate}`);
     announcements = db.prepare(
@@ -15153,23 +15139,7 @@ async function getAnnouncementsGroupedFromAPI(page, pageSize, startDate, endDate
       }
     }
   }
-  const apiDuration = Date.now() - apiStartTime;
-  fetch("http://127.0.0.1:7242/ingest/67286581-beef-43bb-8e6c-59afa2dd6840", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      location: "main.ts:322",
-      message: "API请求完成",
-      data: { announcementsCount: announcements.length, apiDurationMs: apiDuration },
-      timestamp: Date.now(),
-      sessionId: "debug-session",
-      hypothesisId: "A"
-    })
-  }).catch(() => {
-  });
-  const aggregateStartTime = Date.now();
   const stockMap = /* @__PURE__ */ new Map();
-  const mapInitStartTime = Date.now();
   filteredStocks.forEach((stock) => {
     stockMap.set(stock.ts_code, {
       ts_code: stock.ts_code,
@@ -15179,43 +15149,12 @@ async function getAnnouncementsGroupedFromAPI(page, pageSize, startDate, endDate
       announcements: []
     });
   });
-  const mapInitDuration = Date.now() - mapInitStartTime;
-  fetch("http://127.0.0.1:7242/ingest/67286581-beef-43bb-8e6c-59afa2dd6840", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      location: "main.ts:366",
-      message: "stockMap初始化完成",
-      data: { mapSize: stockMap.size, mapInitDurationMs: mapInitDuration },
-      timestamp: Date.now(),
-      sessionId: "debug-session",
-      hypothesisId: "B"
-    })
-  }).catch(() => {
-  });
-  const assignStartTime = Date.now();
   announcements.forEach((ann) => {
     const stock = stockMap.get(ann.ts_code);
     if (stock) {
       stock.announcements.push(ann);
     }
   });
-  const assignDuration = Date.now() - assignStartTime;
-  const aggregateDuration = Date.now() - aggregateStartTime;
-  fetch("http://127.0.0.1:7242/ingest/67286581-beef-43bb-8e6c-59afa2dd6840", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      location: "main.ts:374",
-      message: "公告分配完成",
-      data: { assignDurationMs: assignDuration, totalAggregateDurationMs: aggregateDuration },
-      timestamp: Date.now(),
-      sessionId: "debug-session",
-      hypothesisId: "C"
-    })
-  }).catch(() => {
-  });
-  const sortStartTime = Date.now();
   const groupedData = Array.from(stockMap.values()).map((stock) => {
     if (stock.announcements.length === 0) {
       return null;
@@ -15240,37 +15179,9 @@ async function getAnnouncementsGroupedFromAPI(page, pageSize, startDate, endDate
     if (dateCompare !== 0) return dateCompare;
     return ((a == null ? void 0 : a.stock_name) || "").localeCompare((b == null ? void 0 : b.stock_name) || "");
   });
-  const sortDuration = Date.now() - sortStartTime;
-  fetch("http://127.0.0.1:7242/ingest/67286581-beef-43bb-8e6c-59afa2dd6840", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      location: "main.ts:411",
-      message: "排序完成",
-      data: { groupedDataLength: groupedData.length, sortDurationMs: sortDuration },
-      timestamp: Date.now(),
-      sessionId: "debug-session",
-      hypothesisId: "D"
-    })
-  }).catch(() => {
-  });
   const total = groupedData.length;
   const offset = (page - 1) * pageSize;
   const items = groupedData.slice(offset, offset + pageSize);
-  const totalDuration = Date.now() - funcStartTime;
-  fetch("http://127.0.0.1:7242/ingest/67286581-beef-43bb-8e6c-59afa2dd6840", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      location: "main.ts:417",
-      message: "getAnnouncementsGroupedFromAPI END",
-      data: { totalDurationMs: totalDuration, itemsCount: items.length, total },
-      timestamp: Date.now(),
-      sessionId: "debug-session",
-      hypothesisId: "A,B,C,D"
-    })
-  }).catch(() => {
-  });
   return { items, total };
 }
 async function searchAnnouncementsGroupedFromAPI(keyword, page, pageSize, startDate, endDate, market) {
