@@ -42,8 +42,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
 		return ipcRenderer.invoke("get-announcements-grouped", page, pageSize, startDate, endDate, market);
 	},
 
-	getStockAnnouncements: (tsCode: string, limit?: number) => {
-		return ipcRenderer.invoke("get-stock-announcements", tsCode, limit);
+	getStockAnnouncements: (tsCode: string, limit?: number, startDate?: string, endDate?: string) => {
+		return ipcRenderer.invoke("get-stock-announcements", tsCode, limit, startDate, endDate);
 	},
 
 	searchAnnouncementsGrouped: (keyword: string, page: number, pageSize: number, startDate?: string, endDate?: string, market?: string) => {

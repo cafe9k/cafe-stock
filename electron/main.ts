@@ -382,14 +382,14 @@ async function getAnnouncementsGroupedFromAPI(
 			if (dateCompare !== 0) return dateCompare;
 			return (a?.stock_name || "").localeCompare(b?.stock_name || "");
 		}) as Array<{
-			ts_code: string;
-			stock_name: string;
-			industry: string;
-			market: string;
-			announcement_count: number;
-			latest_ann_date: string;
-			latest_ann_title?: string;
-		}>;
+		ts_code: string;
+		stock_name: string;
+		industry: string;
+		market: string;
+		announcement_count: number;
+		latest_ann_date: string;
+		latest_ann_title?: string;
+	}>;
 
 	const total = groupedData.length;
 	const offset = (page - 1) * pageSize;
@@ -753,6 +753,30 @@ function setupIPC() {
 			console.log(`[IPC] get-stock-announcements: tsCode=${tsCode}, limit=${limit}, dateRange=${startDate}-${endDate}`);
 
 			const announcements = await TushareClient.getAnnouncements(tsCode, undefined, startDate, endDate, limit, 0);
+
+			// #region agent log
+			fetch("http://127.0.0.1:7242/ingest/67286581-beef-43bb-8e6c-59afa2dd6840", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					location: "main.ts:755",
+					message: "Backend received getStockAnnouncements request and API response",
+					data: {
+						tsCode,
+						limit,
+						startDate,
+						endDate,
+						responseCount: announcements.length,
+						first3: announcements.slice(0, 3).map((a: any) => ({ ann_date: a.ann_date, title: a.title?.substring(0, 30) })),
+						last3: announcements.slice(-3).map((a: any) => ({ ann_date: a.ann_date, title: a.title?.substring(0, 30) })),
+					},
+					timestamp: Date.now(),
+					sessionId: "debug-session",
+					runId: "expand-test",
+					hypothesisId: "M",
+				}),
+			}).catch(() => {});
+			// #endregion
 
 			// 按日期和时间排序
 			announcements.sort((a: any, b: any) => {
