@@ -130,9 +130,9 @@ export function AnnouncementList() {
 		// 筛选条件变化会触发 useEffect 自动更新
 	};
 
-	// 刷新当前页
+	// 刷新当前页（强制从服务端获取）
 	const handleRefresh = () => {
-		refresh();
+		refresh(true); // 传入 true 强制从服务端获取
 	};
 
 	// 处理 PDF 预览

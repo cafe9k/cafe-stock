@@ -32,7 +32,7 @@ export function useStockList<T extends StockGroup = StockGroup>(options: UseStoc
 
 	// 加载数据
 	const loadData = useCallback(
-		async (pageNum: number, currentFilter?: StockFilter) => {
+		async (pageNum: number, currentFilter?: StockFilter, forceRefresh?: boolean) => {
 			setLoading(true);
 			try {
 				const effectiveFilter = currentFilter || filter;
@@ -63,7 +63,8 @@ export function useStockList<T extends StockGroup = StockGroup>(options: UseStoc
 						pageSize,
 						effectiveFilter?.dateRange?.[0],
 						effectiveFilter?.dateRange?.[1],
-						effectiveFilter?.market
+						effectiveFilter?.market,
+						forceRefresh
 					)) as StockListQueryResult<T>;
 				}
 
@@ -81,9 +82,9 @@ export function useStockList<T extends StockGroup = StockGroup>(options: UseStoc
 		[pageSize, filter, enableFavoriteFilter, message]
 	);
 
-	// 刷新当前页
-	const refresh = useCallback(() => {
-		loadData(page, filter);
+	// 刷新当前页（支持强制刷新）
+	const refresh = useCallback((forceRefresh?: boolean) => {
+		loadData(page, filter, forceRefresh);
 	}, [loadData, page, filter]);
 
 	// 更新筛选条件并重新加载

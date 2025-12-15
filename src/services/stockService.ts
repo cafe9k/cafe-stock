@@ -25,12 +25,13 @@ export async function getAnnouncementsGrouped(
 	pageSize: number,
 	startDate?: string,
 	endDate?: string,
-	market?: string
+	market?: string,
+	forceRefresh?: boolean
 ): Promise<StockListQueryResult<StockGroup>> {
 	if (!window.electronAPI) {
 		throw new Error("Electron API not available");
 	}
-	const result = await window.electronAPI.getAnnouncementsGrouped(page, pageSize, startDate, endDate, market);
+	const result = await window.electronAPI.getAnnouncementsGrouped(page, pageSize, startDate, endDate, market, forceRefresh);
 	// 后端已经在分页前对所有数据进行了排序，这里不需要再次排序
 	const items = await markFavoriteStatus(result.items);
 	return {

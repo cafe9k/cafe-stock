@@ -38,8 +38,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
 	},
 
 	// 聚合公告相关
-	getAnnouncementsGrouped: (page: number, pageSize: number, startDate?: string, endDate?: string, market?: string) => {
-		return ipcRenderer.invoke("get-announcements-grouped", page, pageSize, startDate, endDate, market);
+	getAnnouncementsGrouped: (page: number, pageSize: number, startDate?: string, endDate?: string, market?: string, forceRefresh?: boolean) => {
+		return ipcRenderer.invoke("get-announcements-grouped", page, pageSize, startDate, endDate, market, forceRefresh);
 	},
 
 	getStockAnnouncements: (tsCode: string, limit?: number, startDate?: string, endDate?: string) => {

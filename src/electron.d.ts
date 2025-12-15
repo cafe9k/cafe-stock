@@ -25,7 +25,8 @@ export interface ElectronAPI {
 		pageSize: number,
 		startDate?: string,
 		endDate?: string,
-		market?: string
+		market?: string,
+		forceRefresh?: boolean
 	) => Promise<{
 		items: Array<{
 			ts_code: string;

@@ -15096,14 +15096,14 @@ async function syncStocksIfNeeded() {
     console.error("Failed to sync stocks:", error2);
   }
 }
-async function getAnnouncementsGroupedFromAPI(page, pageSize, startDate, endDate, market) {
+async function getAnnouncementsGroupedFromAPI(page, pageSize, startDate, endDate, market, forceRefresh) {
   const allStocks = getAllStocks();
   let filteredStocks = allStocks;
   if (market && market !== "all") {
     filteredStocks = allStocks.filter((s) => s.market === market);
   }
   let announcements = [];
-  const isSynced = startDate && endDate ? isAnnouncementRangeSynced(null, startDate, endDate) : false;
+  const isSynced = !forceRefresh && startDate && endDate ? isAnnouncementRangeSynced(null, startDate, endDate) : false;
   if (isSynced) {
     console.log(`[DB Cache Hit] 从数据库读取公告: ${startDate} - ${endDate}`);
     announcements = db.prepare(
@@ -15115,7 +15115,11 @@ async function getAnnouncementsGroupedFromAPI(page, pageSize, startDate, endDate
     ).all(startDate, endDate);
     console.log(`[DB Cache Hit] 从数据库读取到 ${announcements.length} 条公告`);
   } else {
-    console.log(`[DB Cache Miss] 从 API 获取公告: ${startDate || "无"} - ${endDate || "无"}`);
+    if (forceRefresh) {
+      console.log(`[Force Refresh] 强制从 API 获取公告: ${startDate || "无"} - ${endDate || "无"}`);
+    } else {
+      console.log(`[DB Cache Miss] 从 API 获取公告: ${startDate || "无"} - ${endDate || "无"}`);
+    }
     if (startDate && endDate) {
       console.log(`[getAnnouncementsGroupedFromAPI] 使用完整获取方式获取公告: ${startDate} - ${endDate}`);
       announcements = await TushareClient.getAnnouncementsComplete(
@@ -15367,12 +15371,12 @@ function setupIPC() {
   });
   ipcMain.handle(
     "get-announcements-grouped",
-    async (_event, page, pageSize, startDate, endDate, market) => {
+    async (_event, page, pageSize, startDate, endDate, market, forceRefresh) => {
       try {
         console.log(
-          `[IPC] get-announcements-grouped: page=${page}, pageSize=${pageSize}, dateRange=${startDate}-${endDate}, market=${market}`
+          `[IPC] get-announcements-grouped: page=${page}, pageSize=${pageSize}, dateRange=${startDate}-${endDate}, market=${market}, forceRefresh=${forceRefresh}`
         );
-        const result = await getAnnouncementsGroupedFromAPI(page, pageSize, startDate, endDate, market);
+        const result = await getAnnouncementsGroupedFromAPI(page, pageSize, startDate, endDate, market, forceRefresh);
         console.log(`[IPC] get-announcements-grouped: page=${page}, items=${result.items.length}, total=${result.total}`);
         return {
           items: result.items,
