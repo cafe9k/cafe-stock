@@ -5,6 +5,9 @@ import { app } from "electron";
 const dbPath = path.join(app.getPath("userData"), "cafe_stock.db");
 const db = new Database(dbPath);
 
+// 导出数据库路径，供外部访问
+export const getDbPath = () => dbPath;
+
 // 运行数据库迁移
 function runMigrations() {
 	// 检查 announcements 表是否有 file_path 列

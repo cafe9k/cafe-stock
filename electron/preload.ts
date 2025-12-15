@@ -206,4 +206,53 @@ contextBridge.exposeInMainWorld("electronAPI", {
 		ipcRenderer.on("update-error", subscription);
 		return () => ipcRenderer.removeListener("update-error", subscription);
 	},
+
+	// 获取数据库连接信息
+	getDbConnectionInfo: () => {
+		return ipcRenderer.invoke("get-db-connection-info");
+	},
+
+	// 启动 SQLite HTTP 服务器
+	startSqliteHttpServer: (port?: number) => {
+		return ipcRenderer.invoke("start-sqlite-http-server", port);
+	},
+
+	// 停止 SQLite HTTP 服务器
+	stopSqliteHttpServer: () => {
+		return ipcRenderer.invoke("stop-sqlite-http-server");
+	},
+
+	// 获取 SQLite HTTP 服务器状态
+	getSqliteHttpServerStatus: () => {
+		return ipcRenderer.invoke("get-sqlite-http-server-status");
+	},
+
+	// 设置 SQLite HTTP 服务器认证信息
+	setSqliteHttpAuth: (username: string, password: string) => {
+		return ipcRenderer.invoke("set-sqlite-http-auth", username, password);
+	},
+
+	// 清除 SQLite HTTP 服务器认证信息
+	clearSqliteHttpAuth: () => {
+		return ipcRenderer.invoke("clear-sqlite-http-auth");
+	},
+
+	// 监听 SQLite HTTP 服务器事件
+	onSqliteHttpServerStarted: (callback: (data: { port: number; hasAuth: boolean; username: string | null }) => void) => {
+		const subscription = (_event: any, data: { port: number; hasAuth: boolean; username: string | null }) => callback(data);
+		ipcRenderer.on("sqlite-http-server-started", subscription);
+		return () => ipcRenderer.removeListener("sqlite-http-server-started", subscription);
+	},
+
+	onSqliteHttpServerStopped: (callback: () => void) => {
+		const subscription = () => callback();
+		ipcRenderer.on("sqlite-http-server-stopped", subscription);
+		return () => ipcRenderer.removeListener("sqlite-http-server-stopped", subscription);
+	},
+
+	onSqliteHttpServerError: (callback: (error: { message: string }) => void) => {
+		const subscription = (_event: any, error: { message: string }) => callback(error);
+		ipcRenderer.on("sqlite-http-server-error", subscription);
+		return () => ipcRenderer.removeListener("sqlite-http-server-error", subscription);
+	},
 });

@@ -267,6 +267,63 @@ export interface ElectronAPI {
 			failCount: number;
 		}) => void
 	) => () => void;
+
+	// 获取数据库连接信息
+	getDbConnectionInfo: () => Promise<{
+		success: boolean;
+		dbPath?: string;
+		connectionString?: string;
+		httpServerUrl?: string | null;
+		isServerRunning?: boolean;
+		port?: number;
+		hasAuth?: boolean;
+		username?: string | null;
+		password?: string;
+		message?: string;
+	}>;
+
+	// 启动 SQLite HTTP 服务器
+	startSqliteHttpServer: (port?: number) => Promise<{
+		success: boolean;
+		port?: number;
+		url?: string;
+		message?: string;
+	}>;
+
+	// 停止 SQLite HTTP 服务器
+	stopSqliteHttpServer: () => Promise<{
+		success: boolean;
+		message?: string;
+	}>;
+
+	// 获取 SQLite HTTP 服务器状态
+	getSqliteHttpServerStatus: () => Promise<{
+		isRunning: boolean;
+		port: number;
+		url: string | null;
+		hasAuth: boolean;
+		username: string | null;
+	}>;
+
+	// 设置 SQLite HTTP 服务器认证信息
+	setSqliteHttpAuth: (
+		username: string,
+		password: string
+	) => Promise<{
+		success: boolean;
+		message?: string;
+	}>;
+
+	// 清除 SQLite HTTP 服务器认证信息
+	clearSqliteHttpAuth: () => Promise<{
+		success: boolean;
+		message?: string;
+	}>;
+
+	// 监听 SQLite HTTP 服务器事件
+	onSqliteHttpServerStarted: (callback: (data: { port: number; hasAuth: boolean; username: string | null }) => void) => () => void;
+	onSqliteHttpServerStopped: (callback: () => void) => () => void;
+	onSqliteHttpServerError: (callback: (error: { message: string }) => void) => () => void;
 }
 
 declare global {

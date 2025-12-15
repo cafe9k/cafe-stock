@@ -1,6 +1,8 @@
 import { app, BrowserWindow, Tray, Menu, globalShortcut, ipcMain, Notification, nativeImage, NativeImage, session, shell } from "electron";
 import path from "path";
 import { fileURLToPath } from "url";
+import { createServer } from "http";
+import { URL } from "url";
 import windowStateKeeper from "electron-window-state";
 import pkg from "electron-updater";
 const { autoUpdater } = pkg;
@@ -35,6 +37,7 @@ import {
 	deleteTop10HoldersByStock,
 	getTop10HoldersEndDates,
 	getTop10HoldersByStockAndEndDate,
+	getDbPath,
 } from "./db.js";
 import { TushareClient } from "./tushare.js";
 
@@ -58,6 +61,12 @@ let isSyncing = false;
 let isLoadingHistory = false;
 let isSyncingHolders = false;
 let isPausedHolders = false;
+
+// SQLite HTTP Server State
+let sqliteHttpServer: ReturnType<typeof createServer> | null = null;
+let sqliteHttpPort: number = 8080;
+let sqliteHttpUsername: string = "";
+let sqliteHttpPassword: string = "";
 
 // 配置自动更新
 autoUpdater.autoDownload = false; // 不自动下载，让用户选择
@@ -608,6 +617,291 @@ function setupIPC() {
 		}
 	});
 
+	// 获取数据库路径和连接信息
+	ipcMain.handle("get-db-connection-info", async () => {
+		try {
+			const dbPath = getDbPath();
+			const isServerRunning = sqliteHttpServer !== null;
+			const serverUrl = isServerRunning ? `http://localhost:${sqliteHttpPort}` : null;
+			const hasAuth = !!(sqliteHttpUsername && sqliteHttpPassword);
+			console.log(`[IPC] get-db-connection-info: ${dbPath}`);
+			return {
+				success: true,
+				dbPath,
+				connectionString: `sqlite://${dbPath}`,
+				httpServerUrl: serverUrl,
+				isServerRunning,
+				port: sqliteHttpPort,
+				hasAuth,
+				username: sqliteHttpUsername || null,
+				password: hasAuth ? sqliteHttpPassword : "",
+			};
+		} catch (error: any) {
+			console.error("Failed to get DB connection info:", error);
+			return {
+				success: false,
+				message: error.message || "获取数据库信息失败",
+			};
+		}
+	});
+
+	// 启动 SQLite HTTP 服务器
+	ipcMain.handle("start-sqlite-http-server", async (_event, port?: number) => {
+		try {
+			if (sqliteHttpServer) {
+				return {
+					success: false,
+					message: "HTTP 服务器已在运行",
+					port: sqliteHttpPort,
+				};
+			}
+
+			const serverPort = port || sqliteHttpPort;
+			const dbPath = getDbPath();
+			// 动态导入数据库实例
+			const dbModule = await import("./db.js");
+			const db = dbModule.default;
+
+			sqliteHttpServer = createServer(async (req, res) => {
+				// 设置 CORS 头
+				res.setHeader("Access-Control-Allow-Origin", "*");
+				res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+				res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+				res.setHeader("Content-Type", "application/json; charset=utf-8");
+
+				if (req.method === "OPTIONS") {
+					res.writeHead(200);
+					res.end();
+					return;
+				}
+
+				// 基本认证检查
+				if (sqliteHttpUsername && sqliteHttpPassword) {
+					const authHeader = req.headers.authorization;
+					if (!authHeader || !authHeader.startsWith("Basic ")) {
+						res.writeHead(401, { "WWW-Authenticate": 'Basic realm="SQLite Database"' });
+						res.end(JSON.stringify({ error: "Authentication required" }));
+						return;
+					}
+
+					const credentials = Buffer.from(authHeader.substring(6), "base64").toString("utf-8");
+					const [username, password] = credentials.split(":");
+
+					if (username !== sqliteHttpUsername || password !== sqliteHttpPassword) {
+						res.writeHead(401, { "WWW-Authenticate": 'Basic realm="SQLite Database"' });
+						res.end(JSON.stringify({ error: "Invalid credentials" }));
+						return;
+					}
+				}
+
+				try {
+					const url = new URL(req.url || "/", `http://${req.headers.host}`);
+					const pathname = url.pathname;
+
+					// 健康检查
+					if (pathname === "/health" || pathname === "/") {
+						res.writeHead(200);
+						res.end(
+							JSON.stringify({
+								status: "ok",
+								database: dbPath,
+								port: serverPort,
+								timestamp: new Date().toISOString(),
+							})
+						);
+						return;
+					}
+
+					// 执行 SQL 查询
+					if (pathname === "/query" && req.method === "POST") {
+						let body = "";
+						req.on("data", (chunk) => {
+							body += chunk.toString();
+						});
+
+						req.on("end", () => {
+							try {
+								const { sql, params = [] } = JSON.parse(body);
+								if (!sql || typeof sql !== "string") {
+									res.writeHead(400);
+									res.end(JSON.stringify({ error: "SQL query is required" }));
+									return;
+								}
+
+								// 只允许 SELECT 查询（安全考虑）
+								if (!sql.trim().toUpperCase().startsWith("SELECT")) {
+									res.writeHead(403);
+									res.end(JSON.stringify({ error: "Only SELECT queries are allowed" }));
+									return;
+								}
+
+								const stmt = db.prepare(sql);
+								const result = params.length > 0 ? stmt.all(...params) : stmt.all();
+
+								res.writeHead(200);
+								res.end(JSON.stringify({ success: true, data: result }));
+							} catch (error: any) {
+								res.writeHead(500);
+								res.end(JSON.stringify({ error: error.message || "Query execution failed" }));
+							}
+						});
+						return;
+					}
+
+					// 获取表列表
+					if (pathname === "/tables" && req.method === "GET") {
+						const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").all() as Array<{ name: string }>;
+						res.writeHead(200);
+						res.end(JSON.stringify({ success: true, data: tables.map((t) => t.name) }));
+						return;
+					}
+
+					// 获取表结构
+					if (pathname.startsWith("/table/") && req.method === "GET") {
+						const tableName = pathname.split("/")[2];
+						if (!tableName) {
+							res.writeHead(400);
+							res.end(JSON.stringify({ error: "Table name is required" }));
+							return;
+						}
+
+						const columns = db.prepare(`PRAGMA table_info(${tableName})`).all();
+						res.writeHead(200);
+						res.end(JSON.stringify({ success: true, data: columns }));
+						return;
+					}
+
+					// 404
+					res.writeHead(404);
+					res.end(JSON.stringify({ error: "Not found" }));
+				} catch (error: any) {
+					res.writeHead(500);
+					res.end(JSON.stringify({ error: error.message || "Internal server error" }));
+				}
+			});
+
+			sqliteHttpServer.listen(serverPort, () => {
+				const authInfo = sqliteHttpUsername && sqliteHttpPassword ? ` (认证: ${sqliteHttpUsername})` : " (无认证)";
+				console.log(`[SQLite HTTP Server] Started on http://localhost:${serverPort}${authInfo}`);
+				mainWindow?.webContents.send("sqlite-http-server-started", {
+					port: serverPort,
+					hasAuth: !!(sqliteHttpUsername && sqliteHttpPassword),
+					username: sqliteHttpUsername || null,
+				});
+			});
+
+			sqliteHttpServer.on("error", (error: any) => {
+				console.error("[SQLite HTTP Server] Error:", error);
+				if (error.code === "EADDRINUSE") {
+					mainWindow?.webContents.send("sqlite-http-server-error", {
+						message: `端口 ${serverPort} 已被占用`,
+					});
+				}
+			});
+
+			sqliteHttpPort = serverPort;
+			return {
+				success: true,
+				port: serverPort,
+				url: `http://localhost:${serverPort}`,
+			};
+		} catch (error: any) {
+			console.error("Failed to start SQLite HTTP server:", error);
+			return {
+				success: false,
+				message: error.message || "启动 HTTP 服务器失败",
+			};
+		}
+	});
+
+	// 停止 SQLite HTTP 服务器
+	ipcMain.handle("stop-sqlite-http-server", async () => {
+		try {
+			if (!sqliteHttpServer) {
+				return {
+					success: false,
+					message: "HTTP 服务器未运行",
+				};
+			}
+
+			return new Promise((resolve) => {
+				sqliteHttpServer?.close(() => {
+					console.log("[SQLite HTTP Server] Stopped");
+					sqliteHttpServer = null;
+					mainWindow?.webContents.send("sqlite-http-server-stopped");
+					resolve({
+						success: true,
+						message: "HTTP 服务器已停止",
+					});
+				});
+			});
+		} catch (error: any) {
+			console.error("Failed to stop SQLite HTTP server:", error);
+			return {
+				success: false,
+				message: error.message || "停止 HTTP 服务器失败",
+			};
+		}
+	});
+
+	// 获取 SQLite HTTP 服务器状态
+	ipcMain.handle("get-sqlite-http-server-status", async () => {
+		return {
+			isRunning: sqliteHttpServer !== null,
+			port: sqliteHttpPort,
+			url: sqliteHttpServer ? `http://localhost:${sqliteHttpPort}` : null,
+			hasAuth: !!(sqliteHttpUsername && sqliteHttpPassword),
+			username: sqliteHttpUsername || null,
+		};
+	});
+
+	// 设置 SQLite HTTP 服务器认证信息
+	ipcMain.handle("set-sqlite-http-auth", async (_event, username: string, password: string) => {
+		try {
+			if (!username || !password) {
+				return {
+					success: false,
+					message: "用户名和密码不能为空",
+				};
+			}
+
+			sqliteHttpUsername = username;
+			sqliteHttpPassword = password;
+			console.log(`[SQLite HTTP Server] Auth configured: username=${username}`);
+
+			return {
+				success: true,
+				message: "认证信息已设置",
+			};
+		} catch (error: any) {
+			console.error("Failed to set auth:", error);
+			return {
+				success: false,
+				message: error.message || "设置认证信息失败",
+			};
+		}
+	});
+
+	// 清除 SQLite HTTP 服务器认证信息
+	ipcMain.handle("clear-sqlite-http-auth", async () => {
+		try {
+			sqliteHttpUsername = "";
+			sqliteHttpPassword = "";
+			console.log("[SQLite HTTP Server] Auth cleared");
+
+			return {
+				success: true,
+				message: "认证信息已清除",
+			};
+		} catch (error: any) {
+			console.error("Failed to clear auth:", error);
+			return {
+				success: false,
+				message: error.message || "清除认证信息失败",
+			};
+		}
+	});
+
 	// 自动更新相关 IPC
 	ipcMain.handle("check-for-updates", async () => {
 		if (isDev) {
@@ -1119,6 +1413,12 @@ app.on("window-all-closed", () => {
 });
 
 app.on("before-quit", () => {
+	// 关闭 SQLite HTTP 服务器
+	if (sqliteHttpServer) {
+		sqliteHttpServer.close();
+		sqliteHttpServer = null;
+		console.log("[SQLite HTTP Server] Closed on app quit");
+	}
 	extendedApp.isQuitting = true;
 });
 

@@ -129,3 +129,4 @@ try {
 	console.log("  2. 使用环境变量指定路径: DB_PATH=/path/to/cafe_stock.db node test-db-performance.js");
 	process.exit(1);
 }
+

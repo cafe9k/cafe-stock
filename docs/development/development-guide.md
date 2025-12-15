@@ -416,3 +416,4 @@ npm run test:e2e
 - [IPC 接口文档](../api/ipc-api.md)
 - [系统架构](../architecture/system-architecture.md)
 - [项目结构规范](../../.cursor/rules/project-structure.mdc)
+

@@ -40,3 +40,4 @@ mv icon.icns build/
 当前项目使用占位图标，应用可以正常运行，但会显示默认的 Electron 图标。
 
 
+

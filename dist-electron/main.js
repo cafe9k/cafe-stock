@@ -1,6 +1,7 @@
 import require$$1$4, { app, BrowserWindow, globalShortcut, session, Notification, nativeImage, Tray, Menu, ipcMain, shell } from "electron";
 import require$$1$1 from "path";
-import require$$4$1, { fileURLToPath } from "url";
+import require$$4$1, { fileURLToPath, URL } from "url";
+import require$$4$2, { createServer } from "http";
 import require$$1 from "fs";
 import require$$0 from "constants";
 import require$$0$1 from "stream";
@@ -13,7 +14,6 @@ import require$$1$2 from "tty";
 import require$$2 from "os";
 import require$$1$3 from "string_decoder";
 import require$$14 from "zlib";
-import require$$4$2 from "http";
 import Database from "better-sqlite3";
 var commonjsGlobal = typeof globalThis !== "undefined" ? globalThis : typeof window !== "undefined" ? window : typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : {};
 function getDefaultExportFromCjs(x) {
@@ -13823,6 +13823,7 @@ NsisUpdater$1.NsisUpdater = NsisUpdater;
 const pkg = /* @__PURE__ */ getDefaultExportFromCjs(main$1);
 const dbPath = require$$1$1.join(app.getPath("userData"), "cafe_stock.db");
 const db = new Database(dbPath);
+const getDbPath = () => dbPath;
 function runMigrations() {
   const tableInfo = db.pragma("table_info(announcements)");
   const hasFilePath = tableInfo.some((col) => col.name === "file_path");
@@ -14229,6 +14230,28 @@ const searchStocks = (keyword, limit = 50) => {
   `
   ).all(likePattern, likePattern, likePattern, likePattern, keyword, keyword, keyword, limit);
 };
+const getLastSyncDate = (syncType) => {
+  const row = db.prepare("SELECT last_sync_date FROM sync_flags WHERE sync_type = ?").get(syncType);
+  return (row == null ? void 0 : row.last_sync_date) || null;
+};
+const updateSyncFlag = (syncType, syncDate) => {
+  const now = (/* @__PURE__ */ new Date()).toISOString();
+  db.prepare(
+    `
+    INSERT INTO sync_flags (sync_type, last_sync_date, updated_at)
+    VALUES (?, ?, ?)
+    ON CONFLICT(sync_type) DO UPDATE SET
+      last_sync_date = excluded.last_sync_date,
+      updated_at = excluded.updated_at
+  `
+  ).run(syncType, syncDate, now);
+};
+const isSyncedToday = (syncType) => {
+  const lastSync = getLastSyncDate(syncType);
+  if (!lastSync) return false;
+  const today = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10).replace(/-/g, "");
+  return lastSync === today;
+};
 const addFavoriteStock = (tsCode) => {
   const now = (/* @__PURE__ */ new Date()).toISOString();
   try {
@@ -14406,6 +14429,33 @@ const countStocksWithTop10Holders = () => {
   const row = db.prepare("SELECT COUNT(DISTINCT ts_code) as count FROM top10_holders").get();
   return row.count;
 };
+const searchHoldersByName = (holderName, limit = 100) => {
+  const likePattern = `%${holderName}%`;
+  return db.prepare(
+    `
+    SELECT h.*, s.name as stock_name, s.industry, s.market
+    FROM top10_holders h
+    INNER JOIN stocks s ON h.ts_code = s.ts_code
+    WHERE h.holder_name LIKE ?
+    ORDER BY h.end_date DESC, h.hold_ratio DESC
+    LIMIT ?
+  `
+  ).all(likePattern, limit);
+};
+const getStocksByHolder = (holderName) => {
+  return db.prepare(
+    `
+    SELECT DISTINCT h.ts_code, s.name as stock_name, s.industry, s.market,
+           MAX(h.end_date) as latest_end_date,
+           MAX(h.hold_ratio) as latest_hold_ratio
+    FROM top10_holders h
+    INNER JOIN stocks s ON h.ts_code = s.ts_code
+    WHERE h.holder_name = ?
+    GROUP BY h.ts_code, s.name, s.industry, s.market
+    ORDER BY latest_end_date DESC, latest_hold_ratio DESC
+  `
+  ).all(holderName);
+};
 const deleteTop10HoldersByStock = (tsCode) => {
   const result = db.prepare("DELETE FROM top10_holders WHERE ts_code = ?").run(tsCode);
   return result.changes;
@@ -14414,6 +14464,52 @@ db.pragma("journal_mode = WAL");
 db.pragma("synchronous = NORMAL");
 db.pragma("cache_size = -64000");
 db.pragma("temp_store = MEMORY");
+const analyzeQuery = (sql, params = []) => {
+  const plan = db.prepare(`EXPLAIN QUERY PLAN ${sql}`).all(...params);
+  console.log("Query Plan:", JSON.stringify(plan, null, 2));
+  return plan;
+};
+const db$1 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+  __proto__: null,
+  addFavoriteStock,
+  analyzeQuery,
+  countAnnouncements,
+  countFavoriteStocks,
+  countFavoriteStocksWithAnnouncements,
+  countSearchedStocksWithAnnouncements,
+  countStocks,
+  countStocksWithAnnouncements,
+  countStocksWithTop10Holders,
+  default: db,
+  deleteTop10HoldersByStock,
+  getAllFavoriteStocks,
+  getAllStocks,
+  getAnnouncements,
+  getAnnouncementsByStock,
+  getAnnouncementsGroupedByStock,
+  getDbPath,
+  getFavoriteStocksAnnouncementsGrouped,
+  getLastSyncDate,
+  getLatestAnnDate,
+  getOldestAnnDate,
+  getStocksByHolder,
+  getStocksWithTop10Holders,
+  getTop10HoldersByStock,
+  getTop10HoldersByStockAndEndDate,
+  getTop10HoldersEndDates,
+  hasDataInDateRange,
+  hasTop10HoldersData,
+  insertAnnouncements,
+  isFavoriteStock,
+  isSyncedToday,
+  removeFavoriteStock,
+  searchAnnouncementsGroupedByStock,
+  searchHoldersByName,
+  searchStocks,
+  updateSyncFlag,
+  upsertStocks,
+  upsertTop10Holders
+}, Symbol.toStringTag, { value: "Module" }));
 const _TushareClient = class _TushareClient {
   static async request(apiName, params = {}, fields = "") {
     const requestBody = {
@@ -14664,6 +14760,10 @@ let isSyncing = false;
 let isLoadingHistory = false;
 let isSyncingHolders = false;
 let isPausedHolders = false;
+let sqliteHttpServer = null;
+let sqliteHttpPort = 8080;
+let sqliteHttpUsername = "";
+let sqliteHttpPassword = "";
 autoUpdater.autoDownload = false;
 autoUpdater.autoInstallOnAppQuit = true;
 function createWindow() {
@@ -15101,6 +15201,246 @@ function setupIPC() {
       };
     }
   });
+  ipcMain.handle("get-db-connection-info", async () => {
+    try {
+      const dbPath2 = getDbPath();
+      const isServerRunning = sqliteHttpServer !== null;
+      const serverUrl = isServerRunning ? `http://localhost:${sqliteHttpPort}` : null;
+      const hasAuth = !!(sqliteHttpUsername && sqliteHttpPassword);
+      console.log(`[IPC] get-db-connection-info: ${dbPath2}`);
+      return {
+        success: true,
+        dbPath: dbPath2,
+        connectionString: `sqlite://${dbPath2}`,
+        httpServerUrl: serverUrl,
+        isServerRunning,
+        port: sqliteHttpPort,
+        hasAuth,
+        username: sqliteHttpUsername || null,
+        password: hasAuth ? sqliteHttpPassword : ""
+      };
+    } catch (error2) {
+      console.error("Failed to get DB connection info:", error2);
+      return {
+        success: false,
+        message: error2.message || "获取数据库信息失败"
+      };
+    }
+  });
+  ipcMain.handle("start-sqlite-http-server", async (_event, port) => {
+    try {
+      if (sqliteHttpServer) {
+        return {
+          success: false,
+          message: "HTTP 服务器已在运行",
+          port: sqliteHttpPort
+        };
+      }
+      const serverPort = port || sqliteHttpPort;
+      const dbPath2 = getDbPath();
+      const dbModule = await Promise.resolve().then(() => db$1);
+      const db2 = dbModule.default;
+      sqliteHttpServer = createServer(async (req, res) => {
+        res.setHeader("Access-Control-Allow-Origin", "*");
+        res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+        res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+        res.setHeader("Content-Type", "application/json; charset=utf-8");
+        if (req.method === "OPTIONS") {
+          res.writeHead(200);
+          res.end();
+          return;
+        }
+        if (sqliteHttpUsername && sqliteHttpPassword) {
+          const authHeader = req.headers.authorization;
+          if (!authHeader || !authHeader.startsWith("Basic ")) {
+            res.writeHead(401, { "WWW-Authenticate": 'Basic realm="SQLite Database"' });
+            res.end(JSON.stringify({ error: "Authentication required" }));
+            return;
+          }
+          const credentials = Buffer.from(authHeader.substring(6), "base64").toString("utf-8");
+          const [username, password] = credentials.split(":");
+          if (username !== sqliteHttpUsername || password !== sqliteHttpPassword) {
+            res.writeHead(401, { "WWW-Authenticate": 'Basic realm="SQLite Database"' });
+            res.end(JSON.stringify({ error: "Invalid credentials" }));
+            return;
+          }
+        }
+        try {
+          const url = new URL(req.url || "/", `http://${req.headers.host}`);
+          const pathname = url.pathname;
+          if (pathname === "/health" || pathname === "/") {
+            res.writeHead(200);
+            res.end(
+              JSON.stringify({
+                status: "ok",
+                database: dbPath2,
+                port: serverPort,
+                timestamp: (/* @__PURE__ */ new Date()).toISOString()
+              })
+            );
+            return;
+          }
+          if (pathname === "/query" && req.method === "POST") {
+            let body = "";
+            req.on("data", (chunk) => {
+              body += chunk.toString();
+            });
+            req.on("end", () => {
+              try {
+                const { sql, params = [] } = JSON.parse(body);
+                if (!sql || typeof sql !== "string") {
+                  res.writeHead(400);
+                  res.end(JSON.stringify({ error: "SQL query is required" }));
+                  return;
+                }
+                if (!sql.trim().toUpperCase().startsWith("SELECT")) {
+                  res.writeHead(403);
+                  res.end(JSON.stringify({ error: "Only SELECT queries are allowed" }));
+                  return;
+                }
+                const stmt = db2.prepare(sql);
+                const result = params.length > 0 ? stmt.all(...params) : stmt.all();
+                res.writeHead(200);
+                res.end(JSON.stringify({ success: true, data: result }));
+              } catch (error2) {
+                res.writeHead(500);
+                res.end(JSON.stringify({ error: error2.message || "Query execution failed" }));
+              }
+            });
+            return;
+          }
+          if (pathname === "/tables" && req.method === "GET") {
+            const tables = db2.prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").all();
+            res.writeHead(200);
+            res.end(JSON.stringify({ success: true, data: tables.map((t2) => t2.name) }));
+            return;
+          }
+          if (pathname.startsWith("/table/") && req.method === "GET") {
+            const tableName = pathname.split("/")[2];
+            if (!tableName) {
+              res.writeHead(400);
+              res.end(JSON.stringify({ error: "Table name is required" }));
+              return;
+            }
+            const columns = db2.prepare(`PRAGMA table_info(${tableName})`).all();
+            res.writeHead(200);
+            res.end(JSON.stringify({ success: true, data: columns }));
+            return;
+          }
+          res.writeHead(404);
+          res.end(JSON.stringify({ error: "Not found" }));
+        } catch (error2) {
+          res.writeHead(500);
+          res.end(JSON.stringify({ error: error2.message || "Internal server error" }));
+        }
+      });
+      sqliteHttpServer.listen(serverPort, () => {
+        const authInfo = sqliteHttpUsername && sqliteHttpPassword ? ` (认证: ${sqliteHttpUsername})` : " (无认证)";
+        console.log(`[SQLite HTTP Server] Started on http://localhost:${serverPort}${authInfo}`);
+        mainWindow == null ? void 0 : mainWindow.webContents.send("sqlite-http-server-started", {
+          port: serverPort,
+          hasAuth: !!(sqliteHttpUsername && sqliteHttpPassword),
+          username: sqliteHttpUsername || null
+        });
+      });
+      sqliteHttpServer.on("error", (error2) => {
+        console.error("[SQLite HTTP Server] Error:", error2);
+        if (error2.code === "EADDRINUSE") {
+          mainWindow == null ? void 0 : mainWindow.webContents.send("sqlite-http-server-error", {
+            message: `端口 ${serverPort} 已被占用`
+          });
+        }
+      });
+      sqliteHttpPort = serverPort;
+      return {
+        success: true,
+        port: serverPort,
+        url: `http://localhost:${serverPort}`
+      };
+    } catch (error2) {
+      console.error("Failed to start SQLite HTTP server:", error2);
+      return {
+        success: false,
+        message: error2.message || "启动 HTTP 服务器失败"
+      };
+    }
+  });
+  ipcMain.handle("stop-sqlite-http-server", async () => {
+    try {
+      if (!sqliteHttpServer) {
+        return {
+          success: false,
+          message: "HTTP 服务器未运行"
+        };
+      }
+      return new Promise((resolve) => {
+        sqliteHttpServer == null ? void 0 : sqliteHttpServer.close(() => {
+          console.log("[SQLite HTTP Server] Stopped");
+          sqliteHttpServer = null;
+          mainWindow == null ? void 0 : mainWindow.webContents.send("sqlite-http-server-stopped");
+          resolve({
+            success: true,
+            message: "HTTP 服务器已停止"
+          });
+        });
+      });
+    } catch (error2) {
+      console.error("Failed to stop SQLite HTTP server:", error2);
+      return {
+        success: false,
+        message: error2.message || "停止 HTTP 服务器失败"
+      };
+    }
+  });
+  ipcMain.handle("get-sqlite-http-server-status", async () => {
+    return {
+      isRunning: sqliteHttpServer !== null,
+      port: sqliteHttpPort,
+      url: sqliteHttpServer ? `http://localhost:${sqliteHttpPort}` : null,
+      hasAuth: !!(sqliteHttpUsername && sqliteHttpPassword),
+      username: sqliteHttpUsername || null
+    };
+  });
+  ipcMain.handle("set-sqlite-http-auth", async (_event, username, password) => {
+    try {
+      if (!username || !password) {
+        return {
+          success: false,
+          message: "用户名和密码不能为空"
+        };
+      }
+      sqliteHttpUsername = username;
+      sqliteHttpPassword = password;
+      console.log(`[SQLite HTTP Server] Auth configured: username=${username}`);
+      return {
+        success: true,
+        message: "认证信息已设置"
+      };
+    } catch (error2) {
+      console.error("Failed to set auth:", error2);
+      return {
+        success: false,
+        message: error2.message || "设置认证信息失败"
+      };
+    }
+  });
+  ipcMain.handle("clear-sqlite-http-auth", async () => {
+    try {
+      sqliteHttpUsername = "";
+      sqliteHttpPassword = "";
+      console.log("[SQLite HTTP Server] Auth cleared");
+      return {
+        success: true,
+        message: "认证信息已清除"
+      };
+    } catch (error2) {
+      console.error("Failed to clear auth:", error2);
+      return {
+        success: false,
+        message: error2.message || "清除认证信息失败"
+      };
+    }
+  });
   ipcMain.handle("check-for-updates", async () => {
     if (isDev) {
       return { available: false, message: "开发环境不检查更新" };
@@ -15507,6 +15847,11 @@ app.on("window-all-closed", () => {
   }
 });
 app.on("before-quit", () => {
+  if (sqliteHttpServer) {
+    sqliteHttpServer.close();
+    sqliteHttpServer = null;
+    console.log("[SQLite HTTP Server] Closed on app quit");
+  }
   extendedApp.isQuitting = true;
 });
 app.on("will-quit", () => {
