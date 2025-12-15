@@ -67,12 +67,6 @@ export class TushareClient {
 				return obj as T;
 			});
 
-			// #region agent log
-			if (apiName === 'anns_d' && result.length > 0) {
-				fetch('http://127.0.0.1:7242/ingest/67286581-beef-43bb-8e6c-59afa2dd6840',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'tushare.ts:72',message:'Tushare API response for anns_d',data:{apiName,params,count:result.length,first3:result.slice(0,3).map((r:any)=>({ann_date:r.ann_date,pub_time:r.pub_time,title:r.title?.substring(0,30)})),last3:result.slice(-3).map((r:any)=>({ann_date:r.ann_date,pub_time:r.pub_time,title:r.title?.substring(0,30)}))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
-			}
-			// #endregion
-
 			return result;
 		} catch (error) {
 			console.error("Tushare Request Failed:", error);

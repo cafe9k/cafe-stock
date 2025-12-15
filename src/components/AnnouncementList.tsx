@@ -92,10 +92,6 @@ export function AnnouncementList() {
 					currentFilter.dateRange?.[1]
 				);
 				
-				// #region agent log
-				fetch('http://127.0.0.1:7242/ingest/67286581-beef-43bb-8e6c-59afa2dd6840',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AnnouncementList.tsx:94',message:'Frontend received announcements',data:{tsCode:record.ts_code,count:announcements.length,first3:announcements.slice(0,3).map((a:any)=>({ann_date:a.ann_date,pub_time:a.pub_time,title:a.title?.substring(0,30)}))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
-				// #endregion
-				
 				setExpandedData((prev) => ({ ...prev, [record.ts_code]: announcements }));
 				// 初始化分页为第1页
 				setExpandedPageMap((prev) => ({ ...prev, [record.ts_code]: 1 }));
@@ -228,15 +224,6 @@ export function AnnouncementList() {
 		const loading = loadingExpanded[record.ts_code] || false;
 		const currentPage = expandedPageMap[record.ts_code] || 1;
 
-		// #region agent log
-		if (announcements.length > 0) {
-			const pageStart = (currentPage - 1) * EXPANDED_PAGE_SIZE;
-			const pageEnd = pageStart + EXPANDED_PAGE_SIZE;
-			const currentPageData = announcements.slice(pageStart, pageEnd);
-			fetch('http://127.0.0.1:7242/ingest/67286581-beef-43bb-8e6c-59afa2dd6840',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AnnouncementList.tsx:227',message:'Rendering expanded row - showing current page data',data:{tsCode:record.ts_code,totalCount:announcements.length,currentPage,pageSize:EXPANDED_PAGE_SIZE,currentPageCount:currentPageData.length,allFirst5:announcements.slice(0,5).map((a:any)=>({ann_date:a.ann_date,title:a.title?.substring(0,30)})),allLast5:announcements.slice(-5).map((a:any)=>({ann_date:a.ann_date,title:a.title?.substring(0,30)})),currentPageFirst3:currentPageData.slice(0,3).map((a:any)=>({ann_date:a.ann_date,title:a.title?.substring(0,30)}))},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
-		}
-		// #endregion
-
 		return (
 			<Table
 				columns={nestedColumns}
@@ -266,12 +253,6 @@ export function AnnouncementList() {
 			/>
 		);
 	};
-
-	// #region agent log
-	if (stockGroups.length > 0 && !loading) {
-		fetch('http://127.0.0.1:7242/ingest/67286581-beef-43bb-8e6c-59afa2dd6840',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AnnouncementList.tsx:270',message:'Component rendering with stock groups',data:{count:stockGroups.length,first5:stockGroups.slice(0,5).map((s:any)=>({ts_code:s.ts_code,stock_name:s.stock_name||s.name,latest_ann_date:s.latest_ann_date,latest_ann_title:s.latest_ann_title?.substring(0,30)})),last5:stockGroups.slice(-5).map((s:any)=>({ts_code:s.ts_code,stock_name:s.stock_name||s.name,latest_ann_date:s.latest_ann_date,latest_ann_title:s.latest_ann_title?.substring(0,30)}))},timestamp:Date.now(),sessionId:'debug-session',runId:'new-run',hypothesisId:'J'})}).catch(()=>{});
-	}
-	// #endregion
 
 	return (
 		<div style={{ padding: "24px" }}>

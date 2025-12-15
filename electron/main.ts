@@ -320,32 +320,6 @@ async function getAnnouncementsGroupedFromAPI(
 		announcements = await TushareClient.getAnnouncements(undefined, undefined, startDate, endDate, 2000, 0);
 	}
 
-	// #region agent log
-	fetch("http://127.0.0.1:7242/ingest/67286581-beef-43bb-8e6c-59afa2dd6840", {
-		method: "POST",
-		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify({
-			location: "main.ts:304",
-			message: "Raw announcements from Tushare API for grouping",
-			data: {
-				startDate,
-				endDate,
-				totalCount: announcements.length,
-				first5: announcements
-					.slice(0, 5)
-					.map((a: any) => ({ ts_code: a.ts_code, ann_date: a.ann_date, pub_time: a.pub_time, title: a.title?.substring(0, 30) })),
-				last5: announcements
-					.slice(-5)
-					.map((a: any) => ({ ts_code: a.ts_code, ann_date: a.ann_date, pub_time: a.pub_time, title: a.title?.substring(0, 30) })),
-			},
-			timestamp: Date.now(),
-			sessionId: "debug-session",
-			runId: "post-fix",
-			hypothesisId: "F",
-		}),
-	}).catch(() => {});
-	// #endregion
-
 	// 按股票聚合公告数据
 	const stockMap = new Map<
 		string,
@@ -408,82 +382,18 @@ async function getAnnouncementsGroupedFromAPI(
 			if (dateCompare !== 0) return dateCompare;
 			return (a?.stock_name || "").localeCompare(b?.stock_name || "");
 		}) as Array<{
-		ts_code: string;
-		stock_name: string;
-		industry: string;
-		market: string;
-		announcement_count: number;
-		latest_ann_date: string;
-		latest_ann_title?: string;
-	}>;
-
-	// #region agent log
-	fetch("http://127.0.0.1:7242/ingest/67286581-beef-43bb-8e6c-59afa2dd6840", {
-		method: "POST",
-		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify({
-			location: "main.ts:385",
-			message: "After grouping and sorting stocks by latest announcement",
-			data: {
-				totalStocks: groupedData.length,
-				first5: groupedData
-					.slice(0, 5)
-					.map((s: any) => ({
-						ts_code: s.ts_code,
-						stock_name: s.stock_name,
-						latest_ann_date: s.latest_ann_date,
-						latest_ann_title: s.latest_ann_title?.substring(0, 30),
-						announcement_count: s.announcement_count,
-					})),
-				last5: groupedData
-					.slice(-5)
-					.map((s: any) => ({
-						ts_code: s.ts_code,
-						stock_name: s.stock_name,
-						latest_ann_date: s.latest_ann_date,
-						latest_ann_title: s.latest_ann_title?.substring(0, 30),
-						announcement_count: s.announcement_count,
-					})),
-			},
-			timestamp: Date.now(),
-			sessionId: "debug-session",
-			runId: "new-run",
-			hypothesisId: "G",
-		}),
-	}).catch(() => {});
-	// #endregion
+			ts_code: string;
+			stock_name: string;
+			industry: string;
+			market: string;
+			announcement_count: number;
+			latest_ann_date: string;
+			latest_ann_title?: string;
+		}>;
 
 	const total = groupedData.length;
 	const offset = (page - 1) * pageSize;
 	const items = groupedData.slice(offset, offset + pageSize);
-
-	// #region agent log
-	fetch("http://127.0.0.1:7242/ingest/67286581-beef-43bb-8e6c-59afa2dd6840", {
-		method: "POST",
-		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify({
-			location: "main.ts:397",
-			message: "After pagination - stocks to be returned",
-			data: {
-				page,
-				pageSize,
-				offset,
-				pagedCount: items.length,
-				pagedItems: items.map((s: any) => ({
-					ts_code: s.ts_code,
-					stock_name: s.stock_name,
-					latest_ann_date: s.latest_ann_date,
-					latest_ann_title: s.latest_ann_title?.substring(0, 30),
-					announcement_count: s.announcement_count,
-				})),
-			},
-			timestamp: Date.now(),
-			sessionId: "debug-session",
-			runId: "new-run",
-			hypothesisId: "H",
-		}),
-	}).catch(() => {});
-	// #endregion
 
 	return { items, total };
 }
@@ -844,68 +754,12 @@ function setupIPC() {
 
 			const announcements = await TushareClient.getAnnouncements(tsCode, undefined, startDate, endDate, limit, 0);
 
-			// #region agent log
-			fetch("http://127.0.0.1:7242/ingest/67286581-beef-43bb-8e6c-59afa2dd6840", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({
-					location: "main.ts:753",
-					message: "Before sort - first 3 announcements",
-					data: {
-						count: announcements.length,
-						first3: announcements
-							.slice(0, 3)
-							.map((a: any) => ({ ann_date: a.ann_date, pub_time: a.pub_time, title: a.title?.substring(0, 30) })),
-					},
-					timestamp: Date.now(),
-					sessionId: "debug-session",
-					hypothesisId: "A",
-				}),
-			}).catch(() => {});
-			// #endregion
-
 			// 按日期和时间排序
 			announcements.sort((a: any, b: any) => {
 				const dateCompare = (b.ann_date || "").localeCompare(a.ann_date || "");
-				// #region agent log
-				if (announcements.indexOf(a) < 3 && announcements.indexOf(b) < 3) {
-					fetch("http://127.0.0.1:7242/ingest/67286581-beef-43bb-8e6c-59afa2dd6840", {
-						method: "POST",
-						headers: { "Content-Type": "application/json" },
-						body: JSON.stringify({
-							location: "main.ts:759",
-							message: "Sort comparison",
-							data: { a_date: a.ann_date, b_date: b.ann_date, dateCompare, a_time: a.pub_time, b_time: b.pub_time },
-							timestamp: Date.now(),
-							sessionId: "debug-session",
-							hypothesisId: "B",
-						}),
-					}).catch(() => {});
-				}
-				// #endregion
 				if (dateCompare !== 0) return dateCompare;
 				return (b.pub_time || "").localeCompare(a.pub_time || "");
 			});
-
-			// #region agent log
-			fetch("http://127.0.0.1:7242/ingest/67286581-beef-43bb-8e6c-59afa2dd6840", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({
-					location: "main.ts:763",
-					message: "After sort - first 3 announcements",
-					data: {
-						count: announcements.length,
-						first3: announcements
-							.slice(0, 3)
-							.map((a: any) => ({ ann_date: a.ann_date, pub_time: a.pub_time, title: a.title?.substring(0, 30) })),
-					},
-					timestamp: Date.now(),
-					sessionId: "debug-session",
-					hypothesisId: "A",
-				}),
-			}).catch(() => {});
-			// #endregion
 
 			// 转换为前端期望的格式（移除 id 字段）
 			return announcements.map((ann: any) => ({

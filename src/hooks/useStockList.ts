@@ -67,10 +67,6 @@ export function useStockList<T extends StockGroup = StockGroup>(options: UseStoc
 					)) as StockListQueryResult<T>;
 				}
 
-				// #region agent log
-				fetch('http://127.0.0.1:7242/ingest/67286581-beef-43bb-8e6c-59afa2dd6840',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useStockList.ts:70',message:'Frontend hook received data from backend',data:{page:pageNum,count:result.items.length,first5:result.items.slice(0,5).map((s:any)=>({ts_code:s.ts_code,stock_name:s.stock_name||s.name,latest_ann_date:s.latest_ann_date,latest_ann_title:s.latest_ann_title?.substring(0,30)})),last5:result.items.slice(-5).map((s:any)=>({ts_code:s.ts_code,stock_name:s.stock_name||s.name,latest_ann_date:s.latest_ann_date,latest_ann_title:s.latest_ann_title?.substring(0,30)}))},timestamp:Date.now(),sessionId:'debug-session',runId:'new-run',hypothesisId:'I'})}).catch(()=>{});
-				// #endregion
-
 				setData(result.items);
 				setTotal(result.total);
 			} catch (error: any) {
