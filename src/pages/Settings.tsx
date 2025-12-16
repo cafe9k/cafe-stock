@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { Card, Button, Progress, Statistic, Space, message, Typography } from "antd";
-import { TagsOutlined, SyncOutlined } from "@ant-design/icons";
+import { Card, Button, Progress, Statistic, Space, message, Typography, Form, Input, Modal, Descriptions, Badge, Row, Col } from "antd";
+import { TagsOutlined, SyncOutlined, CopyOutlined, PlayCircleOutlined, StopOutlined, LockOutlined, UserOutlined, DatabaseOutlined } from "@ant-design/icons";
 
 const { Title, Text } = Typography;
 
@@ -9,9 +9,20 @@ export function Settings() {
 	const [loading, setLoading] = useState(false);
 	const [tagging, setTagging] = useState(false);
 	const [progress, setProgress] = useState({ processed: 0, total: 0, percentage: "0" });
+	
+	// SQLite HTTP 服务器状态
+	const [isServerRunning, setIsServerRunning] = useState(false);
+	const [serverPort, setServerPort] = useState(8080);
+	const [serverUrl, setServerUrl] = useState<string | null>(null);
+	const [hasAuth, setHasAuth] = useState(false);
+	const [username, setUsername] = useState<string | null>(null);
+	const [showAuthModal, setShowAuthModal] = useState(false);
+	const [authForm] = Form.useForm();
+	const [dbPath, setDbPath] = useState<string>("");
 
 	useEffect(() => {
 		loadUntaggedCount();
+		loadServerStatus();
 
 		// 监听打标进度
 		const unsubscribe = window.electronAPI.onTaggingProgress((data) => {
@@ -20,6 +31,28 @@ export function Settings() {
 
 		return () => unsubscribe();
 	}, []);
+
+	// 加载服务器状态
+	const loadServerStatus = async () => {
+		try {
+			const [status, info] = await Promise.all([
+				window.electronAPI.getSqliteHttpServerStatus(),
+				window.electronAPI.getDbConnectionInfo()
+			]);
+			
+			setIsServerRunning(status.isRunning);
+			setServerPort(status.port || 8080);
+			setServerUrl(status.url || null);
+			setHasAuth(status.hasAuth);
+			setUsername(status.username);
+			
+			if (info.success && info.dbPath) {
+				setDbPath(info.dbPath);
+			}
+		} catch (error) {
+			console.error("Failed to load server status:", error);
+		}
+	};
 
 	const loadUntaggedCount = async () => {
 		setLoading(true);
@@ -61,53 +94,283 @@ export function Settings() {
 		}
 	};
 
+	// 复制数据库连接信息
+	const handleCopyDbConnection = async () => {
+		try {
+			const info = await window.electronAPI.getDbConnectionInfo();
+			if (info.success && info.dbPath) {
+				let connectionInfo = `数据库路径: ${info.dbPath}\n连接字符串: ${info.connectionString || `sqlite://${info.dbPath}`}\n密码: ${
+					info.password || "无"
+				}`;
+
+				if (info.isServerRunning && info.httpServerUrl) {
+					connectionInfo += `\n\nHTTP 服务器: ${info.httpServerUrl}\n端口: ${info.port}`;
+					if (info.hasAuth && info.username) {
+						connectionInfo += `\n用户名: ${info.username}`;
+						connectionInfo += `\n密码: ${info.password || "已设置"}`;
+					}
+					connectionInfo += `\n\nAPI 端点:\n- 健康检查: ${info.httpServerUrl}/health`;
+					connectionInfo += `\n- 查询: POST ${info.httpServerUrl}/query`;
+					connectionInfo += `\n- 表列表: GET ${info.httpServerUrl}/tables`;
+					connectionInfo += `\n- 表结构: GET ${info.httpServerUrl}/table/{tableName}`;
+					if (info.hasAuth) {
+						connectionInfo += `\n\n认证方式: Basic Auth`;
+						connectionInfo += `\n请求头: Authorization: Basic base64(username:password)`;
+					}
+				}
+
+				await navigator.clipboard.writeText(connectionInfo);
+				message.success("数据库连接信息已复制到剪贴板");
+			} else {
+				message.error(info.message || "获取数据库信息失败");
+			}
+		} catch (error: any) {
+			console.error("复制数据库连接信息失败:", error);
+			message.error(`复制失败: ${error.message || "未知错误"}`);
+		}
+	};
+
+	// 启动 HTTP 服务器
+	const handleStartServer = async () => {
+		try {
+			const result = await window.electronAPI.startSqliteHttpServer();
+			if (result.success) {
+				setIsServerRunning(true);
+				setServerPort(result.port || 8080);
+				setServerUrl(result.url || null);
+				const status = await window.electronAPI.getSqliteHttpServerStatus();
+				setHasAuth(status.hasAuth);
+				setUsername(status.username);
+				const authInfo = status.hasAuth ? ` (认证: ${status.username})` : "";
+				message.success(`SQLite HTTP 服务器已启动: ${result.url}${authInfo}`);
+			} else {
+				message.error(result.message || "启动服务器失败");
+			}
+		} catch (error: any) {
+			console.error("启动服务器失败:", error);
+			message.error(`启动失败: ${error.message || "未知错误"}`);
+		}
+	};
+
+	// 停止 HTTP 服务器
+	const handleStopServer = async () => {
+		try {
+			const result = await window.electronAPI.stopSqliteHttpServer();
+			if (result.success) {
+				setIsServerRunning(false);
+				setServerUrl(null);
+				setHasAuth(false);
+				setUsername(null);
+				message.success("SQLite HTTP 服务器已停止");
+			} else {
+				message.error(result.message || "停止服务器失败");
+			}
+		} catch (error: any) {
+			console.error("停止服务器失败:", error);
+			message.error(`停止失败: ${error.message || "未知错误"}`);
+		}
+	};
+
+	// 设置认证信息
+	const handleSetAuth = async () => {
+		try {
+			const values = await authForm.validateFields();
+			const result = await window.electronAPI.setSqliteHttpAuth(values.username, values.password);
+			if (result.success) {
+				setHasAuth(true);
+				setUsername(values.username);
+				setShowAuthModal(false);
+				authForm.resetFields();
+				message.success("认证信息已设置");
+			} else {
+				message.error(result.message || "设置认证信息失败");
+			}
+		} catch (error: any) {
+			if (error.errorFields) {
+				return;
+			}
+			console.error("设置认证信息失败:", error);
+			message.error(`设置失败: ${error.message || "未知错误"}`);
+		}
+	};
+
+	// 清除认证信息
+	const handleClearAuth = async () => {
+		try {
+			const result = await window.electronAPI.clearSqliteHttpAuth();
+			if (result.success) {
+				setHasAuth(false);
+				setUsername(null);
+				message.success("认证信息已清除");
+			} else {
+				message.error(result.message || "清除认证信息失败");
+			}
+		} catch (error: any) {
+			console.error("清除认证信息失败:", error);
+			message.error(`清除失败: ${error.message || "未知错误"}`);
+		}
+	};
+
 	return (
 		<div style={{ padding: 24 }}>
 			<Title level={2}>系统设置</Title>
 
-			<Card title="公告分类管理" style={{ marginTop: 16 }}>
-				<Space direction="vertical" size="large" style={{ width: "100%" }}>
-					<Statistic
-						title="未分类公告数量"
-						value={untaggedCount}
-						suffix="条"
-						loading={loading}
-						prefix={<TagsOutlined />}
-					/>
-
-					{tagging && (
-						<div>
-							<Text>正在批量打标...</Text>
-							<Progress
-								percent={parseFloat(progress.percentage)}
-								status="active"
-								format={() => `${progress.processed} / ${progress.total}`}
+			<Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+				<Col xs={24} lg={12}>
+					<Card title="公告分类管理" style={{ height: '100%' }}>
+						<Space direction="vertical" size="large" style={{ width: "100%" }}>
+							<Statistic
+								title="未分类公告数量"
+								value={untaggedCount}
+								suffix="条"
+								loading={loading}
+								prefix={<TagsOutlined />}
 							/>
-						</div>
-					)}
 
-					<Space>
-						<Button
-							type="primary"
-							icon={<SyncOutlined />}
-							onClick={handleTagAll}
-							loading={tagging}
-							disabled={untaggedCount === 0}
-						>
-							批量打标所有公告
-						</Button>
+							{tagging && (
+								<div>
+									<Text>正在批量打标...</Text>
+									<Progress
+										percent={parseFloat(progress.percentage)}
+										status="active"
+										format={() => `${progress.processed} / ${progress.total}`}
+									/>
+								</div>
+							)}
 
-						<Button icon={<SyncOutlined />} onClick={loadUntaggedCount} loading={loading}>
-							刷新统计
-						</Button>
-					</Space>
+							<Space wrap>
+								<Button
+									type="primary"
+									icon={<SyncOutlined />}
+									onClick={handleTagAll}
+									loading={tagging}
+									disabled={untaggedCount === 0}
+								>
+									批量打标所有公告
+								</Button>
 
-					<Text type="secondary">
-						说明：批量打标会对所有未分类的公告进行自动分类，根据公告标题智能识别分类标签。 预计处理时间：约{" "}
-						{Math.ceil(untaggedCount / 10000)} 分钟
-					</Text>
-				</Space>
-			</Card>
+								<Button icon={<SyncOutlined />} onClick={loadUntaggedCount} loading={loading}>
+									刷新统计
+								</Button>
+							</Space>
+
+							<Text type="secondary">
+								说明：批量打标会对所有未分类的公告进行自动分类，根据公告标题智能识别分类标签。
+								预计处理时间：约 {Math.ceil(untaggedCount / 10000)} 分钟
+							</Text>
+						</Space>
+					</Card>
+				</Col>
+
+				<Col xs={24} lg={12}>
+					<Card 
+						title={
+							<Space>
+								<DatabaseOutlined />
+								<span>数据库远程访问</span>
+							</Space>
+						}
+						style={{ height: '100%' }}
+					>
+						<Space direction="vertical" size="large" style={{ width: "100%" }}>
+							<Descriptions column={1} size="small">
+								<Descriptions.Item label="数据库路径">
+									<Text copyable ellipsis style={{ maxWidth: 300 }}>
+										{dbPath || "加载中..."}
+									</Text>
+								</Descriptions.Item>
+								<Descriptions.Item label="HTTP 服务器">
+									<Badge 
+										status={isServerRunning ? "processing" : "default"} 
+										text={isServerRunning ? `运行中 (端口 ${serverPort})` : "未启动"} 
+									/>
+								</Descriptions.Item>
+								{isServerRunning && serverUrl && (
+									<Descriptions.Item label="服务器地址">
+										<Text copyable>{serverUrl}</Text>
+									</Descriptions.Item>
+								)}
+								<Descriptions.Item label="认证状态">
+									<Badge 
+										status={hasAuth ? "success" : "default"} 
+										text={hasAuth ? `已设置 (${username})` : "未设置"} 
+									/>
+								</Descriptions.Item>
+							</Descriptions>
+
+							<Space wrap>
+								<Button
+									type="primary"
+									icon={<PlayCircleOutlined />}
+									onClick={handleStartServer}
+									disabled={isServerRunning}
+								>
+									启动服务器
+								</Button>
+
+								<Button
+									danger
+									icon={<StopOutlined />}
+									onClick={handleStopServer}
+									disabled={!isServerRunning}
+								>
+									停止服务器
+								</Button>
+
+								<Button
+									icon={<LockOutlined />}
+									onClick={() => setShowAuthModal(true)}
+								>
+									{hasAuth ? "修改认证" : "设置认证"}
+								</Button>
+
+								{hasAuth && (
+									<Button
+										icon={<UserOutlined />}
+										onClick={handleClearAuth}
+									>
+										清除认证
+									</Button>
+								)}
+
+								<Button
+									icon={<CopyOutlined />}
+									onClick={handleCopyDbConnection}
+								>
+									复制连接信息
+								</Button>
+							</Space>
+
+							<Text type="secondary">
+								说明：启动 HTTP 服务器后，可以通过 HTTP API 远程访问数据库。
+								建议设置用户名和密码以保护数据安全。
+							</Text>
+						</Space>
+					</Card>
+				</Col>
+			</Row>
+
+			{/* 设置认证信息对话框 */}
+			<Modal
+				title="设置 SQLite HTTP 服务器认证"
+				open={showAuthModal}
+				onOk={handleSetAuth}
+				onCancel={() => {
+					setShowAuthModal(false);
+					authForm.resetFields();
+				}}
+				okText="设置"
+				cancelText="取消"
+			>
+				<Form form={authForm} layout="vertical">
+					<Form.Item name="username" label="用户名" rules={[{ required: true, message: "请输入用户名" }]}>
+						<Input prefix={<UserOutlined />} placeholder="请输入用户名" />
+					</Form.Item>
+					<Form.Item name="password" label="密码" rules={[{ required: true, message: "请输入密码" }]}>
+						<Input.Password prefix={<LockOutlined />} placeholder="请输入密码" />
+					</Form.Item>
+				</Form>
+			</Modal>
 		</div>
 	);
 }
