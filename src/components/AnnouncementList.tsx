@@ -10,7 +10,6 @@ import {
 	ClockCircleOutlined,
 } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
-import { PDFWebViewer } from "./PDFWebViewer";
 import { StockList } from "./StockList/index";
 import { useStockList } from "../hooks/useStockList";
 import { useStockFilter } from "../hooks/useStockFilter";
@@ -58,10 +57,6 @@ export function AnnouncementList() {
 		pageSize: 20,
 	});
 
-	// PDF 预览相关状态
-	const [pdfViewerOpen, setPdfViewerOpen] = useState(false);
-	const [currentPdfUrl, setCurrentPdfUrl] = useState("");
-	const [currentPdfTitle, setCurrentPdfTitle] = useState("");
 
 	// 当筛选条件变化时更新数据
 	useEffect(() => {
@@ -126,10 +121,10 @@ export function AnnouncementList() {
 		}
 	};
 
-	// 处理 PDF 预览
+	// 处理 PDF 预览 - 直接在系统默认浏览器中打开
 	const handlePdfPreview = async (announcement: Announcement) => {
 		try {
-			message.loading({ content: "正在加载 PDF...", key: "pdf-loading" });
+			message.loading({ content: "正在获取公告链接...", key: "pdf-loading" });
 
 			// 调用 Electron API 获取 PDF URL
 			const result = await window.electronAPI.getAnnouncementPdf(announcement.ts_code, announcement.ann_date, announcement.title);
@@ -146,16 +141,20 @@ export function AnnouncementList() {
 					PDF链接: result.url,
 				});
 
-				setCurrentPdfUrl(result.url);
-				setCurrentPdfTitle(announcement.title);
-				setPdfViewerOpen(true);
+				// 直接在系统默认浏览器中打开
+				const openResult = await window.electronAPI.openExternal(result.url);
+				if (openResult.success) {
+					message.success("已在浏览器中打开公告");
+				} else {
+					message.error(openResult.error || "打开浏览器失败");
+				}
 			} else {
 				message.warning(result.message || "该公告暂无 PDF 文件");
 			}
 		} catch (error: any) {
 			message.destroy("pdf-loading");
-			console.error("加载 PDF 失败:", error);
-			message.error("加载 PDF 失败，请稍后重试");
+			console.error("打开公告失败:", error);
+			message.error("打开公告失败，请稍后重试");
 		}
 	};
 
@@ -484,8 +483,6 @@ export function AnnouncementList() {
 				)}
 			</Card>
 
-			{/* PDF 预览弹窗 */}
-			<PDFWebViewer open={pdfViewerOpen} onClose={() => setPdfViewerOpen(false)} pdfUrl={currentPdfUrl} title={currentPdfTitle} />
 		</div>
 	);
 }

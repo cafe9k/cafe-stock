@@ -1,9 +1,45 @@
 import { useState, useEffect } from "react";
-import { Card, Button, Progress, Statistic, Space, message, Typography, Form, Input, Modal, Descriptions, Badge, Row, Col, Checkbox } from "antd";
-import { TagsOutlined, SyncOutlined, CopyOutlined, PlayCircleOutlined, StopOutlined, LockOutlined, UserOutlined, DatabaseOutlined, ExclamationCircleOutlined, ReloadOutlined, SettingOutlined } from "@ant-design/icons";
+import { 
+	Card, 
+	Button, 
+	Progress, 
+	Statistic, 
+	Space, 
+	message, 
+	Typography, 
+	Form, 
+	Input, 
+	Modal, 
+	Descriptions, 
+	Badge, 
+	Row, 
+	Col, 
+	Checkbox,
+	Tabs,
+	Divider,
+	Alert
+} from "antd";
+import { 
+	TagsOutlined, 
+	SyncOutlined, 
+	CopyOutlined, 
+	PlayCircleOutlined, 
+	StopOutlined, 
+	LockOutlined, 
+	UserOutlined, 
+	DatabaseOutlined, 
+	ExclamationCircleOutlined, 
+	ReloadOutlined, 
+	SettingOutlined,
+	CloudServerOutlined,
+	AppstoreOutlined,
+	ToolOutlined,
+	InfoCircleOutlined
+} from "@ant-design/icons";
 import { ClassificationRuleEditor } from "../components/ClassificationRuleEditor";
+import { UpdateChecker } from "../components/UpdateChecker";
 
-const { Title, Text } = Typography;
+const { Title, Text, Paragraph } = Typography;
 
 export function Settings() {
 	const [untaggedCount, setUntaggedCount] = useState(0);

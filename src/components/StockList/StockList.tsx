@@ -188,14 +188,6 @@ function StockListComponent<T extends Stock | StockGroup = Stock | StockGroup>({
 	const hasLatestAnnTitleField = data.length > 0 && "latest_ann_title" in data[0];
 	const hasLatestAnnDateField = data.length > 0 && "latest_ann_date" in data[0];
 
-	// 调试日志
-	if (data.length > 0) {
-		console.log("[StockList Debug] First record:", JSON.stringify(data[0], null, 2));
-		console.log("[StockList Debug] hasCategoryStatsField:", hasCategoryStatsField);
-		console.log("[StockList Debug] showAnnouncementCategories:", showAnnouncementCategories);
-		console.log("[StockList Debug] category_stats:", (data[0] as any).category_stats);
-	}
-
 	// 构建表格列
 	const columns: ColumnsType<T> = useMemo(() => {
 		const cols: ColumnsType<T> = [];
@@ -393,7 +385,7 @@ function StockListComponent<T extends Stock | StockGroup = Stock | StockGroup>({
 
 		// 最新公告标题列（仅 StockGroup）
 		if (showLatestAnnTitle && hasLatestAnnTitleField) {
-			const colWidth = columnWidths["latest_ann_title"];
+			const colWidth = columnWidths["latest_ann_title"] || 300;
 			cols.push({
 				title: "最新公告",
 				dataIndex: "latest_ann_title",
