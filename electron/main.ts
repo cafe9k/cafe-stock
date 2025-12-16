@@ -609,14 +609,14 @@ async function getFavoriteStocksAnnouncementsGroupedFromAPI(
 
 	// 从数据库查询公告数据
 	let announcements: any[] = [];
-	
+
 	// 检查是否已同步该时间范围
 	const isSynced = startDate && endDate ? isAnnouncementRangeSynced(null, startDate, endDate) : false;
 
 	if (isSynced) {
 		// 从数据库读取关注股票的公告
 		console.log(`[DB Cache Hit] 从数据库读取关注股票公告: ${startDate} - ${endDate}`);
-		
+
 		// 构建 SQL 查询，使用 IN 子句查询多个股票代码
 		const placeholders = favoriteStocks.map(() => "?").join(",");
 		const query = `
@@ -625,27 +625,27 @@ async function getFavoriteStocksAnnouncementsGroupedFromAPI(
 			AND ann_date >= ? AND ann_date <= ?
 			ORDER BY ann_date DESC, rec_time DESC
 		`;
-		
+
 		announcements = db.prepare(query).all(...favoriteStocks, startDate, endDate);
 		console.log(`[DB Cache Hit] 从数据库读取到 ${announcements.length} 条关注股票公告`);
 	} else {
 		// 从 API 获取（逐个股票查询以避免 API 限制）
 		console.log(`[DB Cache Miss] 从 API 获取关注股票公告: ${startDate || "无"} - ${endDate || "无"}`);
-		
+
 		for (const tsCode of favoriteStocks) {
 			try {
 				const stockAnnouncements = await TushareClient.getAnnouncements(tsCode, undefined, startDate, endDate, 2000, 0);
 				announcements.push(...stockAnnouncements);
-				
+
 				// 添加延迟以避免 API 限流
 				if (favoriteStocks.length > 1) {
-					await new Promise(resolve => setTimeout(resolve, 200));
+					await new Promise((resolve) => setTimeout(resolve, 200));
 				}
 			} catch (error) {
 				console.error(`Failed to get announcements for ${tsCode}:`, error);
 			}
 		}
-		
+
 		// 保存到数据库
 		if (announcements.length > 0) {
 			console.log(`[DB Cache] 保存 ${announcements.length} 条关注股票公告到数据库`);
