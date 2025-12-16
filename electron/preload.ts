@@ -329,4 +329,16 @@ contextBridge.exposeInMainWorld("electronAPI", {
 		ipcRenderer.on("tagging-progress", listener);
 		return () => ipcRenderer.removeListener("tagging-progress", listener);
 	},
+
+	// ============= 列宽配置相关 =============
+
+	// 保存列宽配置
+	saveColumnWidths: (tableId: string, columnWidths: Record<string, number>) => {
+		return ipcRenderer.invoke("save-column-widths", tableId, columnWidths);
+	},
+
+	// 获取列宽配置
+	getColumnWidths: (tableId: string) => {
+		return ipcRenderer.invoke("get-column-widths", tableId);
+	},
 });

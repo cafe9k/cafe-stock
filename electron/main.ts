@@ -3,6 +3,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { createServer } from "http";
 import { URL } from "url";
+import fs from "fs";
 import windowStateKeeper from "electron-window-state";
 import pkg from "electron-updater";
 const { autoUpdater } = pkg;
@@ -1983,6 +1984,68 @@ function setupIPC() {
 				success: false,
 				error: error.message || "获取统计失败",
 				totalCount: 0,
+			};
+		}
+	});
+
+	// 获取列宽配置文件路径
+	const getColumnWidthConfigPath = () => {
+		const userDataPath = app.getPath("userData");
+		return path.join(userDataPath, "column-widths.json");
+	};
+
+	// 保存列宽配置
+	ipcMain.handle("save-column-widths", async (_event, tableId: string, columnWidths: Record<string, number>) => {
+		try {
+			const configPath = getColumnWidthConfigPath();
+			let config: Record<string, Record<string, number>> = {};
+
+			// 读取现有配置
+			if (fs.existsSync(configPath)) {
+				const content = fs.readFileSync(configPath, "utf-8");
+				config = JSON.parse(content);
+			}
+
+			// 更新配置
+			config[tableId] = columnWidths;
+
+			// 保存配置
+			fs.writeFileSync(configPath, JSON.stringify(config, null, 2), "utf-8");
+
+			console.log(`[IPC] save-column-widths: tableId=${tableId}, columns=${Object.keys(columnWidths).length}`);
+			return { success: true };
+		} catch (error: any) {
+			console.error("Failed to save column widths:", error);
+			return {
+				success: false,
+				error: error.message || "保存列宽配置失败",
+			};
+		}
+	});
+
+	// 读取列宽配置
+	ipcMain.handle("get-column-widths", async (_event, tableId: string) => {
+		try {
+			const configPath = getColumnWidthConfigPath();
+
+			if (!fs.existsSync(configPath)) {
+				return { success: true, columnWidths: {} };
+			}
+
+			const content = fs.readFileSync(configPath, "utf-8");
+			const config: Record<string, Record<string, number>> = JSON.parse(content);
+
+			console.log(`[IPC] get-column-widths: tableId=${tableId}`);
+			return {
+				success: true,
+				columnWidths: config[tableId] || {},
+			};
+		} catch (error: any) {
+			console.error("Failed to get column widths:", error);
+			return {
+				success: false,
+				error: error.message || "读取列宽配置失败",
+				columnWidths: {},
 			};
 		}
 	});

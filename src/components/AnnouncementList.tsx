@@ -408,6 +408,7 @@ export function AnnouncementList() {
 					pageSize={PAGE_SIZE}
 					onPageChange={goToPage}
 					onFavoriteChange={handleFavoriteChange}
+					tableId="announcement-list"
 					columnConfig={{
 						showFavoriteButton: true,
 						showCode: false,

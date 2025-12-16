@@ -3,7 +3,7 @@
  * 集成关注功能，支持搜索、筛选、分页等通用功能
  */
 
-import { useMemo, memo } from "react";
+import { useMemo, memo, useState, useEffect, useCallback } from "react";
 import { Table, Tag, Typography, Badge, Tooltip, Space } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import type { Stock, StockGroup } from "../../types/stock";
@@ -11,6 +11,51 @@ import { FavoriteButton } from "../FavoriteButton";
 import { getCategoryColor } from "../../utils/announcementClassifier";
 
 const { Text: AntText } = Typography;
+
+// 可调整大小的列头组件
+const ResizableTitle = (props: any) => {
+	const { onResize, width, ...restProps } = props;
+
+	if (!width || !onResize) {
+		return <th {...restProps} />;
+	}
+
+	return (
+		<th {...restProps} style={{ ...restProps.style, position: "relative" }}>
+			{restProps.children}
+			<div
+				style={{
+					position: "absolute",
+					right: 0,
+					top: 0,
+					bottom: 0,
+					width: "5px",
+					cursor: "col-resize",
+					userSelect: "none",
+					touchAction: "none",
+				}}
+				onMouseDown={(e) => {
+					e.preventDefault();
+					const startX = e.pageX;
+					const startWidth = width;
+
+					const handleMouseMove = (moveEvent: MouseEvent) => {
+						const newWidth = Math.max(50, startWidth + moveEvent.pageX - startX);
+						onResize(newWidth);
+					};
+
+					const handleMouseUp = () => {
+						document.removeEventListener("mousemove", handleMouseMove);
+						document.removeEventListener("mouseup", handleMouseUp);
+					};
+
+					document.addEventListener("mousemove", handleMouseMove);
+					document.addEventListener("mouseup", handleMouseUp);
+				}}
+			/>
+		</th>
+	);
+};
 
 /**
  * 股票列表列配置
@@ -54,6 +99,7 @@ export interface StockListProps<T extends Stock | StockGroup = Stock | StockGrou
 		onExpandedRowsChange?: (keys: string[]) => void;
 		showExpandColumn?: boolean;
 	};
+	tableId?: string; // 表格唯一标识，用于保存列宽配置
 }
 
 /**
@@ -75,6 +121,7 @@ function StockListComponent<T extends Stock | StockGroup = Stock | StockGroup>({
 	scroll,
 	emptyText,
 	expandable,
+	tableId = "default",
 }: StockListProps<T>) {
 	const {
 		showFavoriteButton = false,
@@ -91,6 +138,48 @@ function StockListComponent<T extends Stock | StockGroup = Stock | StockGroup>({
 		actionColumn,
 	} = columnConfig;
 
+	// 列宽状态
+	const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
+
+	// 加载列宽配置
+	useEffect(() => {
+		const loadColumnWidths = async () => {
+			try {
+				const result = await window.electronAPI.getColumnWidths(tableId);
+				if (result.success && result.columnWidths) {
+					setColumnWidths(result.columnWidths);
+				}
+			} catch (error) {
+				console.error("Failed to load column widths:", error);
+			}
+		};
+
+		loadColumnWidths();
+	}, [tableId]);
+
+	// 保存列宽配置（防抖）
+	const saveColumnWidths = useCallback(
+		async (widths: Record<string, number>) => {
+			try {
+				await window.electronAPI.saveColumnWidths(tableId, widths);
+			} catch (error) {
+				console.error("Failed to save column widths:", error);
+			}
+		},
+		[tableId]
+	);
+
+	// 处理列宽调整
+	const handleResize = useCallback(
+		(columnKey: string) => (width: number) => {
+			const newWidths = { ...columnWidths, [columnKey]: width };
+			setColumnWidths(newWidths);
+			// 延迟保存，避免频繁写入
+			setTimeout(() => saveColumnWidths(newWidths), 500);
+		},
+		[columnWidths, saveColumnWidths]
+	);
+
 	// 检测数据类型（Stock 还是 StockGroup）
 	const hasNameField = data.length > 0 && "name" in data[0];
 	const hasAreaField = data.length > 0 && "area" in data[0];
@@ -104,18 +193,18 @@ function StockListComponent<T extends Stock | StockGroup = Stock | StockGroup>({
 
 		// 关注按钮列
 		if (showFavoriteButton) {
+			const colWidth = columnWidths["favorite"] || 50;
 			cols.push({
 				title: "",
 				key: "favorite",
-				width: 50,
+				width: colWidth,
 				fixed: "left",
+				onHeaderCell: () => ({
+					width: colWidth,
+					onResize: handleResize("favorite"),
+				}),
 				render: (_: any, record: T) => (
-					<FavoriteButton
-						tsCode={record.ts_code}
-						isFavorite={record.isFavorite}
-						onChange={onFavoriteChange}
-						size="small"
-					/>
+					<FavoriteButton tsCode={record.ts_code} isFavorite={record.isFavorite} onChange={onFavoriteChange} size="small" />
 				),
 			});
 		}
@@ -123,11 +212,16 @@ function StockListComponent<T extends Stock | StockGroup = Stock | StockGroup>({
 		// 股票名称列（悬浮显示股票代码）
 		if (showName) {
 			const nameKey = hasNameField ? "name" : "stock_name";
+			const colWidth = columnWidths["name"] || 150;
 			cols.push({
 				title: "股票名称",
 				dataIndex: nameKey,
 				key: "name",
-				width: 150,
+				width: colWidth,
+				onHeaderCell: () => ({
+					width: colWidth,
+					onResize: handleResize("name"),
+				}),
 				render: (text: string, record: T) => (
 					<Tooltip title={`股票代码: ${record.ts_code}`}>
 						<AntText strong style={{ cursor: "help" }}>
@@ -140,22 +234,32 @@ function StockListComponent<T extends Stock | StockGroup = Stock | StockGroup>({
 
 		// 股票代码列（如果需要单独显示）
 		if (showCode) {
+			const colWidth = columnWidths["ts_code"] || 120;
 			cols.push({
 				title: "股票代码",
 				dataIndex: "ts_code",
 				key: "ts_code",
-				width: 120,
+				width: colWidth,
+				onHeaderCell: () => ({
+					width: colWidth,
+					onResize: handleResize("ts_code"),
+				}),
 				sorter: (a: any, b: any) => a.ts_code.localeCompare(b.ts_code),
 			});
 		}
 
 		// 市场列
 		if (showMarket) {
+			const colWidth = columnWidths["market"] || 80;
 			cols.push({
 				title: "市场",
 				dataIndex: "market",
 				key: "market",
-				width: 80,
+				width: colWidth,
+				onHeaderCell: () => ({
+					width: colWidth,
+					onResize: handleResize("market"),
+				}),
 				render: (text: string) => {
 					const colorMap: { [key: string]: string } = {
 						主板: "blue",
@@ -170,32 +274,47 @@ function StockListComponent<T extends Stock | StockGroup = Stock | StockGroup>({
 
 		// 行业列
 		if (showIndustry) {
+			const colWidth = columnWidths["industry"] || 100;
 			cols.push({
 				title: "行业",
 				dataIndex: "industry",
 				key: "industry",
-				width: 100,
+				width: colWidth,
+				onHeaderCell: () => ({
+					width: colWidth,
+					onResize: handleResize("industry"),
+				}),
 				render: (value: string) => (value ? <Tag color="blue">{value}</Tag> : "-"),
 			});
 		}
 
 		// 地区列
 		if (showArea && hasAreaField) {
+			const colWidth = columnWidths["area"] || 100;
 			cols.push({
 				title: "地区",
 				dataIndex: "area",
 				key: "area",
-				width: 100,
+				width: colWidth,
+				onHeaderCell: () => ({
+					width: colWidth,
+					onResize: handleResize("area"),
+				}),
 			});
 		}
 
 		// 公告数量列（仅 StockGroup）
 		if (showAnnouncementCount && hasAnnouncementCountField) {
+			const colWidth = columnWidths["announcement_count"] || 80;
 			cols.push({
 				title: "公告数量",
 				dataIndex: "announcement_count",
 				key: "announcement_count",
-				width: 80,
+				width: colWidth,
+				onHeaderCell: () => ({
+					width: colWidth,
+					onResize: handleResize("announcement_count"),
+				}),
 				render: (count: number) => (
 					<Badge
 						count={count}
@@ -210,10 +329,15 @@ function StockListComponent<T extends Stock | StockGroup = Stock | StockGroup>({
 
 		// 公告分类列（仅 StockGroup）
 		if (showAnnouncementCategories && hasAnnouncementCountField) {
+			const colWidth = columnWidths["category_stats"] || 300;
 			cols.push({
 				title: "公告分类",
 				key: "category_stats",
-				width: 300,
+				width: colWidth,
+				onHeaderCell: () => ({
+					width: colWidth,
+					onResize: handleResize("category_stats"),
+				}),
 				render: (_: any, record: T) => {
 					const stockGroup = record as any;
 					const categoryStats = stockGroup.category_stats || {};
@@ -230,7 +354,7 @@ function StockListComponent<T extends Stock | StockGroup = Stock | StockGroup>({
 						<Space size={[4, 4]} wrap>
 							{categories.map(([category, count]) => (
 								<Tag key={category} color={getCategoryColor(category as any)}>
-									{category} ({count})
+									{category} ({String(count)})
 								</Tag>
 							))}
 							{Object.keys(categoryStats).length > 5 && (
@@ -241,7 +365,7 @@ function StockListComponent<T extends Stock | StockGroup = Stock | StockGroup>({
 												.sort((a, b) => (b[1] as number) - (a[1] as number))
 												.map(([cat, cnt]) => (
 													<div key={cat}>
-														{cat}: {cnt}
+														{cat}: {String(cnt)}
 													</div>
 												))}
 										</div>
@@ -258,11 +382,17 @@ function StockListComponent<T extends Stock | StockGroup = Stock | StockGroup>({
 
 		// 最新公告标题列（仅 StockGroup）
 		if (showLatestAnnTitle && hasLatestAnnTitleField) {
+			const colWidth = columnWidths["latest_ann_title"];
 			cols.push({
 				title: "最新公告",
 				dataIndex: "latest_ann_title",
 				key: "latest_ann_title",
+				width: colWidth,
 				ellipsis: true,
+				onHeaderCell: () => ({
+					width: colWidth,
+					onResize: handleResize("latest_ann_title"),
+				}),
 				render: (title: string) => (
 					<AntText ellipsis={{ tooltip: title }} style={{ fontSize: 13, color: "#666" }}>
 						{title || "-"}
@@ -273,20 +403,23 @@ function StockListComponent<T extends Stock | StockGroup = Stock | StockGroup>({
 
 		// 最新公告日期列（仅 StockGroup）
 		if (showLatestAnnDate && hasLatestAnnDateField) {
+			const colWidth = columnWidths["latest_ann_date"] || 130;
 			cols.push({
 				title: "最新公告日期",
 				dataIndex: "latest_ann_date",
 				key: "latest_ann_date",
-				width: 130,
+				width: colWidth,
+				onHeaderCell: () => ({
+					width: colWidth,
+					onResize: handleResize("latest_ann_date"),
+				}),
 				defaultSortOrder: "descend" as const, // 默认倒序排序（后端已排序）
 				// 注意：Ant Design Table 的 sorter 默认只对当前页排序
 				// 如果需要全量排序，应该禁用 sorter，通过服务端排序实现
 				// 这里保留 sorter 仅用于当前页的临时排序展示
 				sorter: false, // 禁用客户端排序，因为后端已经对所有数据排序
 				render: (date: string) => (
-					<AntText style={{ fontFamily: "monospace" }}>
-						{date ? date.replace(/(\d{4})(\d{2})(\d{2})/, "$1-$2-$3") : "-"}
-					</AntText>
+					<AntText style={{ fontFamily: "monospace" }}>{date ? date.replace(/(\d{4})(\d{2})(\d{2})/, "$1-$2-$3") : "-"}</AntText>
 				),
 			});
 		}
@@ -326,6 +459,7 @@ function StockListComponent<T extends Stock | StockGroup = Stock | StockGroup>({
 		hasAnnouncementCountField,
 		hasLatestAnnTitleField,
 		hasLatestAnnDateField,
+		columnWidths,
 	]);
 
 	return (
@@ -334,6 +468,11 @@ function StockListComponent<T extends Stock | StockGroup = Stock | StockGroup>({
 			dataSource={data}
 			rowKey={rowKey}
 			loading={loading}
+			components={{
+				header: {
+					cell: ResizableTitle,
+				},
+			}}
 			pagination={
 				showPagination
 					? {
@@ -379,4 +518,3 @@ function StockListComponent<T extends Stock | StockGroup = Stock | StockGroup>({
 
 // 使用 memo 优化性能
 export const StockList = memo(StockListComponent) as typeof StockListComponent;
-

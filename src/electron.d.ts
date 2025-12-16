@@ -457,13 +457,7 @@ export interface ElectronAPI {
 
 	// 监听公告同步进度
 	onAnnouncementSyncProgress: (
-		callback: (progress: {
-			tsCode: string;
-			startDate: string;
-			endDate: string;
-			currentBatch: number;
-			totalFetched: number;
-		}) => void
+		callback: (progress: { tsCode: string; startDate: string; endDate: string; currentBatch: number; totalFetched: number }) => void
 	) => () => void;
 
 	// ============= 公告打标相关 =============
@@ -480,13 +474,25 @@ export interface ElectronAPI {
 	}>;
 
 	// 监听打标进度
-	onTaggingProgress: (
-		callback: (data: {
-			processed: number;
-			total: number;
-			percentage: string;
-		}) => void
-	) => () => void;
+	onTaggingProgress: (callback: (data: { processed: number; total: number; percentage: string }) => void) => () => void;
+
+	// ============= 列宽配置相关 =============
+
+	// 保存列宽配置
+	saveColumnWidths: (
+		tableId: string,
+		columnWidths: Record<string, number>
+	) => Promise<{
+		success: boolean;
+		error?: string;
+	}>;
+
+	// 获取列宽配置
+	getColumnWidths: (tableId: string) => Promise<{
+		success: boolean;
+		columnWidths: Record<string, number>;
+		error?: string;
+	}>;
 }
 
 declare global {
