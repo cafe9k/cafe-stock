@@ -1,14 +1,14 @@
 import { useEffect, useState } from "react";
-import { Table, Card, Tag, Typography, Badge, Space, Button, Input, DatePicker, Radio, Select, App } from "antd";
+import { Table, Card, Tag, Typography, Badge, Space, Button, Input, Select, App } from "antd";
 import {
 	FileTextOutlined,
 	ReloadOutlined,
 	SearchOutlined,
 	HistoryOutlined,
-	CalendarOutlined,
 	FilePdfOutlined,
 	StarOutlined,
 	StarFilled,
+	ClockCircleOutlined,
 } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import { PDFWebViewer } from "./PDFWebViewer";
@@ -19,7 +19,6 @@ import type { StockGroup } from "../types/stock";
 
 const { Text: AntText } = Typography;
 const { Search } = Input;
-const { RangePicker } = DatePicker;
 
 interface Announcement {
 	ts_code: string;
@@ -262,10 +261,48 @@ export function AnnouncementList() {
 					}
 				`}
 			</style>
-		{/* 操作栏 */}
+		{/* 操作栏 - 所有控件在同一行 */}
 		<div style={{ marginBottom: 16 }}>
-			{/* 第一行：搜索、时间范围选择 */}
-			<Space style={{ width: "100%", marginBottom: 12 }} align="start" wrap size={[8, 8]}>
+			<Space style={{ width: "100%" }} align="start" wrap size={[8, 8]}>
+				{/* 时间选择 - 最重要的筛选条件，放在最左边 */}
+				<Select
+					value={filter.quickSelectValue}
+					onChange={filter.handleQuickSelect}
+					style={{ width: 140 }}
+					suffixIcon={<ClockCircleOutlined />}
+					options={[
+						{ value: "today", label: "今天" },
+						{ value: "yesterday", label: "昨天" },
+						{ value: "week", label: "最近一周" },
+						{ value: "month", label: "最近一个月" },
+						{ value: "quarter", label: "最近三个月" },
+					]}
+				/>
+
+				{/* 市场选择 - 第二重要的筛选条件 */}
+				<Select
+					value={filter.selectedMarket}
+					onChange={filter.setSelectedMarket}
+					style={{ width: 110 }}
+					options={[
+						{ value: "all", label: "全部市场" },
+						{ value: "主板", label: "主板" },
+						{ value: "创业板", label: "创业板" },
+						{ value: "科创板", label: "科创板" },
+						{ value: "CDR", label: "CDR" },
+					]}
+				/>
+
+				{/* 关注筛选 - 特殊筛选条件 */}
+				<Button
+					type={showFavoriteOnly ? "primary" : "default"}
+					icon={showFavoriteOnly ? <StarFilled /> : <StarOutlined />}
+					onClick={handleToggleFavoriteFilter}
+				>
+					{showFavoriteOnly ? "仅关注" : "关注"}
+				</Button>
+
+				{/* 搜索框 - 关键词搜索 */}
 				<Search
 					placeholder="搜索股票名称或代码"
 					allowClear
@@ -277,52 +314,11 @@ export function AnnouncementList() {
 							handleSearch("");
 						}
 					}}
-					style={{ width: 300, minWidth: 200 }}
+					style={{ width: 240, minWidth: 200 }}
 					value={searchKeyword}
 				/>
 
-				<Radio.Group value={filter.quickSelectValue} onChange={(e) => filter.handleQuickSelect(e.target.value)} buttonStyle="solid" size="middle">
-					<Radio.Button value="today">今天</Radio.Button>
-					<Radio.Button value="yesterday">昨天</Radio.Button>
-					<Radio.Button value="week">最近一周</Radio.Button>
-					<Radio.Button value="month">最近一个月</Radio.Button>
-					<Radio.Button value="quarter">最近三个月</Radio.Button>
-				</Radio.Group>
-
-				<RangePicker
-					value={filter.dateRangeDisplay}
-					onChange={filter.handleDateRangeChange}
-					format="YYYY-MM-DD"
-					placeholder={["开始日期", "结束日期"]}
-					style={{ width: 240, minWidth: 240 }}
-					allowClear
-					suffixIcon={<CalendarOutlined />}
-				/>
-			</Space>
-
-			{/* 第二行：关注过滤、市场选择和刷新 */}
-			<Space align="start" wrap size={[8, 8]}>
-				<Button
-					type={showFavoriteOnly ? "primary" : "default"}
-					icon={showFavoriteOnly ? <StarFilled /> : <StarOutlined />}
-					onClick={handleToggleFavoriteFilter}
-				>
-					{showFavoriteOnly ? "仅关注" : "关注"}
-				</Button>
-
-				<Select
-					value={filter.selectedMarket}
-					onChange={filter.setSelectedMarket}
-					style={{ width: 120 }}
-					options={[
-						{ value: "all", label: "全部市场" },
-						{ value: "主板", label: "主板" },
-						{ value: "创业板", label: "创业板" },
-						{ value: "科创板", label: "科创板" },
-						{ value: "CDR", label: "CDR" },
-					]}
-				/>
-
+				{/* 刷新按钮 - 操作按钮放在最右边 */}
 				<Button icon={<ReloadOutlined />} onClick={handleRefresh} loading={loading}>
 					刷新
 				</Button>
