@@ -4,10 +4,11 @@
  */
 
 import { useMemo, memo } from "react";
-import { Table, Tag, Typography, Badge } from "antd";
+import { Table, Tag, Typography, Badge, Tooltip, Space } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import type { Stock, StockGroup } from "../../types/stock";
 import { FavoriteButton } from "../FavoriteButton";
+import { getCategoryColor } from "../../utils/announcementClassifier";
 
 const { Text: AntText } = Typography;
 
@@ -22,6 +23,7 @@ export interface StockListColumnConfig {
 	showIndustry?: boolean; // 显示行业
 	showArea?: boolean; // 显示地区
 	showAnnouncementCount?: boolean; // 显示公告数量（仅 StockGroup）
+	showAnnouncementCategories?: boolean; // 显示公告分类（仅 StockGroup）
 	showLatestAnnDate?: boolean; // 显示最新公告日期（仅 StockGroup）
 	showLatestAnnTitle?: boolean; // 显示最新公告标题（仅 StockGroup）
 	customColumns?: ColumnsType<any>; // 自定义列
@@ -82,6 +84,7 @@ function StockListComponent<T extends Stock | StockGroup = Stock | StockGroup>({
 		showIndustry = true,
 		showArea = false,
 		showAnnouncementCount = false,
+		showAnnouncementCategories = false,
 		showLatestAnnDate = false,
 		showLatestAnnTitle = false,
 		customColumns = [],
@@ -117,18 +120,7 @@ function StockListComponent<T extends Stock | StockGroup = Stock | StockGroup>({
 			});
 		}
 
-		// 股票代码列
-		if (showCode) {
-			cols.push({
-				title: "股票代码",
-				dataIndex: "ts_code",
-				key: "ts_code",
-				width: 120,
-				sorter: (a: any, b: any) => a.ts_code.localeCompare(b.ts_code),
-			});
-		}
-
-		// 股票名称列
+		// 股票名称列（悬浮显示股票代码）
 		if (showName) {
 			const nameKey = hasNameField ? "name" : "stock_name";
 			cols.push({
@@ -136,7 +128,24 @@ function StockListComponent<T extends Stock | StockGroup = Stock | StockGroup>({
 				dataIndex: nameKey,
 				key: "name",
 				width: 150,
-				render: (text: string) => <AntText strong>{text}</AntText>,
+				render: (text: string, record: T) => (
+					<Tooltip title={`股票代码: ${record.ts_code}`}>
+						<AntText strong style={{ cursor: "help" }}>
+							{text}
+						</AntText>
+					</Tooltip>
+				),
+			});
+		}
+
+		// 股票代码列（如果需要单独显示）
+		if (showCode) {
+			cols.push({
+				title: "股票代码",
+				dataIndex: "ts_code",
+				key: "ts_code",
+				width: 120,
+				sorter: (a: any, b: any) => a.ts_code.localeCompare(b.ts_code),
 			});
 		}
 
@@ -199,6 +208,54 @@ function StockListComponent<T extends Stock | StockGroup = Stock | StockGroup>({
 			});
 		}
 
+		// 公告分类列（仅 StockGroup）
+		if (showAnnouncementCategories && hasAnnouncementCountField) {
+			cols.push({
+				title: "公告分类",
+				key: "category_stats",
+				width: 300,
+				render: (_: any, record: T) => {
+					const stockGroup = record as any;
+					const categoryStats = stockGroup.category_stats || {};
+					const categories = Object.entries(categoryStats)
+						.filter(([_, count]) => (count as number) > 0)
+						.sort((a, b) => (b[1] as number) - (a[1] as number))
+						.slice(0, 5); // 只显示前5个分类
+
+					if (categories.length === 0) {
+						return <AntText type="secondary">-</AntText>;
+					}
+
+					return (
+						<Space size={[4, 4]} wrap>
+							{categories.map(([category, count]) => (
+								<Tag key={category} color={getCategoryColor(category as any)}>
+									{category} ({count})
+								</Tag>
+							))}
+							{Object.keys(categoryStats).length > 5 && (
+								<Tooltip
+									title={
+										<div>
+											{Object.entries(categoryStats)
+												.sort((a, b) => (b[1] as number) - (a[1] as number))
+												.map(([cat, cnt]) => (
+													<div key={cat}>
+														{cat}: {cnt}
+													</div>
+												))}
+										</div>
+									}
+								>
+									<Tag>...</Tag>
+								</Tooltip>
+							)}
+						</Space>
+					);
+				},
+			});
+		}
+
 		// 最新公告标题列（仅 StockGroup）
 		if (showLatestAnnTitle && hasLatestAnnTitleField) {
 			cols.push({
@@ -258,6 +315,7 @@ function StockListComponent<T extends Stock | StockGroup = Stock | StockGroup>({
 		showIndustry,
 		showArea,
 		showAnnouncementCount,
+		showAnnouncementCategories,
 		showLatestAnnDate,
 		showLatestAnnTitle,
 		customColumns,

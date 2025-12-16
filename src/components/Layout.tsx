@@ -35,6 +35,11 @@ const items: MenuItem[] = [
 		icon: <ReadOutlined />,
 		label: "资讯",
 	},
+	{
+		key: "/settings",
+		icon: <SettingOutlined />,
+		label: "系统设置",
+	},
 ];
 
 export function Layout() {

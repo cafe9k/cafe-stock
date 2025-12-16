@@ -5,6 +5,7 @@ import { Layout } from "./components/Layout";
 import { Announcements } from "./pages/Announcements";
 import { News } from "./pages/News";
 import DataInsights from "./pages/DataInsights";
+import { Settings } from "./pages/Settings";
 import { StockListSyncIndicator } from "./components/StockListSyncIndicator";
 import { stockListSyncService } from "./services/stockListSync";
 
@@ -53,6 +54,7 @@ function App() {
 					<Route path="announcements" element={<Announcements />} />
 					<Route path="news" element={<News />} />
 					<Route path="data-insights" element={<DataInsights />} />
+					<Route path="settings" element={<Settings />} />
 					<Route path="*" element={<Navigate to="/announcements" replace />} />
 				</Route>
 			</Routes>

@@ -465,6 +465,28 @@ export interface ElectronAPI {
 			totalFetched: number;
 		}) => void
 	) => () => void;
+
+	// ============= 公告打标相关 =============
+
+	// 获取未打标公告数量
+	getUntaggedCount: () => Promise<{ success: boolean; count: number; error?: string }>;
+
+	// 批量打标所有公告
+	tagAllAnnouncements: (batchSize?: number) => Promise<{
+		success: boolean;
+		processed: number;
+		total: number;
+		error?: string;
+	}>;
+
+	// 监听打标进度
+	onTaggingProgress: (
+		callback: (data: {
+			processed: number;
+			total: number;
+			percentage: string;
+		}) => void
+	) => () => void;
 }
 
 declare global {

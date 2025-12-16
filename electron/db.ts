@@ -1,6 +1,7 @@
 import Database from "better-sqlite3";
 import path from "path";
 import { app } from "electron";
+import { classifyAnnouncement } from "../src/utils/announcementClassifier.js";
 
 const dbPath = path.join(app.getPath("userData"), "cafe_stock.db");
 const db = new Database(dbPath);
@@ -139,6 +140,21 @@ function migrateDatabase() {
 			console.log("[DB Migration] stocks.is_favorite 索引创建成功");
 		} catch (error) {
 			console.error("[DB Migration Error] 添加 stocks.is_favorite 列失败:", error);
+		}
+	}
+
+	// 迁移 announcements 表，添加 category 字段
+	if (!announcementsColumns.has("category")) {
+		console.log("[DB Migration] 添加 announcements.category 列");
+		try {
+			db.exec("ALTER TABLE announcements ADD COLUMN category TEXT DEFAULT NULL");
+			console.log("[DB Migration] announcements.category 列添加成功");
+			
+			// 添加索引以提升查询性能
+			db.exec("CREATE INDEX IF NOT EXISTS idx_ann_category ON announcements (category)");
+			console.log("[DB Migration] announcements.category 索引创建成功");
+		} catch (error) {
+			console.error("[DB Migration Error] 添加 announcements.category 列失败:", error);
 		}
 	}
 }
@@ -534,21 +550,25 @@ export const deleteTop10HoldersByStock = (tsCode: string) => {
 export const upsertAnnouncements = (items: any[]) => {
 	const upsert = db.prepare(`
     INSERT INTO announcements (
-      ts_code, ann_date, ann_type, title, content, pub_time, file_path, name
+      ts_code, ann_date, ann_type, title, content, pub_time, file_path, name, category
     )
     VALUES (
-      @ts_code, @ann_date, @ann_type, @title, @content, @pub_time, @file_path, @name
+      @ts_code, @ann_date, @ann_type, @title, @content, @pub_time, @file_path, @name, @category
     )
     ON CONFLICT(ts_code, ann_date, title) DO UPDATE SET
       ann_type = excluded.ann_type,
       content = excluded.content,
       pub_time = excluded.pub_time,
       file_path = excluded.file_path,
-      name = excluded.name
+      name = excluded.name,
+      category = COALESCE(announcements.category, excluded.category)
   `);
 
 	const upsertMany = db.transaction((announcements) => {
 		for (const ann of announcements) {
+			// 自动分类新公告
+			const category = ann.category || classifyAnnouncement(ann.title || "");
+
 			upsert.run({
 				ts_code: ann.ts_code || null,
 				ann_date: ann.ann_date || null,
@@ -558,6 +578,7 @@ export const upsertAnnouncements = (items: any[]) => {
 				pub_time: ann.pub_time || null,
 				file_path: ann.file_path || null,
 				name: ann.name || null,
+				category: category,
 			});
 		}
 	});
@@ -779,46 +800,50 @@ const mergeAnnouncementSyncRanges = (tsCode: string | null) => {
 /**
  * 获取指定股票的公告列表
  */
-export const getAnnouncementsByStock = (tsCode: string, limit: number = 100) => {
-	return db
-		.prepare(
-			`
-    SELECT * FROM announcements 
-    WHERE ts_code = ?
-    ORDER BY ann_date DESC, rec_time DESC
-    LIMIT ?
-  `
-		)
-		.all(tsCode, limit);
+export const getAnnouncementsByStock = (tsCode: string, categories?: string[], limit: number = 100) => {
+	let query = "SELECT * FROM announcements WHERE ts_code = ?";
+	const params: any[] = [tsCode];
+
+	if (categories && categories.length > 0) {
+		const placeholders = categories.map(() => "?").join(",");
+		query += ` AND category IN (${placeholders})`;
+		params.push(...categories);
+	}
+
+	query += " ORDER BY ann_date DESC, rec_time DESC LIMIT ?";
+	params.push(limit);
+
+	return db.prepare(query).all(...params);
 };
 
 /**
  * 根据日期范围获取公告
  */
-export const getAnnouncementsByDateRange = (startDate: string, endDate: string, tsCode?: string, limit: number = 200) => {
+export const getAnnouncementsByDateRange = (
+	startDate: string,
+	endDate: string,
+	tsCode?: string,
+	categories?: string[],
+	limit: number = 200
+) => {
+	let query = "SELECT * FROM announcements WHERE ann_date >= ? AND ann_date <= ?";
+	const params: any[] = [startDate, endDate];
+
 	if (tsCode) {
-		return db
-			.prepare(
-				`
-      SELECT * FROM announcements 
-      WHERE ts_code = ? AND ann_date >= ? AND ann_date <= ?
-      ORDER BY ann_date DESC, rec_time DESC
-      LIMIT ?
-    `
-			)
-			.all(tsCode, startDate, endDate, limit);
-	} else {
-		return db
-			.prepare(
-				`
-      SELECT * FROM announcements 
-      WHERE ann_date >= ? AND ann_date <= ?
-      ORDER BY ann_date DESC, rec_time DESC
-      LIMIT ?
-    `
-			)
-			.all(startDate, endDate, limit);
+		query += " AND ts_code = ?";
+		params.push(tsCode);
 	}
+
+	if (categories && categories.length > 0) {
+		const placeholders = categories.map(() => "?").join(",");
+		query += ` AND category IN (${placeholders})`;
+		params.push(...categories);
+	}
+
+	query += " ORDER BY ann_date DESC, rec_time DESC LIMIT ?";
+	params.push(limit);
+
+	return db.prepare(query).all(...params);
 };
 
 /**
@@ -846,6 +871,93 @@ export const searchAnnouncements = (keyword: string, limit: number = 100) => {
 export const countAnnouncements = (): number => {
 	const row = db.prepare("SELECT COUNT(*) as count FROM announcements").get() as { count: number };
 	return row.count;
+};
+
+/**
+ * 获取未打标的公告数量
+ */
+export const getUntaggedAnnouncementsCount = (): number => {
+	const row = db.prepare("SELECT COUNT(*) as count FROM announcements WHERE category IS NULL").get() as { count: number };
+	return row.count;
+};
+
+/**
+ * 批量打标公告（分批处理）
+ * @param batchSize 每批处理的数量
+ * @param onProgress 进度回调
+ */
+export const tagAnnouncementsBatch = (
+	batchSize: number = 1000,
+	onProgress?: (processed: number, total: number) => void
+): { success: boolean; processed: number; total: number } => {
+	const total = getUntaggedAnnouncementsCount();
+	let processed = 0;
+
+	if (total === 0) {
+		return { success: true, processed: 0, total: 0 };
+	}
+
+	console.log(`[Tagging] 开始批量打标，共 ${total} 条未打标公告`);
+
+	const updateStmt = db.prepare("UPDATE announcements SET category = ? WHERE id = ?");
+
+	const processBatch = db.transaction(() => {
+		while (processed < total) {
+			// 查询一批未打标的公告
+			const announcements = db
+				.prepare(
+					`
+                SELECT id, title 
+                FROM announcements 
+                WHERE category IS NULL 
+                LIMIT ?
+            `
+				)
+				.all(batchSize) as Array<{ id: number; title: string }>;
+
+			if (announcements.length === 0) break;
+
+			// 批量分类并更新
+			for (const ann of announcements) {
+				const category = classifyAnnouncement(ann.title || "");
+				updateStmt.run(category, ann.id);
+			}
+
+			processed += announcements.length;
+
+			// 调用进度回调
+			if (onProgress) {
+				onProgress(processed, total);
+			}
+
+			console.log(`[Tagging] 已处理 ${processed}/${total} (${((processed / total) * 100).toFixed(2)}%)`);
+		}
+	});
+
+	try {
+		processBatch();
+		console.log(`[Tagging] 批量打标完成，共处理 ${processed} 条`);
+		return { success: true, processed, total };
+	} catch (error) {
+		console.error("[Tagging Error]", error);
+		return { success: false, processed, total };
+	}
+};
+
+/**
+ * 按分类查询公告
+ */
+export const getAnnouncementsByCategory = (category: string, limit: number = 100): any[] => {
+	return db
+		.prepare(
+			`
+        SELECT * FROM announcements 
+        WHERE category = ? 
+        ORDER BY ann_date DESC, pub_time DESC 
+        LIMIT ?
+    `
+		)
+		.all(category, limit);
 };
 
 /**

@@ -314,4 +314,19 @@ contextBridge.exposeInMainWorld("electronAPI", {
 		ipcRenderer.on("announcement-sync-progress", subscription);
 		return () => ipcRenderer.removeListener("announcement-sync-progress", subscription);
 	},
+
+	// ============= 公告打标相关 =============
+
+	// 获取未打标公告数量
+	getUntaggedCount: () => ipcRenderer.invoke("get-untagged-count"),
+
+	// 批量打标所有公告
+	tagAllAnnouncements: (batchSize?: number) => ipcRenderer.invoke("tag-all-announcements", batchSize),
+
+	// 监听打标进度
+	onTaggingProgress: (callback: (data: any) => void) => {
+		const listener = (_event: any, data: any) => callback(data);
+		ipcRenderer.on("tagging-progress", listener);
+		return () => ipcRenderer.removeListener("tagging-progress", listener);
+	},
 });

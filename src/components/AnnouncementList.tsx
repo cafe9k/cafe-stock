@@ -16,6 +16,7 @@ import { StockList } from "./StockList/index";
 import { useStockList } from "../hooks/useStockList";
 import { useStockFilter } from "../hooks/useStockFilter";
 import type { StockGroup } from "../types/stock";
+import { AnnouncementCategory, getCategoryColor, getCategoryIcon } from "../utils/announcementClassifier";
 
 const { Text: AntText } = Typography;
 const { Search } = Input;
@@ -28,6 +29,7 @@ interface Announcement {
 	content: string;
 	pub_time: string;
 	file_path?: string;
+	category?: string;
 }
 
 export function AnnouncementList() {
@@ -38,6 +40,7 @@ export function AnnouncementList() {
 	const [expandedData, setExpandedData] = useState<Record<string, Announcement[]>>({});
 	const [loadingExpanded, setLoadingExpanded] = useState<Record<string, boolean>>({});
 	const [showFavoriteOnly, setShowFavoriteOnly] = useState(false);
+	const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
 
 	// 使用新的 hooks
 	const filter = useStockFilter();
@@ -182,47 +185,59 @@ export function AnnouncementList() {
 	// 嵌套表格列定义
 	const nestedColumns: ColumnsType<Announcement> = [
 		{
+			title: "标题",
+			dataIndex: "title",
+			key: "title",
+			ellipsis: true,
+			render: (title: string, record: Announcement) => {
+				const category = record.category;
+				const color = category ? getCategoryColor(category as AnnouncementCategory) : "default";
+				const icon = category ? getCategoryIcon(category as AnnouncementCategory) : "📄";
+				
+				return (
+					<div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+						<FileTextOutlined style={{ color: "#1890ff", fontSize: 12 }} />
+						<AntText style={{ fontSize: 12, flex: 1 }} title={title}>
+							{title}
+						</AntText>
+						<Tag color={color} style={{ marginLeft: 8 }}>
+							{icon} {category || "未分类"}
+						</Tag>
+					</div>
+				);
+			},
+		},
+		{
 			title: "日期",
 			dataIndex: "ann_date",
 			key: "ann_date",
 			width: 120,
 			render: (date: string) => <AntText style={{ fontFamily: "monospace", fontSize: 12 }}>{date}</AntText>,
 		},
-		{
-			title: "标题",
-			dataIndex: "title",
-			key: "title",
-			ellipsis: true,
-			render: (title: string, record: Announcement) => (
-				<div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-					<FileTextOutlined style={{ color: "#1890ff", fontSize: 12 }} />
-					<AntText style={{ cursor: "pointer", fontSize: 12, flex: 1 }} title={title} onClick={() => handlePdfPreview(record)}>
-						{title}
-					</AntText>
-					<Button type="link" size="small" icon={<FilePdfOutlined />} onClick={() => handlePdfPreview(record)} style={{ padding: 0 }}>
-						预览
-					</Button>
-				</div>
-			),
-		},
 	];
 
 	// 展开行的内容
 	const expandedRowRender = (record: StockGroup) => {
-		const announcements = expandedData[record.ts_code] || [];
+		const allAnnouncements = expandedData[record.ts_code] || [];
 		const loading = loadingExpanded[record.ts_code] || false;
 		const currentPage = expandedPageMap[record.ts_code] || 1;
+
+		// 应用分类过滤
+		const filteredAnnouncements =
+			selectedCategories.length > 0
+				? allAnnouncements.filter((ann) => ann.category && selectedCategories.includes(ann.category))
+				: allAnnouncements;
 
 		return (
 			<Table
 				columns={nestedColumns}
-				dataSource={announcements}
+				dataSource={filteredAnnouncements}
 				pagination={
-					announcements.length > EXPANDED_PAGE_SIZE
+					filteredAnnouncements.length > EXPANDED_PAGE_SIZE
 						? {
 								current: currentPage,
 								pageSize: EXPANDED_PAGE_SIZE,
-								total: announcements.length,
+								total: filteredAnnouncements.length,
 								size: "small",
 								showSizeChanger: false,
 								showTotal: (total) => `共 ${total} 条公告`,
@@ -234,11 +249,15 @@ export function AnnouncementList() {
 				}
 				loading={loading}
 				size="small"
+				showHeader={false}
 				rowKey={(record) => `${record.ts_code}-${record.ann_date}-${record.title}`}
 				locale={{
 					emptyText: loading ? "加载中..." : "暂无公告",
 				}}
-				style={{ marginLeft: 48 }}
+				onRow={(record) => ({
+					onClick: () => handlePdfPreview(record),
+					style: { cursor: "pointer" },
+				})}
 			/>
 		);
 	};
@@ -325,6 +344,35 @@ export function AnnouncementList() {
 			</Space>
 		</div>
 
+			{/* 分类筛选器（独立一行） */}
+			<div style={{ marginBottom: 16 }}>
+				<Space wrap size={[8, 8]}>
+					<AntText strong>分类筛选：</AntText>
+					<Button
+						size="small"
+						type={selectedCategories.length === 0 ? "primary" : "default"}
+						onClick={() => setSelectedCategories([])}
+					>
+						全部
+					</Button>
+					{Object.values(AnnouncementCategory).map((category) => (
+						<Button
+							key={category}
+							size="small"
+							type={selectedCategories.includes(category) ? "primary" : "default"}
+							icon={<span>{getCategoryIcon(category)}</span>}
+							onClick={() => {
+								setSelectedCategories((prev) =>
+									prev.includes(category) ? prev.filter((c) => c !== category) : [...prev, category]
+								);
+							}}
+						>
+							{category}
+						</Button>
+					))}
+				</Space>
+			</div>
+
 			{/* 加载历史状态提示 */}
 			{loadingHistory && (
 				<div style={{ marginBottom: 16 }}>
@@ -355,6 +403,7 @@ export function AnnouncementList() {
 						showMarket: true,
 						showIndustry: true,
 						showAnnouncementCount: true,
+						showAnnouncementCategories: true,
 						showLatestAnnTitle: true,
 						showLatestAnnDate: true,
 					}}

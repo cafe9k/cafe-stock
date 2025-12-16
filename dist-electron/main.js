@@ -13821,6 +13821,247 @@ NsisUpdater$1.NsisUpdater = NsisUpdater;
   });
 })(main$1);
 const pkg = /* @__PURE__ */ getDefaultExportFromCjs(main$1);
+const CLASSIFICATION_RULES = [
+  // 优先级1: 财务报告类 (覆盖率: 7.19%)
+  {
+    category: "财务报告",
+    keywords: [
+      "年度报告",
+      "年报",
+      "半年度报告",
+      "半年报",
+      "季度报告",
+      "季报",
+      "一季报",
+      "三季报",
+      "财务报告",
+      "财务报表",
+      "业绩快报",
+      "业绩预告",
+      "盈利预告",
+      "审计报告",
+      "审计",
+      "会计",
+      "会计师事务所",
+      "业绩说明会"
+    ],
+    priority: 1
+  },
+  // 优先级2: 分红派息 (覆盖率: 1.81%)
+  {
+    category: "分红派息",
+    keywords: ["分红", "派息", "现金分红", "送股", "转增", "利润分配", "股利分配", "权益分派", "除权除息"],
+    priority: 2
+  },
+  // 优先级3: 股权变动 (覆盖率: 1.72%)
+  {
+    category: "股权变动",
+    keywords: [
+      "股权变动",
+      "权益变动",
+      "增持",
+      "减持",
+      "股份回购",
+      "回购股份",
+      "回购",
+      "限售股",
+      "解禁",
+      "股权激励",
+      "员工持股",
+      "出售股份",
+      "出售已回购"
+    ],
+    priority: 3
+  },
+  // 优先级4: 风险提示 (覆盖率: 6.23%)
+  {
+    category: "风险提示",
+    keywords: [
+      "风险提示",
+      "风险警示",
+      "异常波动",
+      "股价异常",
+      "ST",
+      "*ST",
+      "退市风险",
+      "退市",
+      "停牌",
+      "复牌",
+      "核查",
+      "问询",
+      "问询函",
+      "关注函",
+      "回复",
+      "回复函",
+      "澄清",
+      "澄清公告",
+      "资产减值",
+      "计提减值"
+    ],
+    priority: 4
+  },
+  // 优先级5: 公司治理 (覆盖率: 30.39% - 最高)
+  {
+    category: "公司治理",
+    keywords: [
+      "董事会",
+      "董事会决议",
+      "监事会",
+      "监事会决议",
+      "股东大会",
+      "股东会",
+      "临时股东大会",
+      "独立董事",
+      "董事",
+      "高管",
+      "总经理",
+      "副总经理",
+      "财务总监",
+      "董事长",
+      "监事",
+      "任命",
+      "选举",
+      "辞职",
+      "离职",
+      "聘任",
+      "章程",
+      "章程修订",
+      "会议通知",
+      "会议决议",
+      "会议",
+      "提名",
+      "候选人"
+    ],
+    priority: 5
+  },
+  // 优先级6: 担保事项 (新增，预计覆盖率: 2-3%)
+  {
+    category: "担保事项",
+    keywords: ["担保", "提供担保", "反担保", "担保额度", "对外担保"],
+    priority: 6
+  },
+  // 优先级7: 交易公告 (覆盖率: 7.20%)
+  {
+    category: "交易公告",
+    keywords: ["关联交易", "日常关联交易", "购买资产", "出售资产", "资产转让", "股权转让", "交易", "买卖"],
+    priority: 7
+  },
+  // 优先级8: 重大事项 (覆盖率: 0.70%)
+  {
+    category: "重大事项",
+    keywords: ["重大事项", "重大事件", "重大资产重组", "资产重组", "收购", "兼并", "并购", "重组", "整合", "重大合同"],
+    priority: 8
+  },
+  // 优先级9: 对外投资 (覆盖率: 3.44%)
+  {
+    category: "对外投资",
+    keywords: ["对外投资", "投资设立", "设立", "参股", "控股", "合资", "合作", "子公司", "全资子公司", "投资进展"],
+    priority: 9
+  },
+  // 优先级10: 经营情况 (覆盖率: 2.76%)
+  {
+    category: "经营情况",
+    keywords: [
+      "经营情况",
+      "生产经营",
+      "经营数据",
+      "项目",
+      "工程",
+      "中标",
+      "中标公告",
+      "合同",
+      "签订合同",
+      "签署",
+      "协议",
+      "建设",
+      "施工",
+      "完成",
+      "竣工",
+      "授信",
+      "综合授信",
+      "银行授信"
+    ],
+    priority: 10
+  },
+  // 优先级11: 债券相关 (新增，预计覆盖率: 3-5%)
+  {
+    category: "债券相关",
+    keywords: ["债券", "公司债", "可转债", "转债", "可转换债券", "付息", "兑付", "摘牌", "发行", "发行结果", "信用评级", "评级", "转股"],
+    priority: 11
+  },
+  // 优先级12: 内部控制 (新增，预计覆盖率: 1-2%)
+  {
+    category: "内部控制",
+    keywords: ["内部控制", "内控", "鉴证报告", "自我评价", "管理制度", "信息披露"],
+    priority: 12
+  },
+  // 优先级13: 资质认证 (新增，预计覆盖率: 0.5-1%)
+  {
+    category: "资质认证",
+    keywords: ["高新技术企业", "高新认定", "资质", "认证", "许可证", "证书", "专利", "知识产权"],
+    priority: 13
+  },
+  // 优先级14: 基金相关 (新增，预计覆盖率: 2-3%)
+  {
+    category: "基金相关",
+    keywords: ["基金", "基金管理", "开放日常", "开放申购", "开放赎回", "基金份额", "基金净值", "估值调整"],
+    priority: 14
+  },
+  // 优先级15: 诉讼仲裁 (覆盖率: 0.64%)
+  {
+    category: "诉讼仲裁",
+    keywords: ["诉讼", "起诉", "被诉", "仲裁", "纠纷", "法律纠纷", "判决", "裁决", "法律"],
+    priority: 15
+  },
+  // 优先级16: 募集资金 (预计覆盖率: 3-4%)
+  {
+    category: "募集资金",
+    keywords: ["募集资金", "闲置募集资金", "现金管理", "理财产品", "补充流动资金", "募集资金管理"],
+    priority: 16
+  },
+  // 优先级17: 股权激励 (预计覆盖率: 2-3%)
+  {
+    category: "股权激励",
+    keywords: ["股权激励", "激励计划", "股票期权", "期权激励", "限制性股票", "激励对象", "授予", "行权", "解锁"],
+    priority: 17
+  },
+  // 优先级18: 投资者关系 (预计覆盖率: 1-2%)
+  {
+    category: "投资者关系",
+    keywords: ["投资者关系", "投资者关系活动", "投资者关系管理", "投资者接待", "路演"],
+    priority: 18
+  },
+  // 优先级19: 持续督导 (预计覆盖率: 0.5-1%)
+  {
+    category: "持续督导",
+    keywords: ["持续督导", "督导报告", "定期现场检查", "现场检查", "跟踪报告"],
+    priority: 19
+  },
+  // 优先级20: ESG报告 (预计覆盖率: 0.3-0.5%)
+  {
+    category: "ESG报告",
+    keywords: ["ESG", "ESG报告", "社会责任", "社会责任报告", "可持续发展", "环境报告", "环境、社会及治理"],
+    priority: 20
+  },
+  // 优先级21: 股份质押 (预计覆盖率: 0.3-0.5%)
+  {
+    category: "股份质押",
+    keywords: ["质押", "股份质押", "解除质押", "股权质押", "再质押", "补充质押"],
+    priority: 21
+  }
+];
+function classifyAnnouncement(title) {
+  if (!title) return "其他";
+  const sortedRules = [...CLASSIFICATION_RULES].sort((a, b) => a.priority - b.priority);
+  for (const rule of sortedRules) {
+    for (const keyword of rule.keywords) {
+      if (title.includes(keyword)) {
+        return rule.category;
+      }
+    }
+  }
+  return "其他";
+}
 const dbPath = require$$1$1.join(app.getPath("userData"), "cafe_stock.db");
 const db = new Database(dbPath);
 const getDbPath = () => dbPath;
@@ -13940,6 +14181,17 @@ function migrateDatabase() {
       console.log("[DB Migration] stocks.is_favorite 索引创建成功");
     } catch (error2) {
       console.error("[DB Migration Error] 添加 stocks.is_favorite 列失败:", error2);
+    }
+  }
+  if (!announcementsColumns.has("category")) {
+    console.log("[DB Migration] 添加 announcements.category 列");
+    try {
+      db.exec("ALTER TABLE announcements ADD COLUMN category TEXT DEFAULT NULL");
+      console.log("[DB Migration] announcements.category 列添加成功");
+      db.exec("CREATE INDEX IF NOT EXISTS idx_ann_category ON announcements (category)");
+      console.log("[DB Migration] announcements.category 索引创建成功");
+    } catch (error2) {
+      console.error("[DB Migration Error] 添加 announcements.category 列失败:", error2);
     }
   }
 }
@@ -14207,20 +14459,22 @@ const deleteTop10HoldersByStock = (tsCode) => {
 const upsertAnnouncements = (items) => {
   const upsert = db.prepare(`
     INSERT INTO announcements (
-      ts_code, ann_date, ann_type, title, content, pub_time, file_path, name
+      ts_code, ann_date, ann_type, title, content, pub_time, file_path, name, category
     )
     VALUES (
-      @ts_code, @ann_date, @ann_type, @title, @content, @pub_time, @file_path, @name
+      @ts_code, @ann_date, @ann_type, @title, @content, @pub_time, @file_path, @name, @category
     )
     ON CONFLICT(ts_code, ann_date, title) DO UPDATE SET
       ann_type = excluded.ann_type,
       content = excluded.content,
       pub_time = excluded.pub_time,
       file_path = excluded.file_path,
-      name = excluded.name
+      name = excluded.name,
+      category = COALESCE(announcements.category, excluded.category)
   `);
   const upsertMany = db.transaction((announcements) => {
     for (const ann of announcements) {
+      const category = ann.category || classifyAnnouncement(ann.title || "");
       upsert.run({
         ts_code: ann.ts_code || null,
         ann_date: ann.ann_date || null,
@@ -14229,7 +14483,8 @@ const upsertAnnouncements = (items) => {
         content: ann.content || null,
         pub_time: ann.pub_time || null,
         file_path: ann.file_path || null,
-        name: ann.name || null
+        name: ann.name || null,
+        category
       });
     }
   });
@@ -14379,36 +14634,33 @@ const mergeAnnouncementSyncRanges = (tsCode) => {
     }
   })();
 };
-const getAnnouncementsByStock = (tsCode, limit = 100) => {
-  return db.prepare(
-    `
-    SELECT * FROM announcements 
-    WHERE ts_code = ?
-    ORDER BY ann_date DESC, rec_time DESC
-    LIMIT ?
-  `
-  ).all(tsCode, limit);
-};
-const getAnnouncementsByDateRange = (startDate, endDate, tsCode, limit = 200) => {
-  if (tsCode) {
-    return db.prepare(
-      `
-      SELECT * FROM announcements 
-      WHERE ts_code = ? AND ann_date >= ? AND ann_date <= ?
-      ORDER BY ann_date DESC, rec_time DESC
-      LIMIT ?
-    `
-    ).all(tsCode, startDate, endDate, limit);
-  } else {
-    return db.prepare(
-      `
-      SELECT * FROM announcements 
-      WHERE ann_date >= ? AND ann_date <= ?
-      ORDER BY ann_date DESC, rec_time DESC
-      LIMIT ?
-    `
-    ).all(startDate, endDate, limit);
+const getAnnouncementsByStock = (tsCode, categories, limit = 100) => {
+  let query = "SELECT * FROM announcements WHERE ts_code = ?";
+  const params = [tsCode];
+  if (categories && categories.length > 0) {
+    const placeholders = categories.map(() => "?").join(",");
+    query += ` AND category IN (${placeholders})`;
+    params.push(...categories);
   }
+  query += " ORDER BY ann_date DESC, rec_time DESC LIMIT ?";
+  params.push(limit);
+  return db.prepare(query).all(...params);
+};
+const getAnnouncementsByDateRange = (startDate, endDate, tsCode, categories, limit = 200) => {
+  let query = "SELECT * FROM announcements WHERE ann_date >= ? AND ann_date <= ?";
+  const params = [startDate, endDate];
+  if (tsCode) {
+    query += " AND ts_code = ?";
+    params.push(tsCode);
+  }
+  if (categories && categories.length > 0) {
+    const placeholders = categories.map(() => "?").join(",");
+    query += ` AND category IN (${placeholders})`;
+    params.push(...categories);
+  }
+  query += " ORDER BY ann_date DESC, rec_time DESC LIMIT ?";
+  params.push(limit);
+  return db.prepare(query).all(...params);
 };
 const searchAnnouncements = (keyword, limit = 100) => {
   const likePattern = `%${keyword}%`;
@@ -14426,6 +14678,59 @@ const searchAnnouncements = (keyword, limit = 100) => {
 const countAnnouncements = () => {
   const row = db.prepare("SELECT COUNT(*) as count FROM announcements").get();
   return row.count;
+};
+const getUntaggedAnnouncementsCount = () => {
+  const row = db.prepare("SELECT COUNT(*) as count FROM announcements WHERE category IS NULL").get();
+  return row.count;
+};
+const tagAnnouncementsBatch = (batchSize = 1e3, onProgress) => {
+  const total = getUntaggedAnnouncementsCount();
+  let processed = 0;
+  if (total === 0) {
+    return { success: true, processed: 0, total: 0 };
+  }
+  console.log(`[Tagging] 开始批量打标，共 ${total} 条未打标公告`);
+  const updateStmt = db.prepare("UPDATE announcements SET category = ? WHERE id = ?");
+  const processBatch = db.transaction(() => {
+    while (processed < total) {
+      const announcements = db.prepare(
+        `
+                SELECT id, title 
+                FROM announcements 
+                WHERE category IS NULL 
+                LIMIT ?
+            `
+      ).all(batchSize);
+      if (announcements.length === 0) break;
+      for (const ann of announcements) {
+        const category = classifyAnnouncement(ann.title || "");
+        updateStmt.run(category, ann.id);
+      }
+      processed += announcements.length;
+      if (onProgress) {
+        onProgress(processed, total);
+      }
+      console.log(`[Tagging] 已处理 ${processed}/${total} (${(processed / total * 100).toFixed(2)}%)`);
+    }
+  });
+  try {
+    processBatch();
+    console.log(`[Tagging] 批量打标完成，共处理 ${processed} 条`);
+    return { success: true, processed, total };
+  } catch (error2) {
+    console.error("[Tagging Error]", error2);
+    return { success: false, processed, total };
+  }
+};
+const getAnnouncementsByCategory = (category, limit = 100) => {
+  return db.prepare(
+    `
+        SELECT * FROM announcements 
+        WHERE category = ? 
+        ORDER BY ann_date DESC, pub_time DESC 
+        LIMIT ?
+    `
+  ).all(category, limit);
 };
 const getPreviousDay = (dateStr) => {
   const year = parseInt(dateStr.substring(0, 4));
@@ -14501,6 +14806,7 @@ const db$1 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty
   deleteTop10HoldersByStock,
   getAllFavoriteStocks,
   getAllStocks,
+  getAnnouncementsByCategory,
   getAnnouncementsByDateRange,
   getAnnouncementsByStock,
   getCacheDataStats,
@@ -14513,6 +14819,7 @@ const db$1 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty
   getTop10HoldersByStockAndEndDate,
   getTop10HoldersEndDates,
   getUnsyncedAnnouncementRanges,
+  getUntaggedAnnouncementsCount,
   hasTop10HoldersData,
   isAnnouncementRangeSynced,
   isFavoriteStock,
@@ -14522,6 +14829,7 @@ const db$1 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty
   searchAnnouncements,
   searchHoldersByName,
   searchStocks,
+  tagAnnouncementsBatch,
   updateSyncFlag,
   upsertAnnouncements,
   upsertStocks,
@@ -15203,6 +15511,11 @@ async function getAnnouncementsGroupedFromAPI(page, pageSize, startDate, endDate
       if (dateCompare !== 0) return dateCompare;
       return (b.pub_time || "").localeCompare(a.pub_time || "");
     });
+    const categoryStats = {};
+    stock.announcements.forEach((ann) => {
+      const category = classifyAnnouncement(ann.title);
+      categoryStats[category] = (categoryStats[category] || 0) + 1;
+    });
     const latestAnn = stock.announcements[0];
     return {
       ts_code: stock.ts_code,
@@ -15211,7 +15524,8 @@ async function getAnnouncementsGroupedFromAPI(page, pageSize, startDate, endDate
       market: stock.market,
       announcement_count: stock.announcements.length,
       latest_ann_date: latestAnn.ann_date,
-      latest_ann_title: latestAnn.title
+      latest_ann_title: latestAnn.title,
+      category_stats: categoryStats
     };
   }).filter((item) => item !== null).sort((a, b) => {
     const dateCompare = ((b == null ? void 0 : b.latest_ann_date) || "").localeCompare((a == null ? void 0 : a.latest_ann_date) || "");
@@ -15259,6 +15573,11 @@ async function searchAnnouncementsGroupedFromAPI(keyword, page, pageSize, startD
       if (dateCompare !== 0) return dateCompare;
       return (b.pub_time || "").localeCompare(a.pub_time || "");
     });
+    const categoryStats = {};
+    stock.announcements.forEach((ann) => {
+      const category = classifyAnnouncement(ann.title);
+      categoryStats[category] = (categoryStats[category] || 0) + 1;
+    });
     const latestAnn = stock.announcements[0];
     return {
       ts_code: stock.ts_code,
@@ -15267,7 +15586,8 @@ async function searchAnnouncementsGroupedFromAPI(keyword, page, pageSize, startD
       market: stock.market,
       announcement_count: stock.announcements.length,
       latest_ann_date: latestAnn.ann_date,
-      latest_ann_title: latestAnn.title
+      latest_ann_title: latestAnn.title,
+      category_stats: categoryStats
     };
   }).filter((item) => item !== null).sort((a, b) => {
     const dateCompare = ((b == null ? void 0 : b.latest_ann_date) || "").localeCompare((a == null ? void 0 : a.latest_ann_date) || "");
@@ -15342,6 +15662,11 @@ async function getFavoriteStocksAnnouncementsGroupedFromAPI(page, pageSize, star
       if (dateCompare !== 0) return dateCompare;
       return (b.pub_time || "").localeCompare(a.pub_time || "");
     });
+    const categoryStats = {};
+    stock.announcements.forEach((ann) => {
+      const category = classifyAnnouncement(ann.title);
+      categoryStats[category] = (categoryStats[category] || 0) + 1;
+    });
     const latestAnn = stock.announcements[0];
     return {
       ts_code: stock.ts_code,
@@ -15350,7 +15675,8 @@ async function getFavoriteStocksAnnouncementsGroupedFromAPI(page, pageSize, star
       market: stock.market,
       announcement_count: stock.announcements.length,
       latest_ann_date: latestAnn.ann_date,
-      latest_ann_title: latestAnn.title
+      latest_ann_title: latestAnn.title,
+      category_stats: categoryStats
     };
   }).filter((item) => item !== null).sort((a, b) => {
     const dateCompare = ((b == null ? void 0 : b.latest_ann_date) || "").localeCompare((a == null ? void 0 : a.latest_ann_date) || "");
@@ -16185,6 +16511,30 @@ function setupIPC() {
         top10Holders: { stockCount: 0, recordCount: 0 },
         syncFlags: []
       };
+    }
+  });
+  ipcMain.handle("get-untagged-count", async () => {
+    try {
+      const count = getUntaggedAnnouncementsCount();
+      return { success: true, count };
+    } catch (error2) {
+      console.error("Failed to get untagged count:", error2);
+      return { success: false, error: error2.message, count: 0 };
+    }
+  });
+  ipcMain.handle("tag-all-announcements", async (_event, batchSize = 1e3) => {
+    try {
+      const result = tagAnnouncementsBatch(batchSize, (processed, total) => {
+        mainWindow == null ? void 0 : mainWindow.webContents.send("tagging-progress", {
+          processed,
+          total,
+          percentage: (processed / total * 100).toFixed(2)
+        });
+      });
+      return result;
+    } catch (error2) {
+      console.error("Failed to tag announcements:", error2);
+      return { success: false, error: error2.message, processed: 0, total: 0 };
     }
   });
   ipcMain.handle(

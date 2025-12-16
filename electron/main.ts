@@ -37,9 +37,12 @@ import {
 	getAnnouncementsByDateRange,
 	searchAnnouncements,
 	countAnnouncements,
+	getUntaggedAnnouncementsCount,
+	tagAnnouncementsBatch,
 } from "./db.js";
 import db from "./db.js";
 import { TushareClient } from "./tushare.js";
+import { classifyAnnouncement } from "../src/utils/announcementClassifier.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -291,6 +294,7 @@ async function getAnnouncementsGroupedFromAPI(
 		announcement_count: number;
 		latest_ann_date: string;
 		latest_ann_title?: string;
+		category_stats?: Record<string, number>;
 	}>;
 	total: number;
 }> {
@@ -404,6 +408,13 @@ async function getAnnouncementsGroupedFromAPI(
 				return (b.pub_time || "").localeCompare(a.pub_time || "");
 			});
 
+			// 计算公告分类统计
+			const categoryStats: Record<string, number> = {};
+			stock.announcements.forEach((ann: any) => {
+				const category = classifyAnnouncement(ann.title);
+				categoryStats[category] = (categoryStats[category] || 0) + 1;
+			});
+
 			const latestAnn = stock.announcements[0];
 			return {
 				ts_code: stock.ts_code,
@@ -413,6 +424,7 @@ async function getAnnouncementsGroupedFromAPI(
 				announcement_count: stock.announcements.length,
 				latest_ann_date: latestAnn.ann_date,
 				latest_ann_title: latestAnn.title,
+				category_stats: categoryStats,
 			};
 		})
 		.filter((item) => item !== null)
@@ -428,6 +440,7 @@ async function getAnnouncementsGroupedFromAPI(
 		announcement_count: number;
 		latest_ann_date: string;
 		latest_ann_title?: string;
+		category_stats?: Record<string, number>;
 	}>;
 
 	const total = groupedData.length;
@@ -454,6 +467,7 @@ async function searchAnnouncementsGroupedFromAPI(
 		announcement_count: number;
 		latest_ann_date: string;
 		latest_ann_title?: string;
+		category_stats?: Record<string, number>;
 	}>;
 	total: number;
 }> {
@@ -521,6 +535,13 @@ async function searchAnnouncementsGroupedFromAPI(
 				return (b.pub_time || "").localeCompare(a.pub_time || "");
 			});
 
+			// 计算公告分类统计
+			const categoryStats: Record<string, number> = {};
+			stock.announcements.forEach((ann: any) => {
+				const category = classifyAnnouncement(ann.title);
+				categoryStats[category] = (categoryStats[category] || 0) + 1;
+			});
+
 			const latestAnn = stock.announcements[0];
 			return {
 				ts_code: stock.ts_code,
@@ -530,6 +551,7 @@ async function searchAnnouncementsGroupedFromAPI(
 				announcement_count: stock.announcements.length,
 				latest_ann_date: latestAnn.ann_date,
 				latest_ann_title: latestAnn.title,
+				category_stats: categoryStats,
 			};
 		})
 		.filter((item) => item !== null)
@@ -545,6 +567,7 @@ async function searchAnnouncementsGroupedFromAPI(
 		announcement_count: number;
 		latest_ann_date: string;
 		latest_ann_title?: string;
+		category_stats?: Record<string, number>;
 	}>;
 
 	const total = groupedData.length;
@@ -569,6 +592,7 @@ async function getFavoriteStocksAnnouncementsGroupedFromAPI(
 		announcement_count: number;
 		latest_ann_date: string;
 		latest_ann_title?: string;
+		category_stats?: Record<string, number>;
 	}>;
 	total: number;
 }> {
@@ -674,6 +698,13 @@ async function getFavoriteStocksAnnouncementsGroupedFromAPI(
 				return (b.pub_time || "").localeCompare(a.pub_time || "");
 			});
 
+			// 计算公告分类统计
+			const categoryStats: Record<string, number> = {};
+			stock.announcements.forEach((ann: any) => {
+				const category = classifyAnnouncement(ann.title);
+				categoryStats[category] = (categoryStats[category] || 0) + 1;
+			});
+
 			const latestAnn = stock.announcements[0];
 			return {
 				ts_code: stock.ts_code,
@@ -683,6 +714,7 @@ async function getFavoriteStocksAnnouncementsGroupedFromAPI(
 				announcement_count: stock.announcements.length,
 				latest_ann_date: latestAnn.ann_date,
 				latest_ann_title: latestAnn.title,
+				category_stats: categoryStats,
 			};
 		})
 		.filter((item) => item !== null)
@@ -698,6 +730,7 @@ async function getFavoriteStocksAnnouncementsGroupedFromAPI(
 		announcement_count: number;
 		latest_ann_date: string;
 		latest_ann_title?: string;
+		category_stats?: Record<string, number>;
 	}>;
 
 	const total = groupedData.length;
@@ -1726,6 +1759,40 @@ function setupIPC() {
 				top10Holders: { stockCount: 0, recordCount: 0 },
 				syncFlags: [],
 			};
+		}
+	});
+
+	/**
+	 * 获取未打标公告数量
+	 */
+	ipcMain.handle("get-untagged-count", async () => {
+		try {
+			const count = getUntaggedAnnouncementsCount();
+			return { success: true, count };
+		} catch (error: any) {
+			console.error("Failed to get untagged count:", error);
+			return { success: false, error: error.message, count: 0 };
+		}
+	});
+
+	/**
+	 * 批量打标公告
+	 */
+	ipcMain.handle("tag-all-announcements", async (_event, batchSize: number = 1000) => {
+		try {
+			const result = tagAnnouncementsBatch(batchSize, (processed, total) => {
+				// 发送进度到渲染进程
+				mainWindow?.webContents.send("tagging-progress", {
+					processed,
+					total,
+					percentage: ((processed / total) * 100).toFixed(2),
+				});
+			});
+
+			return result;
+		} catch (error: any) {
+			console.error("Failed to tag announcements:", error);
+			return { success: false, error: error.message, processed: 0, total: 0 };
 		}
 	});
 
