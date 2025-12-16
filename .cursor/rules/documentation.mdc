@@ -1,0 +1,65 @@
+# 文档管理规范
+
+## 文档目录结构
+
+- **所有 Markdown 文档必须存放在 `docs/` 目录中**
+- 项目根目录只保留 `README.md`（项目主说明文档）
+- 禁止在其他目录创建 `.md` 文件（除非有特殊说明）
+
+## 文档命名规范
+
+- 使用小写字母和连字符：`feature-name.md`
+- 特殊文档可使用大写：`README.md`、`CHANGELOG.md`
+- 中文文档建议使用拼音或英文命名，内容可以是中文
+
+## 文档分类
+
+### 项目级文档（存放在 `docs/`）
+- `README.md` - 项目文档索引
+- `overview.md` - 项目概览
+- `CLASSIFICATION_SUMMARY.md` - 分类方案总结
+- `FEATURE_IMPLEMENTATION.md` - 功能实现文档
+
+### 功能文档（存放在 `docs/`）
+- `announcement-classification.md` - 公告分类方案
+- 其他功能相关文档
+
+### 工具文档（存放在 `docs/`）
+- `README-ANALYSIS.md` - 分析工具使用说明
+- 其他工具相关文档
+
+## 创建新文档的规则
+
+当需要创建新的 Markdown 文档时：
+
+1. **必须在 `docs/` 目录下创建**
+2. 使用清晰的文件名描述文档内容
+3. 在文档开头添加标题和简要说明
+4. 如果是重要文档，需要在 `docs/README.md` 中添加索引
+
+## 示例
+
+### ✅ 正确做法
+```bash
+# 创建新文档
+docs/api-reference.md
+docs/deployment-guide.md
+docs/troubleshooting.md
+```
+
+### ❌ 错误做法
+```bash
+# 不要在根目录创建文档
+./API.md
+./部署指南.md
+
+# 不要在其他目录创建文档
+src/docs/guide.md
+scripts/help.md
+```
+
+## 文档更新规范
+
+- 更新文档时保持格式一致
+- 重大更新需要在文档底部注明更新日期
+- 废弃的文档应移动到 `docs/archive/` 目录（如需要）

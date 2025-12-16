@@ -15286,8 +15286,37 @@ async function getFavoriteStocksAnnouncementsGroupedFromAPI(page, pageSize, star
   }
   const allStocks = getAllStocks();
   const favoriteStockInfos = allStocks.filter((s) => favoriteStocks.includes(s.ts_code));
-  const tsCodes = favoriteStocks.join(",");
-  const announcements = await TushareClient.getAnnouncements(tsCodes, void 0, startDate, endDate, 2e3, 0);
+  let announcements = [];
+  const isSynced = startDate && endDate ? isAnnouncementRangeSynced(null, startDate, endDate) : false;
+  if (isSynced) {
+    console.log(`[DB Cache Hit] 从数据库读取关注股票公告: ${startDate} - ${endDate}`);
+    const placeholders = favoriteStocks.map(() => "?").join(",");
+    const query = `
+			SELECT * FROM announcements 
+			WHERE ts_code IN (${placeholders})
+			AND ann_date >= ? AND ann_date <= ?
+			ORDER BY ann_date DESC, rec_time DESC
+		`;
+    announcements = db.prepare(query).all(...favoriteStocks, startDate, endDate);
+    console.log(`[DB Cache Hit] 从数据库读取到 ${announcements.length} 条关注股票公告`);
+  } else {
+    console.log(`[DB Cache Miss] 从 API 获取关注股票公告: ${startDate || "无"} - ${endDate || "无"}`);
+    for (const tsCode of favoriteStocks) {
+      try {
+        const stockAnnouncements = await TushareClient.getAnnouncements(tsCode, void 0, startDate, endDate, 2e3, 0);
+        announcements.push(...stockAnnouncements);
+        if (favoriteStocks.length > 1) {
+          await new Promise((resolve) => setTimeout(resolve, 200));
+        }
+      } catch (error2) {
+        console.error(`Failed to get announcements for ${tsCode}:`, error2);
+      }
+    }
+    if (announcements.length > 0) {
+      console.log(`[DB Cache] 保存 ${announcements.length} 条关注股票公告到数据库`);
+      upsertAnnouncements(announcements);
+    }
+  }
   const stockMap = /* @__PURE__ */ new Map();
   favoriteStockInfos.forEach((stock) => {
     stockMap.set(stock.ts_code, {

@@ -554,7 +554,7 @@ async function searchAnnouncementsGroupedFromAPI(
 	return { items, total };
 }
 
-// 从 Tushare API 获取关注股票的公告数据并按股票聚合
+// 从数据库或 Tushare API 获取关注股票的公告数据并按股票聚合
 async function getFavoriteStocksAnnouncementsGroupedFromAPI(
 	page: number,
 	pageSize: number,
@@ -583,11 +583,51 @@ async function getFavoriteStocksAnnouncementsGroupedFromAPI(
 	const allStocks = getAllStocks();
 	const favoriteStockInfos = allStocks.filter((s: any) => favoriteStocks.includes(s.ts_code));
 
-	// 获取关注股票的代码列表
-	const tsCodes = favoriteStocks.join(",");
+	// 从数据库查询公告数据
+	let announcements: any[] = [];
+	
+	// 检查是否已同步该时间范围
+	const isSynced = startDate && endDate ? isAnnouncementRangeSynced(null, startDate, endDate) : false;
 
-	// 从 Tushare API 获取公告数据
-	const announcements = await TushareClient.getAnnouncements(tsCodes, undefined, startDate, endDate, 2000, 0);
+	if (isSynced) {
+		// 从数据库读取关注股票的公告
+		console.log(`[DB Cache Hit] 从数据库读取关注股票公告: ${startDate} - ${endDate}`);
+		
+		// 构建 SQL 查询，使用 IN 子句查询多个股票代码
+		const placeholders = favoriteStocks.map(() => "?").join(",");
+		const query = `
+			SELECT * FROM announcements 
+			WHERE ts_code IN (${placeholders})
+			AND ann_date >= ? AND ann_date <= ?
+			ORDER BY ann_date DESC, rec_time DESC
+		`;
+		
+		announcements = db.prepare(query).all(...favoriteStocks, startDate, endDate);
+		console.log(`[DB Cache Hit] 从数据库读取到 ${announcements.length} 条关注股票公告`);
+	} else {
+		// 从 API 获取（逐个股票查询以避免 API 限制）
+		console.log(`[DB Cache Miss] 从 API 获取关注股票公告: ${startDate || "无"} - ${endDate || "无"}`);
+		
+		for (const tsCode of favoriteStocks) {
+			try {
+				const stockAnnouncements = await TushareClient.getAnnouncements(tsCode, undefined, startDate, endDate, 2000, 0);
+				announcements.push(...stockAnnouncements);
+				
+				// 添加延迟以避免 API 限流
+				if (favoriteStocks.length > 1) {
+					await new Promise(resolve => setTimeout(resolve, 200));
+				}
+			} catch (error) {
+				console.error(`Failed to get announcements for ${tsCode}:`, error);
+			}
+		}
+		
+		// 保存到数据库
+		if (announcements.length > 0) {
+			console.log(`[DB Cache] 保存 ${announcements.length} 条关注股票公告到数据库`);
+			upsertAnnouncements(announcements);
+		}
+	}
 
 	// 按股票聚合公告数据
 	const stockMap = new Map<

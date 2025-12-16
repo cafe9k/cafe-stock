@@ -7,6 +7,7 @@ import { useMemo, memo } from "react";
 import { Table, Tag, Typography, Badge } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import type { Stock, StockGroup } from "../../types/stock";
+import { FavoriteButton } from "../FavoriteButton";
 
 const { Text: AntText } = Typography;
 
@@ -14,6 +15,7 @@ const { Text: AntText } = Typography;
  * 股票列表列配置
  */
 export interface StockListColumnConfig {
+	showFavoriteButton?: boolean; // 显示关注按钮
 	showCode?: boolean; // 显示股票代码
 	showName?: boolean; // 显示股票名称
 	showMarket?: boolean; // 显示市场
@@ -37,6 +39,7 @@ export interface StockListProps<T extends Stock | StockGroup = Stock | StockGrou
 	pageSize?: number;
 	onPageChange?: (page: number) => void;
 	onRowClick?: (record: T) => void;
+	onFavoriteChange?: (tsCode: string, isFavorite: boolean) => void;
 	columnConfig?: StockListColumnConfig;
 	rowKey?: string | ((record: T) => string);
 	showPagination?: boolean;
@@ -62,6 +65,7 @@ function StockListComponent<T extends Stock | StockGroup = Stock | StockGroup>({
 	pageSize = 20,
 	onPageChange,
 	onRowClick,
+	onFavoriteChange,
 	columnConfig = {},
 	rowKey = "ts_code",
 	showPagination = true,
@@ -71,6 +75,7 @@ function StockListComponent<T extends Stock | StockGroup = Stock | StockGroup>({
 	expandable,
 }: StockListProps<T>) {
 	const {
+		showFavoriteButton = false,
 		showCode = true,
 		showName = true,
 		showMarket = true,
@@ -93,6 +98,24 @@ function StockListComponent<T extends Stock | StockGroup = Stock | StockGroup>({
 	// 构建表格列
 	const columns: ColumnsType<T> = useMemo(() => {
 		const cols: ColumnsType<T> = [];
+
+		// 关注按钮列
+		if (showFavoriteButton) {
+			cols.push({
+				title: "",
+				key: "favorite",
+				width: 50,
+				fixed: "left",
+				render: (_: any, record: T) => (
+					<FavoriteButton
+						tsCode={record.ts_code}
+						isFavorite={record.isFavorite}
+						onChange={onFavoriteChange}
+						size="small"
+					/>
+				),
+			});
+		}
 
 		// 股票代码列
 		if (showCode) {
@@ -228,6 +251,7 @@ function StockListComponent<T extends Stock | StockGroup = Stock | StockGroup>({
 
 		return cols;
 	}, [
+		showFavoriteButton,
 		showCode,
 		showName,
 		showMarket,
@@ -238,6 +262,7 @@ function StockListComponent<T extends Stock | StockGroup = Stock | StockGroup>({
 		showLatestAnnTitle,
 		customColumns,
 		actionColumn,
+		onFavoriteChange,
 		hasNameField,
 		hasAreaField,
 		hasAnnouncementCountField,
@@ -283,6 +308,7 @@ function StockListComponent<T extends Stock | StockGroup = Stock | StockGroup>({
 				style: {
 					cursor: onRowClick ? "pointer" : "default",
 				},
+				className: record.isFavorite ? "favorite-stock-row" : "",
 			})}
 			scroll={scroll}
 			size={size}

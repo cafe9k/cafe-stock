@@ -7,6 +7,8 @@ import {
 	HistoryOutlined,
 	CalendarOutlined,
 	FilePdfOutlined,
+	StarOutlined,
+	StarFilled,
 } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import { PDFWebViewer } from "./PDFWebViewer";
@@ -36,6 +38,7 @@ export function AnnouncementList() {
 	const [expandedRowKeys, setExpandedRowKeys] = useState<string[]>([]);
 	const [expandedData, setExpandedData] = useState<Record<string, Announcement[]>>({});
 	const [loadingExpanded, setLoadingExpanded] = useState<Record<string, boolean>>({});
+	const [showFavoriteOnly, setShowFavoriteOnly] = useState(false);
 
 	// 使用新的 hooks
 	const filter = useStockFilter();
@@ -63,9 +66,10 @@ export function AnnouncementList() {
 	useEffect(() => {
 		const currentFilter = filter.getFilter();
 		currentFilter.searchKeyword = searchKeyword || undefined;
+		currentFilter.showFavoriteOnly = showFavoriteOnly;
 		updateFilter(currentFilter);
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [filter.dateRange, filter.selectedMarket, searchKeyword]);
+	}, [filter.dateRange, filter.selectedMarket, searchKeyword, showFavoriteOnly]);
 
 	// 分页状态（针对每个股票的展开详情）
 	const [expandedPageMap, setExpandedPageMap] = useState<Record<string, number>>({});
@@ -106,6 +110,19 @@ export function AnnouncementList() {
 	// 刷新当前页（强制从服务端获取）
 	const handleRefresh = () => {
 		refresh(true); // 传入 true 强制从服务端获取
+	};
+
+	// 切换关注过滤
+	const handleToggleFavoriteFilter = () => {
+		setShowFavoriteOnly(!showFavoriteOnly);
+	};
+
+	// 处理关注状态变化
+	const handleFavoriteChange = (tsCode: string, isFavorite: boolean) => {
+		// 如果当前处于"仅关注"模式且取消了关注，刷新列表
+		if (showFavoriteOnly && !isFavorite) {
+			refresh();
+		}
 	};
 
 	// 处理 PDF 预览
@@ -283,8 +300,16 @@ export function AnnouncementList() {
 				/>
 			</Space>
 
-			{/* 第二行：市场选择和刷新 */}
+			{/* 第二行：关注过滤、市场选择和刷新 */}
 			<Space align="start" wrap size={[8, 8]}>
+				<Button
+					type={showFavoriteOnly ? "primary" : "default"}
+					icon={showFavoriteOnly ? <StarFilled /> : <StarOutlined />}
+					onClick={handleToggleFavoriteFilter}
+				>
+					{showFavoriteOnly ? "仅关注" : "关注"}
+				</Button>
+
 				<Select
 					value={filter.selectedMarket}
 					onChange={filter.setSelectedMarket}
@@ -327,7 +352,9 @@ export function AnnouncementList() {
 					total={total}
 					pageSize={PAGE_SIZE}
 					onPageChange={goToPage}
+					onFavoriteChange={handleFavoriteChange}
 					columnConfig={{
+						showFavoriteButton: true,
 						showName: true,
 						showMarket: true,
 						showIndustry: true,
@@ -353,7 +380,7 @@ export function AnnouncementList() {
 					}}
 					rowKey="ts_code"
 					showPagination={false}
-					scroll={{ x: 800 }}
+					scroll={{ x: 850 }}
 					size="small"
 					emptyText={loading ? "加载中..." : searchKeyword ? "没有找到匹配的股票" : "暂无数据"}
 				/>
