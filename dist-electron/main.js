@@ -15795,7 +15795,9 @@ function setupIPC() {
         ann_type: ann.ann_type,
         title: ann.title,
         content: ann.content,
-        pub_time: ann.pub_time
+        pub_time: ann.pub_time,
+        category: classifyAnnouncement(ann.title)
+        // 添加分类信息
       }));
     } catch (error2) {
       console.error("Failed to get stock announcements:", error2);

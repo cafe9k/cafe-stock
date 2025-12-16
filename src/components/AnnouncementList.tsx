@@ -5,7 +5,6 @@ import {
 	ReloadOutlined,
 	SearchOutlined,
 	HistoryOutlined,
-	FilePdfOutlined,
 	StarOutlined,
 	StarFilled,
 	ClockCircleOutlined,
@@ -399,10 +398,11 @@ export function AnnouncementList() {
 					onFavoriteChange={handleFavoriteChange}
 					columnConfig={{
 						showFavoriteButton: true,
+						showCode: false,
 						showName: true,
 						showMarket: true,
 						showIndustry: true,
-						showAnnouncementCount: true,
+						showAnnouncementCount: false,
 						showAnnouncementCategories: true,
 						showLatestAnnTitle: true,
 						showLatestAnnDate: true,

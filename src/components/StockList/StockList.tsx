@@ -155,7 +155,7 @@ function StockListComponent<T extends Stock | StockGroup = Stock | StockGroup>({
 				title: "市场",
 				dataIndex: "market",
 				key: "market",
-				width: 100,
+				width: 80,
 				render: (text: string) => {
 					const colorMap: { [key: string]: string } = {
 						主板: "blue",
@@ -174,7 +174,7 @@ function StockListComponent<T extends Stock | StockGroup = Stock | StockGroup>({
 				title: "行业",
 				dataIndex: "industry",
 				key: "industry",
-				width: 120,
+				width: 100,
 				render: (value: string) => (value ? <Tag color="blue">{value}</Tag> : "-"),
 			});
 		}
@@ -195,7 +195,7 @@ function StockListComponent<T extends Stock | StockGroup = Stock | StockGroup>({
 				title: "公告数量",
 				dataIndex: "announcement_count",
 				key: "announcement_count",
-				width: 100,
+				width: 80,
 				render: (count: number) => (
 					<Badge
 						count={count}

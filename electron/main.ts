@@ -873,7 +873,7 @@ function setupIPC() {
 				return (b.pub_time || "").localeCompare(a.pub_time || "");
 			});
 
-			// 转换为前端期望的格式（移除 id 字段）
+			// 转换为前端期望的格式（移除 id 字段），并添加分类信息
 			return announcements.map((ann: any) => ({
 				ts_code: ann.ts_code,
 				ann_date: ann.ann_date,
@@ -881,6 +881,7 @@ function setupIPC() {
 				title: ann.title,
 				content: ann.content,
 				pub_time: ann.pub_time,
+				category: classifyAnnouncement(ann.title), // 添加分类信息
 			}));
 		} catch (error: any) {
 			console.error("Failed to get stock announcements:", error);
