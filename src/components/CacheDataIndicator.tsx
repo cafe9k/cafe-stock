@@ -31,7 +31,10 @@ export function CacheDataIndicator() {
 		try {
 			setLoading(true);
 			const data = await window.electronAPI.getCacheDataStats();
-			setStats(data);
+			setStats({
+				...data,
+				announcements: { count: 0 }, // 添加缺失的 announcements 字段
+			});
 		} catch (error) {
 			console.error("Failed to load cache data stats:", error);
 		} finally {

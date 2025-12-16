@@ -119,7 +119,7 @@ export function AnnouncementList() {
 	};
 
 	// 处理关注状态变化
-	const handleFavoriteChange = (tsCode: string, isFavorite: boolean) => {
+	const handleFavoriteChange = (_tsCode: string, isFavorite: boolean) => {
 		// 如果当前处于"仅关注"模式且取消了关注，刷新列表
 		if (showFavoriteOnly && !isFavorite) {
 			refresh();

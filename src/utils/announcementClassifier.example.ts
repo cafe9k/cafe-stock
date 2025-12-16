@@ -7,8 +7,7 @@ import {
 	classifyAnnouncements,
 	getCategoryStats,
 	getCategoryColor,
-	getCategoryIcon,
-	AnnouncementCategory
+	getCategoryIcon
 } from './announcementClassifier';
 
 // ============= 示例 1: 单个公告分类 =============

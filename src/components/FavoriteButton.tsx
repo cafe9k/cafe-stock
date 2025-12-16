@@ -39,23 +39,23 @@ function FavoriteButtonComponent({ tsCode, isFavorite = false, onChange, size = 
 		setLoading(true);
 		try {
 			const newState = !favoriteState;
-			let success = false;
+			let result: { success: boolean; message?: string };
 
 			if (newState) {
 				// 添加关注
-				success = await window.electronAPI.addFavoriteStock(tsCode);
+				result = await window.electronAPI.addFavoriteStock(tsCode);
 			} else {
 				// 取消关注
-				success = await window.electronAPI.removeFavoriteStock(tsCode);
+				result = await window.electronAPI.removeFavoriteStock(tsCode);
 			}
 
-			if (success) {
+			if (result.success) {
 				setFavoriteState(newState);
 				message.success(newState ? "关注成功" : "已取消关注");
 				// 通知父组件状态变化
 				onChange?.(tsCode, newState);
 			} else {
-				message.error(newState ? "关注失败" : "取消关注失败");
+				message.error(result.message || (newState ? "关注失败" : "取消关注失败"));
 			}
 		} catch (error: any) {
 			console.error("关注操作失败:", error);
