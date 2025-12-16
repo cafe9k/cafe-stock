@@ -190,9 +190,10 @@ function StockListComponent<T extends Stock | StockGroup = Stock | StockGroup>({
 
 	// 调试日志
 	if (data.length > 0) {
-		console.log("[StockList Debug] First record:", data[0]);
+		console.log("[StockList Debug] First record:", JSON.stringify(data[0], null, 2));
 		console.log("[StockList Debug] hasCategoryStatsField:", hasCategoryStatsField);
 		console.log("[StockList Debug] showAnnouncementCategories:", showAnnouncementCategories);
+		console.log("[StockList Debug] category_stats:", (data[0] as any).category_stats);
 	}
 
 	// 构建表格列

@@ -49,7 +49,7 @@ async function initialize(): Promise<void> {
 	// 启动时同步股票列表（如果为空）
 	try {
 		await syncStocksIfNeeded();
-			} catch (error) {
+	} catch (error) {
 		console.error("Stock sync failed:", error);
 	}
 
@@ -97,10 +97,10 @@ if (!gotTheLock) {
 app.on("window-all-closed", () => {
 	if (process.platform !== "darwin") {
 		app.quit();
-		}
-	});
+	}
+});
 
-	/**
+/**
  * macOS 下点击 Dock 图标时重新创建窗口
  */
 app.on("activate", () => {
@@ -111,18 +111,18 @@ app.on("activate", () => {
 		});
 	} else {
 		mainWindow.show();
-		}
-	});
+	}
+});
 
-	/**
+/**
  * 应用即将退出时的清理工作
  */
 app.on("before-quit", () => {
 	extendedApp.isQuitting = true;
 	console.log("Application is quitting...");
-	});
+});
 
-	/**
+/**
  * 应用退出时的清理工作
  */
 app.on("will-quit", () => {
@@ -140,9 +140,9 @@ app.on("will-quit", () => {
  */
 process.on("uncaughtException", (error) => {
 	console.error("Uncaught Exception:", error);
-	});
+});
 
-	/**
+/**
  * 处理未处理的 Promise 拒绝
  */
 process.on("unhandledRejection", (reason, promise) => {
