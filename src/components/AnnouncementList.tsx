@@ -261,6 +261,18 @@ export function AnnouncementList() {
 		);
 	};
 
+	// 根据分类筛选过滤股票列表
+	const filteredStockGroups = selectedCategories.length > 0
+		? stockGroups.filter((stock) => {
+				// 检查该股票是否有选中分类的公告
+				if (!stock.category_stats) return false;
+				return selectedCategories.some((category) => {
+					const count = stock.category_stats?.[category];
+					return count && count > 0;
+				});
+		  })
+		: stockGroups;
+
 	return (
 		<div style={{ padding: "24px" }}>
 			<style>
@@ -389,7 +401,7 @@ export function AnnouncementList() {
 			{/* 股票聚合表格 */}
 			<Card>
 				<StockList
-					data={stockGroups}
+					data={filteredStockGroups}
 					loading={loading}
 					page={page}
 					total={total}
@@ -427,11 +439,11 @@ export function AnnouncementList() {
 					showPagination={false}
 					scroll={{ x: 850 }}
 					size="small"
-					emptyText={loading ? "加载中..." : searchKeyword ? "没有找到匹配的股票" : "暂无数据"}
+					emptyText={loading ? "加载中..." : searchKeyword ? "没有找到匹配的股票" : selectedCategories.length > 0 ? "没有符合所选分类的股票" : "暂无数据"}
 				/>
 
 				{/* 自定义分页 */}
-				{!loading && stockGroups.length > 0 && (
+				{!loading && filteredStockGroups.length > 0 && (
 					<div
 						style={{
 							marginTop: 16,
@@ -444,7 +456,14 @@ export function AnnouncementList() {
 					>
 						<AntText type="secondary">
 							显示第 <AntText strong>{page}</AntText> 页
-							{total > 0 && (
+							{selectedCategories.length > 0 && (
+								<>
+									{" "}
+									(筛选后 <AntText strong>{filteredStockGroups.length}</AntText> 只股票，
+									共 <AntText strong>{total.toLocaleString()}</AntText> 只)
+								</>
+							)}
+							{selectedCategories.length === 0 && total > 0 && (
 								<>
 									{" "}
 									共 <AntText strong>{Math.ceil(total / PAGE_SIZE)}</AntText> 页 (总计{" "}
