@@ -283,209 +283,332 @@ export function Settings() {
 		}
 	};
 
-	return (
-		<div style={{ padding: 24 }}>
-			<Title level={2}>系统设置</Title>
-
-			<Row gutter={[16, 16]} style={{ marginTop: 16 }}>
-				<Col xs={24} lg={12}>
-					<Card title="公告分类管理" style={{ height: '100%' }}>
-						<Space direction="vertical" size="large" style={{ width: "100%" }}>
-							<Statistic
-								title="未分类公告数量"
-								value={untaggedCount}
-								suffix="条"
-								loading={loading}
-								prefix={<TagsOutlined />}
-							/>
+	const tabItems = [
+		{
+			key: "classification",
+			label: (
+				<span>
+					<TagsOutlined />
+					公告分类
+				</span>
+			),
+			children: (
+				<Space direction="vertical" size="large" style={{ width: "100%" }}>
+					{/* 批量打标卡片 */}
+					<Card>
+						<Space direction="vertical" size="middle" style={{ width: "100%" }}>
+							<div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+								<Statistic
+									title="未分类公告数量"
+									value={untaggedCount}
+									suffix="条"
+									loading={loading}
+									prefix={<TagsOutlined style={{ color: '#1890ff' }} />}
+								/>
+								<Space>
+									<Button 
+										icon={<SyncOutlined />} 
+										onClick={loadUntaggedCount} 
+										loading={loading}
+									>
+										刷新
+									</Button>
+									<Button
+										type="primary"
+										icon={<SyncOutlined />}
+										onClick={handleTagAll}
+										loading={tagging}
+										disabled={untaggedCount === 0}
+										size="large"
+									>
+										批量打标所有公告
+									</Button>
+								</Space>
+							</div>
 
 							{tagging && (
-								<div>
-									<Text>正在批量打标...</Text>
-									<Progress
-										percent={parseFloat(progress.percentage)}
-										status="active"
-										format={() => `${progress.processed} / ${progress.total}`}
-									/>
-								</div>
+								<>
+									<Divider style={{ margin: 0 }} />
+									<div>
+										<div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+											<Text>正在批量打标...</Text>
+											<Text strong>{progress.percentage}%</Text>
+										</div>
+										<Progress
+											percent={parseFloat(progress.percentage)}
+											status="active"
+											format={() => `${progress.processed} / ${progress.total}`}
+										/>
+									</div>
+								</>
 							)}
 
-							<Space wrap>
-								<Button
-									type="primary"
-									icon={<SyncOutlined />}
-									onClick={handleTagAll}
-									loading={tagging}
-									disabled={untaggedCount === 0}
-								>
-									批量打标所有公告
-								</Button>
-
-								<Button icon={<SyncOutlined />} onClick={loadUntaggedCount} loading={loading}>
-									刷新统计
-								</Button>
-							</Space>
-
-							<Text type="secondary">
-								说明：批量打标会对所有未分类的公告进行自动分类，根据公告标题智能识别分类标签。
-								预计处理时间：约 {Math.ceil(untaggedCount / 10000)} 分钟
-							</Text>
+							<Alert
+								message="功能说明"
+								description={
+									<>
+										<Paragraph style={{ marginBottom: 8 }}>
+											批量打标会对所有未分类的公告进行自动分类，根据公告标题智能识别分类标签。
+										</Paragraph>
+										<Text type="secondary">
+											预计处理时间：约 {Math.ceil(untaggedCount / 10000)} 分钟
+										</Text>
+									</>
+								}
+								type="info"
+								showIcon
+								icon={<InfoCircleOutlined />}
+							/>
 						</Space>
 					</Card>
-				</Col>
 
-				<Col xs={24} lg={12}>
-					<Card 
-						title={
-							<Space>
-								<DatabaseOutlined />
-								<span>数据库远程访问</span>
-							</Space>
-						}
-						style={{ height: '100%' }}
-					>
-						<Space direction="vertical" size="large" style={{ width: "100%" }}>
-							<Descriptions column={1} size="small">
-								<Descriptions.Item label="数据库路径">
-									<Text copyable ellipsis style={{ maxWidth: 300 }}>
-										{dbPath || "加载中..."}
-									</Text>
-								</Descriptions.Item>
-								<Descriptions.Item label="HTTP 服务器">
-									<Badge 
-										status={isServerRunning ? "processing" : "default"} 
-										text={isServerRunning ? `运行中 (端口 ${serverPort})` : "未启动"} 
-									/>
-								</Descriptions.Item>
-								{isServerRunning && serverUrl && (
-									<Descriptions.Item label="服务器地址">
-										<Text copyable>{serverUrl}</Text>
-									</Descriptions.Item>
-								)}
-								<Descriptions.Item label="认证状态">
-									<Badge 
-										status={hasAuth ? "success" : "default"} 
-										text={hasAuth ? `已设置 (${username})` : "未设置"} 
-									/>
-								</Descriptions.Item>
-							</Descriptions>
-
-							<Space wrap>
-								<Button
-									type="primary"
-									icon={<PlayCircleOutlined />}
-									onClick={handleStartServer}
-									disabled={isServerRunning}
-								>
-									启动服务器
-								</Button>
-
-								<Button
-									danger
-									icon={<StopOutlined />}
-									onClick={handleStopServer}
-									disabled={!isServerRunning}
-								>
-									停止服务器
-								</Button>
-
-								<Button
-									icon={<LockOutlined />}
-									onClick={() => setShowAuthModal(true)}
-								>
-									{hasAuth ? "修改认证" : "设置认证"}
-								</Button>
-
-								{hasAuth && (
-									<Button
-										icon={<UserOutlined />}
-										onClick={handleClearAuth}
-									>
-										清除认证
-									</Button>
-								)}
-
-								<Button
-									icon={<CopyOutlined />}
-									onClick={handleCopyDbConnection}
-								>
-									复制连接信息
-								</Button>
-							</Space>
-
-							<Text type="secondary">
-								说明：启动 HTTP 服务器后，可以通过 HTTP API 远程访问数据库。
-								建议设置用户名和密码以保护数据安全。
-							</Text>
-						</Space>
-					</Card>
-				</Col>
-
-				<Col xs={24} lg={12}>
-					<Card 
-						title={
-							<Space>
-								<DatabaseOutlined />
-								<span>数据库管理</span>
-							</Space>
-						}
-						style={{ height: '100%' }}
-					>
-						<Space direction="vertical" size="large" style={{ width: "100%" }}>
-							<Descriptions column={1} size="small">
-								<Descriptions.Item label="数据库文件">
-									<Text copyable ellipsis style={{ maxWidth: 300 }}>
-										{dbPath || "加载中..."}
-									</Text>
-								</Descriptions.Item>
-								<Descriptions.Item label="状态">
-									<Badge status="success" text="正常运行" />
-								</Descriptions.Item>
-							</Descriptions>
-
-							<Space direction="vertical" style={{ width: "100%" }}>
-								<Button
-									danger
-									icon={<ReloadOutlined />}
-									onClick={() => setShowResetModal(true)}
-									block
-								>
-									重置数据库
-								</Button>
-								
-								<Text type="warning" style={{ fontSize: 12 }}>
-									<ExclamationCircleOutlined /> 警告：重置数据库将删除所有本地数据，包括股票列表、公告、十大股东等信息。
-								</Text>
-							</Space>
-
-							<Text type="secondary">
-								说明：当数据库损坏或出现异常时，可以使用此功能重置数据库。
-								重置后需要重新同步数据。建议在重置前选择备份数据库。
-							</Text>
-						</Space>
-					</Card>
-				</Col>
-			</Row>
-
-			{/* 分类规则配置 */}
-			<Row gutter={[16, 16]} style={{ marginTop: 16 }}>
-				<Col xs={24}>
+					{/* 分类规则配置 */}
 					<Card 
 						title={
 							<Space>
 								<SettingOutlined />
-								<span>公告分类规则配置</span>
+								<span>分类规则配置</span>
 							</Space>
 						}
 					>
 						<ClassificationRuleEditor onSave={loadUntaggedCount} />
 					</Card>
-				</Col>
-			</Row>
+				</Space>
+			)
+		},
+		{
+			key: "database",
+			label: (
+				<span>
+					<DatabaseOutlined />
+					数据库管理
+				</span>
+			),
+			children: (
+				<Row gutter={[16, 16]}>
+					{/* 数据库信息 */}
+					<Col xs={24} lg={12}>
+						<Card 
+							title={
+								<Space>
+									<DatabaseOutlined />
+									<span>数据库信息</span>
+								</Space>
+							}
+							style={{ height: '100%' }}
+						>
+							<Space direction="vertical" size="large" style={{ width: "100%" }}>
+								<Descriptions column={1} size="middle" bordered>
+									<Descriptions.Item label="数据库文件">
+										<Text copyable ellipsis style={{ maxWidth: 400 }}>
+											{dbPath || "加载中..."}
+										</Text>
+									</Descriptions.Item>
+									<Descriptions.Item label="运行状态">
+										<Badge status="success" text="正常运行" />
+									</Descriptions.Item>
+								</Descriptions>
+
+								<Alert
+									message="功能说明"
+									description="数据库存储了所有股票数据、公告、十大股东等信息。当数据库损坏或出现异常时，可以使用重置功能。"
+									type="info"
+									showIcon
+									icon={<InfoCircleOutlined />}
+								/>
+
+								<Space direction="vertical" style={{ width: "100%" }}>
+									<Button
+										danger
+										icon={<ReloadOutlined />}
+										onClick={() => setShowResetModal(true)}
+										block
+										size="large"
+									>
+										重置数据库
+									</Button>
+									
+									<Alert
+										message="警告：重置数据库将删除所有本地数据，包括股票列表、公告、十大股东等信息。"
+										type="warning"
+										showIcon
+									/>
+								</Space>
+							</Space>
+						</Card>
+					</Col>
+
+					{/* 远程访问 */}
+					<Col xs={24} lg={12}>
+						<Card 
+							title={
+								<Space>
+									<CloudServerOutlined />
+									<span>远程访问服务</span>
+								</Space>
+							}
+							style={{ height: '100%' }}
+						>
+							<Space direction="vertical" size="large" style={{ width: "100%" }}>
+								<Descriptions column={1} size="middle" bordered>
+									<Descriptions.Item label="HTTP 服务器">
+										<Badge 
+											status={isServerRunning ? "processing" : "default"} 
+											text={isServerRunning ? `运行中 (端口 ${serverPort})` : "未启动"} 
+										/>
+									</Descriptions.Item>
+									{isServerRunning && serverUrl && (
+										<Descriptions.Item label="服务器地址">
+											<Text copyable>{serverUrl}</Text>
+										</Descriptions.Item>
+									)}
+									<Descriptions.Item label="认证状态">
+										<Badge 
+											status={hasAuth ? "success" : "default"} 
+											text={hasAuth ? `已设置 (${username})` : "未设置"} 
+										/>
+									</Descriptions.Item>
+								</Descriptions>
+
+								<Alert
+									message="功能说明"
+									description="启动 HTTP 服务器后，可以通过 HTTP API 远程访问数据库。建议设置用户名和密码以保护数据安全。"
+									type="info"
+									showIcon
+									icon={<InfoCircleOutlined />}
+								/>
+
+								<Space direction="vertical" style={{ width: "100%" }} size="middle">
+									<Space wrap style={{ width: "100%" }}>
+										<Button
+											type="primary"
+											icon={<PlayCircleOutlined />}
+											onClick={handleStartServer}
+											disabled={isServerRunning}
+											size="large"
+										>
+											启动服务器
+										</Button>
+
+										<Button
+											danger
+											icon={<StopOutlined />}
+											onClick={handleStopServer}
+											disabled={!isServerRunning}
+											size="large"
+										>
+											停止服务器
+										</Button>
+									</Space>
+
+									<Space wrap style={{ width: "100%" }}>
+										<Button
+											icon={<LockOutlined />}
+											onClick={() => setShowAuthModal(true)}
+										>
+											{hasAuth ? "修改认证" : "设置认证"}
+										</Button>
+
+										{hasAuth && (
+											<Button
+												icon={<UserOutlined />}
+												onClick={handleClearAuth}
+											>
+												清除认证
+											</Button>
+										)}
+
+										<Button
+											icon={<CopyOutlined />}
+											onClick={handleCopyDbConnection}
+										>
+											复制连接信息
+										</Button>
+									</Space>
+								</Space>
+							</Space>
+						</Card>
+					</Col>
+				</Row>
+			)
+		},
+		{
+			key: "update",
+			label: (
+				<span>
+					<AppstoreOutlined />
+					软件更新
+				</span>
+			),
+			children: <UpdateChecker />
+		},
+		{
+			key: "about",
+			label: (
+				<span>
+					<InfoCircleOutlined />
+					关于
+				</span>
+			),
+			children: (
+				<Card>
+					<Space direction="vertical" size="large" style={{ width: "100%" }}>
+						<div style={{ textAlign: "center", padding: "24px 0" }}>
+							<Title level={2} style={{ marginBottom: 8 }}>酷咖啡</Title>
+							<Text type="secondary" style={{ fontSize: 16 }}>股票数据管理工具</Text>
+						</div>
+
+						<Divider />
+
+						<Descriptions column={1} size="middle" bordered>
+							<Descriptions.Item label="版本号">1.0.0</Descriptions.Item>
+							<Descriptions.Item label="开发者">酷咖啡团队</Descriptions.Item>
+							<Descriptions.Item label="技术栈">
+								Electron + React + TypeScript + Ant Design
+							</Descriptions.Item>
+						</Descriptions>
+
+						<Alert
+							message="功能特性"
+							description={
+								<ul style={{ marginBottom: 0, paddingLeft: 20 }}>
+									<li>股票列表管理与同步</li>
+									<li>公告智能分类与检索</li>
+									<li>十大股东数据追踪</li>
+									<li>数据库远程访问</li>
+									<li>自动更新功能</li>
+								</ul>
+							}
+							type="info"
+							showIcon
+						/>
+
+						<div style={{ textAlign: "center", paddingTop: 16 }}>
+							<Text type="secondary">© 2024 酷咖啡. All rights reserved.</Text>
+						</div>
+					</Space>
+				</Card>
+			)
+		}
+	];
+
+	return (
+		<div style={{ padding: 24, maxWidth: 1400, margin: "0 auto" }}>
+			<Tabs 
+				defaultActiveKey="classification" 
+				items={tabItems}
+				size="large"
+				tabBarStyle={{ marginBottom: 24 }}
+			/>
 
 			{/* 设置认证信息对话框 */}
 			<Modal
-				title="设置 SQLite HTTP 服务器认证"
+				title={
+					<Space>
+						<LockOutlined />
+						<span>设置 SQLite HTTP 服务器认证</span>
+					</Space>
+				}
 				open={showAuthModal}
 				onOk={handleSetAuth}
 				onCancel={() => {
@@ -529,12 +652,14 @@ export function Settings() {
 				maskClosable={!resetting}
 			>
 				<Space direction="vertical" size="large" style={{ width: "100%" }}>
-					<Text type="danger" strong>
-						警告：此操作将删除所有本地数据！
-					</Text>
+					<Alert
+						message="警告：此操作将删除所有本地数据！"
+						type="error"
+						showIcon
+					/>
 					
 					<div>
-						<Text>重置数据库将清空以下数据：</Text>
+						<Text strong style={{ marginBottom: 8, display: "block" }}>重置数据库将清空以下数据：</Text>
 						<ul style={{ marginTop: 8, marginBottom: 0 }}>
 							<li>所有股票列表数据</li>
 							<li>关注的股票</li>
@@ -559,9 +684,11 @@ export function Settings() {
 						</div>
 					)}
 
-					<Text type="secondary" style={{ fontSize: 12 }}>
-						提示：重置完成后，您需要重新同步股票列表和其他数据。
-					</Text>
+					<Alert
+						message="提示：重置完成后，您需要重新同步股票列表和其他数据。"
+						type="info"
+						showIcon
+					/>
 				</Space>
 			</Modal>
 		</div>
