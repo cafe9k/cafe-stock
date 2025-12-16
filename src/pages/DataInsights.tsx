@@ -3,7 +3,6 @@ import { Button, Select, Table, Card, Space, Spin, Typography, Tag, Progress, St
 import { SearchOutlined, SyncOutlined } from "@ant-design/icons";
 import type { TableColumnsType } from "antd";
 import { useStockSearch } from "../hooks/useStockSearch";
-import type { Stock } from "../types/stock";
 
 const { Text } = Typography;
 

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Card, Typography, Space, Tag, Tooltip, Button, App } from "antd";
-import { StockOutlined, StarOutlined, TeamOutlined, SyncOutlined } from "@ant-design/icons";
+import { StockOutlined, StarOutlined, TeamOutlined, SyncOutlined, NotificationOutlined } from "@ant-design/icons";
 
 const { Text } = Typography;
 
@@ -15,6 +15,9 @@ interface CacheDataStats {
 	top10Holders: {
 		stockCount: number;
 		recordCount: number;
+	};
+	announcements: {
+		count: number;
 	};
 }
 
@@ -146,6 +149,15 @@ export function CacheDataIndicator() {
 								<Text type="secondary" style={{ fontSize: 11 }}>
 									({stats.top10Holders.recordCount.toLocaleString()} 条)
 								</Text>
+							</Text>
+						</Space>
+					</Tooltip>
+
+					<Tooltip title={`公告缓存：${stats.announcements.count.toLocaleString()} 条公告`}>
+						<Space size="small">
+							<NotificationOutlined style={{ color: "#1890ff" }} />
+							<Text style={{ fontSize: 12 }}>
+								公告缓存 <Tag color="blue">{stats.announcements.count.toLocaleString()}</Tag>
 							</Text>
 						</Space>
 					</Tooltip>

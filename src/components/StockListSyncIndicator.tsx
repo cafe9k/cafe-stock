@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import { Spin, Progress, Card, Typography, Space } from "antd";
 import { SyncOutlined } from "@ant-design/icons";
 

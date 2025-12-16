@@ -4,7 +4,7 @@
  */
 
 import { useMemo, memo } from "react";
-import { Table, Card, Tag, Typography, Button, Space, Badge } from "antd";
+import { Table, Tag, Typography, Badge } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import type { Stock, StockGroup } from "../../types/stock";
 
@@ -264,7 +264,16 @@ function StockListComponent<T extends Stock | StockGroup = Stock | StockGroup>({
 					  }
 					: false
 			}
-			expandable={expandable}
+			expandable={
+				expandable
+					? {
+							...expandable,
+							onExpandedRowsChange: expandable.onExpandedRowsChange
+								? (keys) => expandable.onExpandedRowsChange?.(keys as string[])
+								: undefined,
+					  }
+					: undefined
+			}
 			onRow={(record) => ({
 				onClick: () => {
 					if (onRowClick) {

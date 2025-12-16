@@ -33,6 +33,7 @@ export interface StockFilter {
 	market?: string; // 市场：主板、创业板、科创板、CDR
 	searchKeyword?: string; // 搜索关键词
 	dateRange?: [string, string]; // 日期范围 [startDate, endDate] YYYYMMDD格式
+	showFavoriteOnly?: boolean; // 是否仅显示关注的股票
 }
 
 /**

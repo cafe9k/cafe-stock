@@ -19,8 +19,8 @@ export interface StockSearchProps {
 /**
  * 股票搜索组件
  */
-export function StockSearch({ placeholder = "请输入股票代码或名称", onSelect, onSearch, style }: StockSearchProps) {
-	const { searchResults, searching, search, clearSearch } = useStockSearch();
+export function StockSearch({ placeholder = "请输入股票代码或名称", onSelect: _onSelect, onSearch, style }: StockSearchProps) {
+	const { searching, search, clearSearch } = useStockSearch();
 
 	const handleSearch = (value: string) => {
 		if (onSearch) {
@@ -30,12 +30,6 @@ export function StockSearch({ placeholder = "请输入股票代码或名称", on
 		}
 	};
 
-	const handleSelect = (tsCode: string) => {
-		const stock = searchResults.find((s) => s.ts_code === tsCode);
-		if (stock && onSelect) {
-			onSelect(stock);
-		}
-	};
 
 	return (
 		<Space style={style}>

@@ -4,3 +4,4 @@ export function News() {
 	return <NewsList />;
 }
 
+

@@ -909,6 +909,9 @@ export const getCacheDataStats = () => {
 	const top10HoldersRecordRow = db.prepare("SELECT COUNT(*) as count FROM top10_holders").get() as { count: number };
 	const top10HoldersRecordCount = top10HoldersRecordRow.count;
 
+	// 统计公告缓存数量
+	const announcementsCount = countAnnouncements();
+
 	// 获取股票列表同步信息
 	const stockSyncInfo = getStockListSyncInfo();
 
@@ -930,6 +933,9 @@ export const getCacheDataStats = () => {
 		top10Holders: {
 			stockCount: top10HoldersCount,
 			recordCount: top10HoldersRecordCount,
+		},
+		announcements: {
+			count: announcementsCount,
 		},
 		syncFlags: syncFlags.map((flag) => ({
 			type: flag.sync_type,

@@ -137,3 +137,4 @@ CafeStock（酷咖啡股票助手）是一款基于 Electron + React 的本地�
 -   [API 文档](./api/ipc-api.md)
 -   [系统架构](./architecture/system-architecture.md)
 
+

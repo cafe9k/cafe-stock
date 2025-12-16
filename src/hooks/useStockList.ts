@@ -6,7 +6,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { App } from "antd";
 import * as stockService from "../services/stockService";
-import type { Stock, StockGroup, StockFilter, StockListQueryResult } from "../types/stock";
+import type { StockGroup, StockFilter, StockListQueryResult } from "../types/stock";
 
 /**
  * 股票列表 Hook 配置

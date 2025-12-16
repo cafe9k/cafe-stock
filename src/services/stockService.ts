@@ -3,7 +3,7 @@
  * 封装所有股票相关的 API 调用
  */
 
-import type { Stock, StockGroup, StockListQueryParams, StockListQueryResult } from "../types/stock";
+import type { Stock, StockGroup, StockListQueryResult } from "../types/stock";
 import { markFavoriteStatus } from "./favoriteStockService";
 
 /**

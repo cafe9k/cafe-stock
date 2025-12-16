@@ -14464,6 +14464,7 @@ const getCacheDataStats = () => {
   const top10HoldersCount = countStocksWithTop10Holders();
   const top10HoldersRecordRow = db.prepare("SELECT COUNT(*) as count FROM top10_holders").get();
   const top10HoldersRecordCount = top10HoldersRecordRow.count;
+  const announcementsCount = countAnnouncements();
   const stockSyncInfo = getStockListSyncInfo();
   const syncFlags = db.prepare("SELECT sync_type, last_sync_date, updated_at FROM sync_flags ORDER BY sync_type").all();
   return {
@@ -14477,6 +14478,9 @@ const getCacheDataStats = () => {
     top10Holders: {
       stockCount: top10HoldersCount,
       recordCount: top10HoldersRecordCount
+    },
+    announcements: {
+      count: announcementsCount
     },
     syncFlags: syncFlags.map((flag) => ({
       type: flag.sync_type,
