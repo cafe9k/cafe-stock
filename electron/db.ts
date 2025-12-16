@@ -1,7 +1,15 @@
 import Database from "better-sqlite3";
 import path from "path";
 import { app } from "electron";
-import { classifyAnnouncement } from "../src/utils/announcementClassifier.js";
+import { 
+	classifyAnnouncement,
+	classifyAnnouncementWithRules,
+	AnnouncementCategory,
+	getCategoryColor,
+	getCategoryIcon,
+	DEFAULT_CLASSIFICATION_RULES,
+	ClassificationRule
+} from "../src/utils/announcementClassifier.js";
 
 const dbPath = path.join(app.getPath("userData"), "cafe_stock.db");
 const db = new Database(dbPath);
@@ -95,6 +103,34 @@ db.exec(`
 
   CREATE INDEX IF NOT EXISTS idx_sync_range_ts_code ON announcement_sync_ranges (ts_code);
   CREATE INDEX IF NOT EXISTS idx_sync_range_dates ON announcement_sync_ranges (start_date, end_date);
+
+  CREATE TABLE IF NOT EXISTS classification_categories (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    category_key TEXT NOT NULL UNIQUE,
+    category_name TEXT NOT NULL,
+    color TEXT,
+    icon TEXT,
+    priority INTEGER NOT NULL,
+    enabled INTEGER DEFAULT 1,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_category_priority ON classification_categories (priority);
+  CREATE INDEX IF NOT EXISTS idx_category_enabled ON classification_categories (enabled);
+
+  CREATE TABLE IF NOT EXISTS classification_rules (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    category_key TEXT NOT NULL,
+    keyword TEXT NOT NULL,
+    enabled INTEGER DEFAULT 1,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY (category_key) REFERENCES classification_categories(category_key)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_rules_category ON classification_rules(category_key);
+  CREATE INDEX IF NOT EXISTS idx_rules_enabled ON classification_rules(enabled);
 `);
 
 // ============= 数据库迁移 =============
@@ -157,6 +193,9 @@ function migrateDatabase() {
 			console.error("[DB Migration Error] 添加 announcements.category 列失败:", error);
 		}
 	}
+
+	// 初始化分类规则（如果数据库中没有规则）
+	initializeDefaultClassificationRules();
 }
 
 // 执行数据库迁移
@@ -885,41 +924,62 @@ export const getUntaggedAnnouncementsCount = (): number => {
  * 批量打标公告（分批处理）
  * @param batchSize 每批处理的数量
  * @param onProgress 进度回调
+ * @param reprocessAll 是否重新处理所有公告（默认false，仅处理未分类的）
+ * @param useDbRules 是否使用数据库中的规则（默认true）
  */
 export const tagAnnouncementsBatch = (
 	batchSize: number = 1000,
-	onProgress?: (processed: number, total: number) => void
+	onProgress?: (processed: number, total: number) => void,
+	reprocessAll: boolean = false,
+	useDbRules: boolean = true
 ): { success: boolean; processed: number; total: number } => {
-	const total = getUntaggedAnnouncementsCount();
+	// 根据 reprocessAll 决定查询条件和总数
+	const total = reprocessAll 
+		? countAnnouncements()
+		: getUntaggedAnnouncementsCount();
+	
 	let processed = 0;
 
 	if (total === 0) {
 		return { success: true, processed: 0, total: 0 };
 	}
 
-	console.log(`[Tagging] 开始批量打标，共 ${total} 条未打标公告`);
+	console.log(`[Tagging] 开始批量打标，共 ${total} 条公告，重新处理所有: ${reprocessAll}`);
+
+	// 加载规则
+	let rules: ClassificationRule[] | undefined;
+	if (useDbRules) {
+		const dbRules = loadClassificationRulesFromDb();
+		rules = dbRules.map(r => ({
+			category: r.category as AnnouncementCategory,
+			keywords: r.keywords,
+			priority: r.priority
+		}));
+		console.log(`[Tagging] 使用数据库规则，共 ${rules.length} 个分类`);
+	} else {
+		console.log(`[Tagging] 使用默认规则`);
+	}
 
 	const updateStmt = db.prepare("UPDATE announcements SET category = ? WHERE id = ?");
 
 	const processBatch = db.transaction(() => {
 		while (processed < total) {
-			// 查询一批未打标的公告
-			const announcements = db
-				.prepare(
-					`
-                SELECT id, title 
-                FROM announcements 
-                WHERE category IS NULL 
-                LIMIT ?
-            `
-				)
-				.all(batchSize) as Array<{ id: number; title: string }>;
+			// 根据 reprocessAll 决定查询条件
+			const query = reprocessAll
+				? `SELECT id, title FROM announcements LIMIT ? OFFSET ?`
+				: `SELECT id, title FROM announcements WHERE category IS NULL LIMIT ?`;
+			
+			const announcements = reprocessAll
+				? db.prepare(query).all(batchSize, processed) as Array<{ id: number; title: string }>
+				: db.prepare(query).all(batchSize) as Array<{ id: number; title: string }>;
 
 			if (announcements.length === 0) break;
 
 			// 批量分类并更新
 			for (const ann of announcements) {
-				const category = classifyAnnouncement(ann.title || "");
+				const category = useDbRules 
+					? classifyAnnouncementWithRules(ann.title || "", rules)
+					: classifyAnnouncement(ann.title || "");
 				updateStmt.run(category, ann.id);
 			}
 
@@ -1055,6 +1115,285 @@ export const getCacheDataStats = () => {
 			updatedAt: flag.updated_at,
 		})),
 	};
+};
+
+// ============= 分类规则管理相关操作 =============
+
+/**
+ * 初始化默认分类规则
+ */
+function initializeDefaultClassificationRules() {
+	try {
+		// 检查是否已有分类数据
+		const categoryCount = db.prepare("SELECT COUNT(*) as count FROM classification_categories").get() as { count: number };
+		
+		if (categoryCount.count > 0) {
+			console.log("[DB Migration] 分类规则已存在，跳过初始化");
+			return;
+		}
+
+		console.log("[DB Migration] 开始初始化默认分类规则");
+		const now = new Date().toISOString();
+
+		// 插入分类定义
+		const insertCategory = db.prepare(`
+			INSERT INTO classification_categories (category_key, category_name, color, icon, priority, enabled, created_at, updated_at)
+			VALUES (?, ?, ?, ?, ?, 1, ?, ?)
+		`);
+
+		// 插入规则
+		const insertRule = db.prepare(`
+			INSERT INTO classification_rules (category_key, keyword, enabled, created_at, updated_at)
+			VALUES (?, ?, 1, ?, ?)
+		`);
+
+		const insertAll = db.transaction(() => {
+			// 遍历所有默认规则
+			for (const rule of DEFAULT_CLASSIFICATION_RULES) {
+				const categoryKey = rule.category;
+				const categoryName = rule.category;
+				const color = getCategoryColor(rule.category as AnnouncementCategory);
+				const icon = getCategoryIcon(rule.category as AnnouncementCategory);
+				const priority = rule.priority;
+
+				// 插入分类
+				insertCategory.run(categoryKey, categoryName, color, icon, priority, now, now);
+
+				// 插入该分类的所有关键词
+				for (const keyword of rule.keywords) {
+					insertRule.run(categoryKey, keyword, now, now);
+				}
+			}
+		});
+
+		insertAll();
+		console.log("[DB Migration] 默认分类规则初始化完成");
+	} catch (error) {
+		console.error("[DB Migration Error] 初始化分类规则失败:", error);
+	}
+}
+
+/**
+ * 获取所有分类
+ */
+export const getClassificationCategories = (): Array<{
+	id: number;
+	category_key: string;
+	category_name: string;
+	color: string;
+	icon: string;
+	priority: number;
+	enabled: boolean;
+	created_at: string;
+	updated_at: string;
+}> => {
+	return db.prepare(`
+		SELECT * FROM classification_categories 
+		ORDER BY priority ASC
+	`).all() as any[];
+};
+
+/**
+ * 获取所有规则
+ */
+export const getClassificationRules = (): Array<{
+	id: number;
+	category_key: string;
+	keyword: string;
+	enabled: boolean;
+	created_at: string;
+	updated_at: string;
+}> => {
+	return db.prepare(`
+		SELECT * FROM classification_rules 
+		ORDER BY category_key, id
+	`).all() as any[];
+};
+
+/**
+ * 获取指定分类的规则
+ */
+export const getClassificationRulesByCategory = (categoryKey: string): Array<{
+	id: number;
+	category_key: string;
+	keyword: string;
+	enabled: boolean;
+}> => {
+	return db.prepare(`
+		SELECT id, category_key, keyword, enabled 
+		FROM classification_rules 
+		WHERE category_key = ?
+		ORDER BY id
+	`).all(categoryKey) as any[];
+};
+
+/**
+ * 更新分类信息
+ */
+export const updateClassificationCategory = (
+	id: number,
+	updates: {
+		category_name?: string;
+		color?: string;
+		icon?: string;
+		priority?: number;
+		enabled?: boolean;
+	}
+) => {
+	const now = new Date().toISOString();
+	const fields: string[] = [];
+	const values: any[] = [];
+
+	if (updates.category_name !== undefined) {
+		fields.push("category_name = ?");
+		values.push(updates.category_name);
+	}
+	if (updates.color !== undefined) {
+		fields.push("color = ?");
+		values.push(updates.color);
+	}
+	if (updates.icon !== undefined) {
+		fields.push("icon = ?");
+		values.push(updates.icon);
+	}
+	if (updates.priority !== undefined) {
+		fields.push("priority = ?");
+		values.push(updates.priority);
+	}
+	if (updates.enabled !== undefined) {
+		fields.push("enabled = ?");
+		values.push(updates.enabled ? 1 : 0);
+	}
+
+	fields.push("updated_at = ?");
+	values.push(now);
+	values.push(id);
+
+	const sql = `UPDATE classification_categories SET ${fields.join(", ")} WHERE id = ?`;
+	const result = db.prepare(sql).run(...values);
+	return result.changes;
+};
+
+/**
+ * 添加分类规则
+ */
+export const addClassificationRule = (categoryKey: string, keyword: string) => {
+	const now = new Date().toISOString();
+	const result = db.prepare(`
+		INSERT INTO classification_rules (category_key, keyword, enabled, created_at, updated_at)
+		VALUES (?, ?, 1, ?, ?)
+	`).run(categoryKey, keyword, now, now);
+	return result.lastInsertRowid;
+};
+
+/**
+ * 更新分类规则
+ */
+export const updateClassificationRule = (id: number, keyword: string, enabled: boolean) => {
+	const now = new Date().toISOString();
+	const result = db.prepare(`
+		UPDATE classification_rules 
+		SET keyword = ?, enabled = ?, updated_at = ?
+		WHERE id = ?
+	`).run(keyword, enabled ? 1 : 0, now, id);
+	return result.changes;
+};
+
+/**
+ * 删除分类规则
+ */
+export const deleteClassificationRule = (id: number) => {
+	const result = db.prepare("DELETE FROM classification_rules WHERE id = ?").run(id);
+	return result.changes;
+};
+
+/**
+ * 重置为默认规则
+ */
+export const resetClassificationRules = () => {
+	try {
+		const resetAll = db.transaction(() => {
+			// 清空现有规则
+			db.prepare("DELETE FROM classification_rules").run();
+			db.prepare("DELETE FROM classification_categories").run();
+			
+			// 重新初始化
+			const now = new Date().toISOString();
+			const insertCategory = db.prepare(`
+				INSERT INTO classification_categories (category_key, category_name, color, icon, priority, enabled, created_at, updated_at)
+				VALUES (?, ?, ?, ?, ?, 1, ?, ?)
+			`);
+			const insertRule = db.prepare(`
+				INSERT INTO classification_rules (category_key, keyword, enabled, created_at, updated_at)
+				VALUES (?, ?, 1, ?, ?)
+			`);
+
+			for (const rule of DEFAULT_CLASSIFICATION_RULES) {
+				const categoryKey = rule.category;
+				const categoryName = rule.category;
+				const color = getCategoryColor(rule.category as AnnouncementCategory);
+				const icon = getCategoryIcon(rule.category as AnnouncementCategory);
+				const priority = rule.priority;
+
+				insertCategory.run(categoryKey, categoryName, color, icon, priority, now, now);
+
+				for (const keyword of rule.keywords) {
+					insertRule.run(categoryKey, keyword, now, now);
+				}
+			}
+		});
+
+		resetAll();
+		console.log("[DB] 分类规则已重置为默认");
+		return { success: true };
+	} catch (error) {
+		console.error("[DB Error] 重置分类规则失败:", error);
+		return { success: false, error: String(error) };
+	}
+};
+
+/**
+ * 从数据库加载规则并转换为分类引擎可用的格式
+ */
+export const loadClassificationRulesFromDb = (): Array<{
+	category: string;
+	keywords: string[];
+	priority: number;
+}> => {
+	const categories = getClassificationCategories().filter(c => c.enabled);
+	const rules = getClassificationRules().filter(r => r.enabled);
+
+	// 按分类组织关键词
+	const rulesByCategory = new Map<string, string[]>();
+	for (const rule of rules) {
+		if (!rulesByCategory.has(rule.category_key)) {
+			rulesByCategory.set(rule.category_key, []);
+		}
+		rulesByCategory.get(rule.category_key)!.push(rule.keyword);
+	}
+
+	// 构建规则数组
+	return categories.map(cat => ({
+		category: cat.category_key,
+		keywords: rulesByCategory.get(cat.category_key) || [],
+		priority: cat.priority
+	}));
+};
+
+// ============= 数据库重置相关操作 =============
+
+/**
+ * 关闭数据库连接
+ */
+export const closeDatabase = () => {
+	try {
+		db.close();
+		console.log("[DB] 数据库连接已关闭");
+		return true;
+	} catch (error) {
+		console.error("[DB Error] 关闭数据库连接失败:", error);
+		return false;
+	}
 };
 
 export default db;

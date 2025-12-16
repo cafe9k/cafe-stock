@@ -35,7 +35,7 @@ export enum AnnouncementCategory {
 /**
  * 分类规则接口
  */
-interface ClassificationRule {
+export interface ClassificationRule {
 	category: AnnouncementCategory;
 	keywords: string[];
 	priority: number; // 优先级，数字越小优先级越高
@@ -296,15 +296,26 @@ const CLASSIFICATION_RULES: ClassificationRule[] = [
 ];
 
 /**
- * 根据公告标题分类
+ * 导出默认分类规则（供数据库初始化使用）
+ */
+export const DEFAULT_CLASSIFICATION_RULES = CLASSIFICATION_RULES;
+
+/**
+ * 根据公告标题分类（使用自定义规则）
  * @param title 公告标题
+ * @param customRules 自定义规则（可选，不传则使用默认规则）
  * @returns 公告分类
  */
-export function classifyAnnouncement(title: string): AnnouncementCategory {
+export function classifyAnnouncementWithRules(
+	title: string,
+	customRules?: ClassificationRule[]
+): AnnouncementCategory {
 	if (!title) return AnnouncementCategory.OTHER;
 
-	// 按优先级排序后匹配（优先级已在规则中定义）
-	const sortedRules = [...CLASSIFICATION_RULES].sort((a, b) => a.priority - b.priority);
+	const rules = customRules || CLASSIFICATION_RULES;
+	
+	// 按优先级排序后匹配
+	const sortedRules = [...rules].sort((a, b) => a.priority - b.priority);
 
 	for (const rule of sortedRules) {
 		for (const keyword of rule.keywords) {
@@ -315,6 +326,15 @@ export function classifyAnnouncement(title: string): AnnouncementCategory {
 	}
 
 	return AnnouncementCategory.OTHER;
+}
+
+/**
+ * 根据公告标题分类（使用默认规则）
+ * @param title 公告标题
+ * @returns 公告分类
+ */
+export function classifyAnnouncement(title: string): AnnouncementCategory {
+	return classifyAnnouncementWithRules(title, CLASSIFICATION_RULES);
 }
 
 /**

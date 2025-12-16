@@ -22,6 +22,7 @@ export interface StockGroup {
 	market: string;
 	announcement_count: number;
 	latest_ann_date: string;
+	latest_ann_time?: string; // 最新公告时间
 	latest_ann_title?: string;
 	isFavorite?: boolean; // 是否已关注
 	category_stats?: Record<string, number>; // 公告分类统计

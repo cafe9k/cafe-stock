@@ -321,13 +321,49 @@ contextBridge.exposeInMainWorld("electronAPI", {
 	getUntaggedCount: () => ipcRenderer.invoke("get-untagged-count"),
 
 	// 批量打标所有公告
-	tagAllAnnouncements: (batchSize?: number) => ipcRenderer.invoke("tag-all-announcements", batchSize),
+	tagAllAnnouncements: (batchSize?: number, reprocessAll?: boolean) => ipcRenderer.invoke("tag-all-announcements", batchSize, reprocessAll),
 
 	// 监听打标进度
 	onTaggingProgress: (callback: (data: any) => void) => {
 		const listener = (_event: any, data: any) => callback(data);
 		ipcRenderer.on("tagging-progress", listener);
 		return () => ipcRenderer.removeListener("tagging-progress", listener);
+	},
+
+	// ============= 分类规则管理相关 =============
+
+	// 获取所有分类
+	getClassificationCategories: () => ipcRenderer.invoke("get-classification-categories"),
+
+	// 获取所有规则
+	getClassificationRules: () => ipcRenderer.invoke("get-classification-rules"),
+
+	// 获取指定分类的规则
+	getClassificationRulesByCategory: (categoryKey: string) => ipcRenderer.invoke("get-classification-rules-by-category", categoryKey),
+
+	// 更新分类信息
+	updateClassificationCategory: (id: number, updates: any) => ipcRenderer.invoke("update-classification-category", id, updates),
+
+	// 添加分类规则
+	addClassificationRule: (categoryKey: string, keyword: string) => ipcRenderer.invoke("add-classification-rule", categoryKey, keyword),
+
+	// 更新分类规则
+	updateClassificationRule: (id: number, keyword: string, enabled: boolean) => ipcRenderer.invoke("update-classification-rule", id, keyword, enabled),
+
+	// 删除分类规则
+	deleteClassificationRule: (id: number) => ipcRenderer.invoke("delete-classification-rule", id),
+
+	// 重置为默认规则
+	resetClassificationRules: () => ipcRenderer.invoke("reset-classification-rules"),
+
+	// 重新处理所有公告
+	reprocessAllAnnouncements: (batchSize?: number) => ipcRenderer.invoke("reprocess-all-announcements", batchSize),
+
+	// 监听重新打标进度
+	onReprocessProgress: (callback: (data: any) => void) => {
+		const listener = (_event: any, data: any) => callback(data);
+		ipcRenderer.on("reprocess-progress", listener);
+		return () => ipcRenderer.removeListener("reprocess-progress", listener);
 	},
 
 	// ============= 列宽配置相关 =============
@@ -340,5 +376,12 @@ contextBridge.exposeInMainWorld("electronAPI", {
 	// 获取列宽配置
 	getColumnWidths: (tableId: string) => {
 		return ipcRenderer.invoke("get-column-widths", tableId);
+	},
+
+	// ============= 数据库重置相关 =============
+
+	// 重置数据库
+	resetDatabase: (options: { backup: boolean }) => {
+		return ipcRenderer.invoke("reset-database", options);
 	},
 });

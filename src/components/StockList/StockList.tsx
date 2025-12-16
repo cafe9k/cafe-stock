@@ -184,8 +184,16 @@ function StockListComponent<T extends Stock | StockGroup = Stock | StockGroup>({
 	const hasNameField = data.length > 0 && "name" in data[0];
 	const hasAreaField = data.length > 0 && "area" in data[0];
 	const hasAnnouncementCountField = data.length > 0 && "announcement_count" in data[0];
+	const hasCategoryStatsField = data.length > 0 && "category_stats" in data[0];
 	const hasLatestAnnTitleField = data.length > 0 && "latest_ann_title" in data[0];
 	const hasLatestAnnDateField = data.length > 0 && "latest_ann_date" in data[0];
+
+	// 调试日志
+	if (data.length > 0) {
+		console.log("[StockList Debug] First record:", data[0]);
+		console.log("[StockList Debug] hasCategoryStatsField:", hasCategoryStatsField);
+		console.log("[StockList Debug] showAnnouncementCategories:", showAnnouncementCategories);
+	}
 
 	// 构建表格列
 	const columns: ColumnsType<T> = useMemo(() => {
@@ -328,10 +336,10 @@ function StockListComponent<T extends Stock | StockGroup = Stock | StockGroup>({
 		}
 
 		// 公告分类列（仅 StockGroup）
-		if (showAnnouncementCategories && hasAnnouncementCountField) {
-			const colWidth = columnWidths["category_stats"] || 300;
+		if (showAnnouncementCategories && hasCategoryStatsField) {
+			const colWidth = columnWidths["category_stats"] || 400;
 			cols.push({
-				title: "公告分类",
+				title: "公告分类统计",
 				key: "category_stats",
 				width: colWidth,
 				onHeaderCell: () => ({
@@ -343,35 +351,37 @@ function StockListComponent<T extends Stock | StockGroup = Stock | StockGroup>({
 					const categoryStats = stockGroup.category_stats || {};
 					const categories = Object.entries(categoryStats)
 						.filter(([_, count]) => (count as number) > 0)
-						.sort((a, b) => (b[1] as number) - (a[1] as number))
-						.slice(0, 5); // 只显示前5个分类
+						.sort((a, b) => (b[1] as number) - (a[1] as number));
 
 					if (categories.length === 0) {
 						return <AntText type="secondary">-</AntText>;
 					}
 
+					// 显示前6个分类
+					const visibleCategories = categories.slice(0, 6);
+					const hiddenCategories = categories.slice(6);
+
 					return (
 						<Space size={[4, 4]} wrap>
-							{categories.map(([category, count]) => (
-								<Tag key={category} color={getCategoryColor(category as any)}>
+							{visibleCategories.map(([category, count]) => (
+								<Tag key={category} color={getCategoryColor(category as any)} style={{ margin: 2 }}>
 									{category} ({String(count)})
 								</Tag>
 							))}
-							{Object.keys(categoryStats).length > 5 && (
+							{hiddenCategories.length > 0 && (
 								<Tooltip
 									title={
 										<div>
-											{Object.entries(categoryStats)
-												.sort((a, b) => (b[1] as number) - (a[1] as number))
-												.map(([cat, cnt]) => (
-													<div key={cat}>
-														{cat}: {String(cnt)}
-													</div>
-												))}
+											<div style={{ marginBottom: 8, fontWeight: 'bold' }}>其他分类：</div>
+											{hiddenCategories.map(([cat, cnt]) => (
+												<div key={cat} style={{ padding: '2px 0' }}>
+													{cat}: {String(cnt)} 条
+												</div>
+											))}
 										</div>
 									}
 								>
-									<Tag>...</Tag>
+									<Tag style={{ cursor: 'help', margin: 2 }}>+{hiddenCategories.length}...</Tag>
 								</Tooltip>
 							)}
 						</Space>
@@ -403,10 +413,9 @@ function StockListComponent<T extends Stock | StockGroup = Stock | StockGroup>({
 
 		// 最新公告日期列（仅 StockGroup）
 		if (showLatestAnnDate && hasLatestAnnDateField) {
-			const colWidth = columnWidths["latest_ann_date"] || 130;
+			const colWidth = columnWidths["latest_ann_date"] || 160;
 			cols.push({
-				title: "最新公告日期",
-				dataIndex: "latest_ann_date",
+				title: "最新公告时间",
 				key: "latest_ann_date",
 				width: colWidth,
 				onHeaderCell: () => ({
@@ -418,9 +427,25 @@ function StockListComponent<T extends Stock | StockGroup = Stock | StockGroup>({
 				// 如果需要全量排序，应该禁用 sorter，通过服务端排序实现
 				// 这里保留 sorter 仅用于当前页的临时排序展示
 				sorter: false, // 禁用客户端排序，因为后端已经对所有数据排序
-				render: (date: string) => (
-					<AntText style={{ fontFamily: "monospace" }}>{date ? date.replace(/(\d{4})(\d{2})(\d{2})/, "$1-$2-$3") : "-"}</AntText>
-				),
+				render: (_: any, record: T) => {
+					const stockGroup = record as any;
+					const date = stockGroup.latest_ann_date;
+					const time = stockGroup.latest_ann_time;
+					
+					if (!date) return <AntText>-</AntText>;
+					
+					const formattedDate = date.replace(/(\d{4})(\d{2})(\d{2})/, "$1-$2-$3");
+					const formattedTime = time ? time.substring(0, 5) : "";
+					
+					return (
+						<div style={{ fontFamily: "monospace" }}>
+							<div style={{ fontSize: 13 }}>{formattedDate}</div>
+							{formattedTime && (
+								<div style={{ fontSize: 12, color: "#999" }}>{formattedTime}</div>
+							)}
+						</div>
+					);
+				},
 			});
 		}
 
@@ -457,6 +482,7 @@ function StockListComponent<T extends Stock | StockGroup = Stock | StockGroup>({
 		hasNameField,
 		hasAreaField,
 		hasAnnouncementCountField,
+		hasCategoryStatsField,
 		hasLatestAnnTitleField,
 		hasLatestAnnDateField,
 		columnWidths,

@@ -1,4 +1,32 @@
 // Electron API 类型定义
+
+/**
+ * 分类定义
+ */
+export interface ClassificationCategory {
+	id: number;
+	category_key: string;
+	category_name: string;
+	color: string;
+	icon: string;
+	priority: number;
+	enabled: boolean;
+	created_at: string;
+	updated_at: string;
+}
+
+/**
+ * 分类规则项
+ */
+export interface ClassificationRuleItem {
+	id: number;
+	category_key: string;
+	keyword: string;
+	enabled: boolean;
+	created_at: string;
+	updated_at: string;
+}
+
 export interface ElectronAPI {
 	showNotification: (title: string, body: string) => Promise<void>;
 	getAppVersion: () => Promise<string>;
@@ -364,6 +392,9 @@ export interface ElectronAPI {
 			stockCount: number;
 			recordCount: number;
 		};
+		announcements: {
+			count: number;
+		};
 		syncFlags: Array<{
 			type: string;
 			lastSyncDate: string;
@@ -466,7 +497,7 @@ export interface ElectronAPI {
 	getUntaggedCount: () => Promise<{ success: boolean; count: number; error?: string }>;
 
 	// 批量打标所有公告
-	tagAllAnnouncements: (batchSize?: number) => Promise<{
+	tagAllAnnouncements: (batchSize?: number, reprocessAll?: boolean) => Promise<{
 		success: boolean;
 		processed: number;
 		total: number;
@@ -475,6 +506,83 @@ export interface ElectronAPI {
 
 	// 监听打标进度
 	onTaggingProgress: (callback: (data: { processed: number; total: number; percentage: string }) => void) => () => void;
+
+	// ============= 分类规则管理相关 =============
+
+	// 获取所有分类
+	getClassificationCategories: () => Promise<{
+		success: boolean;
+		categories: Array<ClassificationCategory>;
+		error?: string;
+	}>;
+
+	// 获取所有规则
+	getClassificationRules: () => Promise<{
+		success: boolean;
+		rules: Array<ClassificationRuleItem>;
+		error?: string;
+	}>;
+
+	// 获取指定分类的规则
+	getClassificationRulesByCategory: (categoryKey: string) => Promise<{
+		success: boolean;
+		rules: Array<ClassificationRuleItem>;
+		error?: string;
+	}>;
+
+	// 更新分类信息
+	updateClassificationCategory: (
+		id: number,
+		updates: {
+			category_name?: string;
+			color?: string;
+			icon?: string;
+			priority?: number;
+			enabled?: boolean;
+		}
+	) => Promise<{
+		success: boolean;
+		changes: number;
+		error?: string;
+	}>;
+
+	// 添加分类规则
+	addClassificationRule: (categoryKey: string, keyword: string) => Promise<{
+		success: boolean;
+		id: number;
+		error?: string;
+	}>;
+
+	// 更新分类规则
+	updateClassificationRule: (id: number, keyword: string, enabled: boolean) => Promise<{
+		success: boolean;
+		changes: number;
+		error?: string;
+	}>;
+
+	// 删除分类规则
+	deleteClassificationRule: (id: number) => Promise<{
+		success: boolean;
+		changes: number;
+		error?: string;
+	}>;
+
+	// 重置为默认规则
+	resetClassificationRules: () => Promise<{
+		success: boolean;
+		error?: string;
+	}>;
+
+	// 重新处理所有公告
+	reprocessAllAnnouncements: (batchSize?: number) => Promise<{
+		success: boolean;
+		processed: number;
+		total: number;
+		error?: string;
+	}>;
+
+	// 监听重新打标进度
+	onReprocessProgress: (callback: (data: { processed: number; total: number; percentage: string }) => void) => () => void;
 
 	// ============= 列宽配置相关 =============
 
@@ -492,6 +600,15 @@ export interface ElectronAPI {
 		success: boolean;
 		columnWidths: Record<string, number>;
 		error?: string;
+	}>;
+
+	// ============= 数据库重置相关 =============
+
+	// 重置数据库
+	resetDatabase: (options: { backup: boolean }) => Promise<{
+		success: boolean;
+		message: string;
+		backupPath?: string | null;
 	}>;
 }
 

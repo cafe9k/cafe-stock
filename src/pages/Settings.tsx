@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
-import { Card, Button, Progress, Statistic, Space, message, Typography, Form, Input, Modal, Descriptions, Badge, Row, Col } from "antd";
-import { TagsOutlined, SyncOutlined, CopyOutlined, PlayCircleOutlined, StopOutlined, LockOutlined, UserOutlined, DatabaseOutlined } from "@ant-design/icons";
+import { Card, Button, Progress, Statistic, Space, message, Typography, Form, Input, Modal, Descriptions, Badge, Row, Col, Checkbox } from "antd";
+import { TagsOutlined, SyncOutlined, CopyOutlined, PlayCircleOutlined, StopOutlined, LockOutlined, UserOutlined, DatabaseOutlined, ExclamationCircleOutlined, ReloadOutlined, SettingOutlined } from "@ant-design/icons";
+import { ClassificationRuleEditor } from "../components/ClassificationRuleEditor";
 
 const { Title, Text } = Typography;
 
@@ -19,6 +20,11 @@ export function Settings() {
 	const [showAuthModal, setShowAuthModal] = useState(false);
 	const [authForm] = Form.useForm();
 	const [dbPath, setDbPath] = useState<string>("");
+
+	// 数据库重置相关状态
+	const [showResetModal, setShowResetModal] = useState(false);
+	const [resetting, setResetting] = useState(false);
+	const [backupBeforeReset, setBackupBeforeReset] = useState(true);
 
 	useEffect(() => {
 		loadUntaggedCount();
@@ -211,6 +217,36 @@ export function Settings() {
 		}
 	};
 
+	// 重置数据库
+	const handleResetDatabase = async () => {
+		setResetting(true);
+		try {
+			const result = await window.electronAPI.resetDatabase({ backup: backupBeforeReset });
+			
+			if (result.success) {
+				let successMessage = "数据库重置成功！";
+				if (result.backupPath) {
+					successMessage += `\n备份文件已保存至：${result.backupPath}`;
+				}
+				message.success(successMessage, 5);
+				setShowResetModal(false);
+				
+				// 刷新页面数据
+				setTimeout(() => {
+					loadUntaggedCount();
+					loadServerStatus();
+				}, 500);
+			} else {
+				message.error(`重置失败: ${result.message}`);
+			}
+		} catch (error: any) {
+			console.error("重置数据库失败:", error);
+			message.error(`重置失败: ${error.message || "未知错误"}`);
+		} finally {
+			setResetting(false);
+		}
+	};
+
 	return (
 		<div style={{ padding: 24 }}>
 			<Title level={2}>系统设置</Title>
@@ -348,6 +384,67 @@ export function Settings() {
 						</Space>
 					</Card>
 				</Col>
+
+				<Col xs={24} lg={12}>
+					<Card 
+						title={
+							<Space>
+								<DatabaseOutlined />
+								<span>数据库管理</span>
+							</Space>
+						}
+						style={{ height: '100%' }}
+					>
+						<Space direction="vertical" size="large" style={{ width: "100%" }}>
+							<Descriptions column={1} size="small">
+								<Descriptions.Item label="数据库文件">
+									<Text copyable ellipsis style={{ maxWidth: 300 }}>
+										{dbPath || "加载中..."}
+									</Text>
+								</Descriptions.Item>
+								<Descriptions.Item label="状态">
+									<Badge status="success" text="正常运行" />
+								</Descriptions.Item>
+							</Descriptions>
+
+							<Space direction="vertical" style={{ width: "100%" }}>
+								<Button
+									danger
+									icon={<ReloadOutlined />}
+									onClick={() => setShowResetModal(true)}
+									block
+								>
+									重置数据库
+								</Button>
+								
+								<Text type="warning" style={{ fontSize: 12 }}>
+									<ExclamationCircleOutlined /> 警告：重置数据库将删除所有本地数据，包括股票列表、公告、十大股东等信息。
+								</Text>
+							</Space>
+
+							<Text type="secondary">
+								说明：当数据库损坏或出现异常时，可以使用此功能重置数据库。
+								重置后需要重新同步数据。建议在重置前选择备份数据库。
+							</Text>
+						</Space>
+					</Card>
+				</Col>
+			</Row>
+
+			{/* 分类规则配置 */}
+			<Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+				<Col xs={24}>
+					<Card 
+						title={
+							<Space>
+								<SettingOutlined />
+								<span>公告分类规则配置</span>
+							</Space>
+						}
+					>
+						<ClassificationRuleEditor onSave={loadUntaggedCount} />
+					</Card>
+				</Col>
 			</Row>
 
 			{/* 设置认证信息对话框 */}
@@ -370,6 +467,66 @@ export function Settings() {
 						<Input.Password prefix={<LockOutlined />} placeholder="请输入密码" />
 					</Form.Item>
 				</Form>
+			</Modal>
+
+			{/* 重置数据库确认对话框 */}
+			<Modal
+				title={
+					<Space>
+						<ExclamationCircleOutlined style={{ color: '#ff4d4f' }} />
+						<span>确认重置数据库</span>
+					</Space>
+				}
+				open={showResetModal}
+				onOk={handleResetDatabase}
+				onCancel={() => {
+					if (!resetting) {
+						setShowResetModal(false);
+						setBackupBeforeReset(true);
+					}
+				}}
+				okText="确认重置"
+				cancelText="取消"
+				okButtonProps={{ danger: true, loading: resetting }}
+				cancelButtonProps={{ disabled: resetting }}
+				closable={!resetting}
+				maskClosable={!resetting}
+			>
+				<Space direction="vertical" size="large" style={{ width: "100%" }}>
+					<Text type="danger" strong>
+						警告：此操作将删除所有本地数据！
+					</Text>
+					
+					<div>
+						<Text>重置数据库将清空以下数据：</Text>
+						<ul style={{ marginTop: 8, marginBottom: 0 }}>
+							<li>所有股票列表数据</li>
+							<li>关注的股票</li>
+							<li>公告数据</li>
+							<li>十大股东数据</li>
+							<li>同步记录</li>
+						</ul>
+					</div>
+
+					<Checkbox
+						checked={backupBeforeReset}
+						onChange={(e) => setBackupBeforeReset(e.target.checked)}
+						disabled={resetting}
+					>
+						在重置前备份数据库（推荐）
+					</Checkbox>
+
+					{resetting && (
+						<div>
+							<Text>正在重置数据库，请稍候...</Text>
+							<Progress percent={100} status="active" showInfo={false} />
+						</div>
+					)}
+
+					<Text type="secondary" style={{ fontSize: 12 }}>
+						提示：重置完成后，您需要重新同步股票列表和其他数据。
+					</Text>
+				</Space>
 			</Modal>
 		</div>
 	);
