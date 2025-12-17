@@ -49,6 +49,8 @@ export default defineConfig({
 				vite: {
 					build: {
 						outDir: "dist-electron",
+						minify: "esbuild",
+						sourcemap: false,
 						rollupOptions: {
 							external: ["electron", "better-sqlite3"],
 						},
@@ -66,6 +68,8 @@ export default defineConfig({
 					build: {
 						outDir: "dist-electron",
 						emptyOutDir: false,
+						minify: "esbuild",
+						sourcemap: false,
 						rollupOptions: {
 							external: ["electron"],
 							output: {
@@ -83,5 +87,31 @@ export default defineConfig({
 	base: "./",
 	build: {
 		outDir: "dist",
+		minify: "esbuild",
+		sourcemap: false,
+		cssCodeSplit: true,
+		chunkSizeWarningLimit: 1000,
+		rollupOptions: {
+			output: {
+				manualChunks: {
+					// 将 React 相关库打包到一起
+					"react-vendor": ["react", "react-dom", "react-router-dom"],
+					// 将 Ant Design 打包到一起
+					"antd-vendor": ["antd", "@ant-design/icons"],
+				},
+				// 优化资源文件名
+				chunkFileNames: "assets/js/[name]-[hash].js",
+				entryFileNames: "assets/js/[name]-[hash].js",
+				assetFileNames: "assets/[ext]/[name]-[hash].[ext]",
+			},
+		},
+		// 启用 terser 进行更好的压缩（可选，但会增加构建时间）
+		// minify: 'terser',
+		// terserOptions: {
+		//   compress: {
+		//     drop_console: true,
+		//     drop_debugger: true,
+		//   },
+		// },
 	},
 });

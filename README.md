@@ -88,10 +88,29 @@ _注意：请勿直接运行 `electron .` 或其他命令，会导致 preload �
 构建 macOS 应用（需要在 macOS 上运行）：
 
 ```bash
+# 普通构建
 npm run build
+
+# 优化构建（推荐用于发布，包含额外优化）
+npm run build:optimized
+
+# 仅构建目录（用于测试，不生成安装包）
+npm run build:dir
+
+# 分析构建产物大小
+npm run analyze
 ```
 
-构建输出位于 `release/` 目录，包含 DMG 和 ZIP 格式的安装包。
+构建输出位于 `release/` 目录，包含 DMG 格式的安装包。
+
+**优化构建说明**：
+
+-   使用最大压缩级别
+-   自动移除 source map
+-   排除开发依赖和测试文件
+-   提供详细的构建分析报告
+
+详细的优化说明请参考 [构建优化指南](docs/build-optimization-guide.md)。
 
 ### 4.5 发布更新
 

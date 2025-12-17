@@ -10,7 +10,10 @@
 		"electron:preview": "npm run build && electron .",
 		"start": "npm run dev",
 		"build": "bash scripts/build.sh",
+		"build:optimized": "bash scripts/optimize-build.sh",
 		"build:dir": "tsc && vite build && tsc -p electron/tsconfig.json && electron-builder --mac --dir",
+		"build:analyze": "npm run build && node scripts/analyze-bundle.cjs",
+		"analyze": "node scripts/analyze-bundle.cjs",
 		"preview": "vite preview",
 		"lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0"
 	},
@@ -52,16 +55,27 @@
 	"build": {
 		"appId": "com.cafestock.app",
 		"productName": "酷咖啡",
+		"compression": "maximum",
+		"removePackageScripts": true,
+		"nodeGypRebuild": false,
+		"buildDependenciesFromSource": false,
 		"mac": {
 			"category": "public.app-category.finance",
 			"target": [
-				"dmg"
+				{
+					"target": "dmg",
+					"arch": [
+						"arm64",
+						"x64"
+					]
+				}
 			],
 			"icon": "build/icon.icns",
 			"hardenedRuntime": true,
 			"entitlements": "build/entitlements.mac.plist",
 			"entitlementsInherit": "build/entitlements.mac.plist",
-			"gatekeeperAssess": false
+			"gatekeeperAssess": false,
+			"minimumSystemVersion": "10.15.0"
 		},
 		"dmg": {
 			"format": "UDBZ",
@@ -93,7 +107,13 @@
 		],
 		"files": [
 			"dist/**/*",
-			"dist-electron/**/*"
+			"dist-electron/**/*",
+			"!dist/**/*.map",
+			"!dist-electron/**/*.map",
+			"node_modules/better-sqlite3/**/*"
+		],
+		"asarUnpack": [
+			"node_modules/better-sqlite3/**/*"
 		],
 		"directories": {
 			"buildResources": "build",

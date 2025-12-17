@@ -17,7 +17,13 @@
  */
 
 import Database from "better-sqlite3";
-import { initializeDatabase, getDatabase, getDatabasePath, closeDatabase as closeDatabaseConnection, analyzeQuery as analyzeQueryPlan } from "./database/connection.js";
+import {
+	initializeDatabase,
+	getDatabase,
+	getDatabasePath,
+	closeDatabase as closeDatabaseConnection,
+	analyzeQuery as analyzeQueryPlan,
+} from "./database/connection.js";
 import { createTables, migrateDatabase as runMigrations } from "./database/migrations.js";
 import { SyncFlagManager } from "./database/syncFlags.js";
 import { log } from "./utils/logger.js";

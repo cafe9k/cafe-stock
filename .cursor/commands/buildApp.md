@@ -11,7 +11,7 @@
 (lsof -ti:5173 2>/dev/null | xargs kill -9 2>/dev/null || true); \
 cd /Users/ctrip/Desktop/cafe-stock && \
 rm -rf dist dist-electron && \
-npm run build
+npm run build:optimized
 ```
 
 ## 构建输出

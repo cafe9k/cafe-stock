@@ -5,7 +5,7 @@
 
 import { Notification } from "electron";
 import { TushareClient } from "../tushare.js";
-import { getDb } from "../db.js";
+import { getDb, syncFlagManager } from "../db.js";
 import { StockRepository } from "../repositories/implementations/StockRepository.js";
 import { SyncResult } from "../types/index.js";
 
@@ -32,6 +32,10 @@ export async function syncStocksIfNeeded(): Promise<void> {
 		if (stocks && stocks.length > 0) {
 			stockRepository.upsertStocks(stocks);
 			console.log(`Synced ${stocks.length} stocks to database`);
+
+			// 更新同步标志位，标记今日已同步
+			const today = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+			syncFlagManager.updateSyncFlag("stock_list", today);
 
 			if (Notification.isSupported()) {
 				new Notification({
@@ -78,6 +82,10 @@ export async function syncAllStocks(
 
 			stockRepository.upsertStocks(stocks);
 			console.log(`Synced ${stocks.length} stocks to database`);
+
+			// 更新同步标志位，标记今日已同步
+			const today = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+			syncFlagManager.updateSyncFlag("stock_list", today);
 
 			// 发送完成事件
 			onProgress?.({
