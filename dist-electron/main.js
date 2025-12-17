@@ -1,17 +1,17 @@
-import require$$1$1, { app, session, BrowserWindow, Notification, nativeImage, Tray, Menu, globalShortcut, ipcMain, shell } from "electron";
-import require$$1 from "path";
+import require$$1, { app, session, BrowserWindow, Notification, nativeImage, Tray, Menu, globalShortcut, ipcMain, shell } from "electron";
+import path$o from "path";
 import require$$4$1, { fileURLToPath, URL } from "url";
 import fs$k from "fs";
 import require$$0 from "constants";
 import require$$0$1 from "stream";
 import require$$4 from "util";
 import require$$5 from "assert";
-import require$$1$4 from "child_process";
+import require$$1$3 from "child_process";
 import require$$0$2 from "events";
 import require$$0$3 from "crypto";
-import require$$1$2 from "tty";
+import require$$1$1 from "tty";
 import require$$2 from "os";
-import require$$1$3 from "string_decoder";
+import require$$1$2 from "string_decoder";
 import require$$14 from "zlib";
 import require$$4$2, { createServer } from "http";
 import Database from "better-sqlite3";
@@ -877,7 +877,7 @@ var jsonfile$3 = {
   writeFileSync: writeFileSync$1
 };
 var jsonfile_1 = jsonfile$3;
-var path$n = require$$1;
+var path$n = path$o;
 var fs$i = fs$k;
 var _0777 = parseInt("0777", 8);
 var mkdirp$2 = mkdirP.mkdirp = mkdirP.mkdirP = mkdirP;
@@ -953,8 +953,8 @@ mkdirP.sync = function sync(p, opts, made) {
   }
   return made;
 };
-const path$m = require$$1;
-const electron = require$$1$1;
+const path$m = path$o;
+const electron = require$$1;
 const jsonfile$2 = jsonfile_1;
 const mkdirp$1 = mkdirp$2;
 var electronWindowState = function(options) {
@@ -1110,9 +1110,9 @@ var electronWindowState = function(options) {
 };
 const windowStateKeeper = /* @__PURE__ */ getDefaultExportFromCjs(electronWindowState);
 const __filename$2 = fileURLToPath(import.meta.url);
-const __dirname$2 = require$$1.dirname(__filename$2);
+const __dirname$2 = path$o.dirname(__filename$2);
 const isDev$1 = process.env.NODE_ENV === "development" || !app.isPackaged;
-const PRELOAD_PATH = isDev$1 ? require$$1.join(process.cwd(), "dist-electron/preload.cjs") : require$$1.join(__dirname$2, "../../preload.cjs");
+const PRELOAD_PATH = isDev$1 ? path$o.join(process.cwd(), "dist-electron/preload.cjs") : path$o.join(__dirname$2, "../../preload.cjs");
 let mainWindow = null;
 function createWindow() {
   if (!isDev$1) {
@@ -1192,7 +1192,7 @@ function createWindow() {
     mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL || "http://localhost:5173");
     mainWindow.webContents.openDevTools();
   } else {
-    mainWindow.loadFile(require$$1.join(__dirname$2, "../../dist/index.html"));
+    mainWindow.loadFile(path$o.join(__dirname$2, "../../dist/index.html"));
   }
   mainWindow.on("closed", () => {
     mainWindow = null;
@@ -1203,11 +1203,11 @@ function getMainWindow() {
   return mainWindow;
 }
 const __filename$1 = fileURLToPath(import.meta.url);
-const __dirname$1 = require$$1.dirname(__filename$1);
+const __dirname$1 = path$o.dirname(__filename$1);
 const isDev = process.env.NODE_ENV === "development" || !app.isPackaged;
 let tray = null;
 function createTray(mainWindow2, extendedApp2) {
-  const iconPath = isDev ? require$$1.join(__dirname$1, "../../build/tray-icon.png") : require$$1.join(process.resourcesPath, "build/tray-icon.png");
+  const iconPath = isDev ? path$o.join(__dirname$1, "../../build/tray-icon.png") : path$o.join(process.resourcesPath, "build/tray-icon.png");
   let trayIcon;
   try {
     trayIcon = nativeImage.createFromPath(iconPath);
@@ -1392,7 +1392,7 @@ universalify$1.fromPromise = function(fn) {
 })(fs$h);
 var makeDir$1 = {};
 var utils$1 = {};
-const path$l = require$$1;
+const path$l = path$o;
 utils$1.checkPath = function checkPath(pth) {
   if (process.platform === "win32") {
     const pathHasInvalidWinCharacters = /[<>:"|?*]/.test(pth.replace(path$l.parse(pth).root, ""));
@@ -1466,7 +1466,7 @@ var utimes = {
   utimesMillisSync: utimesMillisSync$1
 };
 const fs$d = fs$h;
-const path$k = require$$1;
+const path$k = path$o;
 const util$1 = require$$4;
 function getStats$2(src2, dest, opts) {
   const statFunc = opts.dereference ? (file2) => fs$d.stat(file2, { bigint: true }) : (file2) => fs$d.lstat(file2, { bigint: true });
@@ -1590,7 +1590,7 @@ var stat$4 = {
   areIdentical: areIdentical$2
 };
 const fs$c = gracefulFs;
-const path$j = require$$1;
+const path$j = path$o;
 const mkdirs$1 = mkdirs$2.mkdirs;
 const pathExists$5 = pathExists_1.pathExists;
 const utimesMillis = utimes.utimesMillis;
@@ -1780,7 +1780,7 @@ function copyLink$1(resolvedSrc, dest, cb) {
 }
 var copy_1 = copy$2;
 const fs$b = gracefulFs;
-const path$i = require$$1;
+const path$i = path$o;
 const mkdirsSync$1 = mkdirs$2.mkdirsSync;
 const utimesMillisSync = utimes.utimesMillisSync;
 const stat$2 = stat$4;
@@ -1912,7 +1912,7 @@ var copy$1 = {
   copySync: copySync_1
 };
 const fs$a = gracefulFs;
-const path$h = require$$1;
+const path$h = path$o;
 const assert = require$$5;
 const isWindows = process.platform === "win32";
 function defaults(options) {
@@ -2156,7 +2156,7 @@ var remove_1 = {
 };
 const u$6 = universalify$1.fromPromise;
 const fs$8 = fs$h;
-const path$g = require$$1;
+const path$g = path$o;
 const mkdir$3 = mkdirs$2;
 const remove$1 = remove_1;
 const emptyDir = u$6(async function emptyDir2(dir) {
@@ -2187,7 +2187,7 @@ var empty = {
   emptydir: emptyDir
 };
 const u$5 = universalify$1.fromCallback;
-const path$f = require$$1;
+const path$f = path$o;
 const fs$7 = gracefulFs;
 const mkdir$2 = mkdirs$2;
 function createFile$1(file2, callback) {
@@ -2242,7 +2242,7 @@ var file = {
   createFileSync: createFileSync$1
 };
 const u$4 = universalify$1.fromCallback;
-const path$e = require$$1;
+const path$e = path$o;
 const fs$6 = gracefulFs;
 const mkdir$1 = mkdirs$2;
 const pathExists$4 = pathExists_1.pathExists;
@@ -2296,7 +2296,7 @@ var link = {
   createLink: u$4(createLink$1),
   createLinkSync: createLinkSync$1
 };
-const path$d = require$$1;
+const path$d = path$o;
 const fs$5 = gracefulFs;
 const pathExists$3 = pathExists_1.pathExists;
 function symlinkPaths$1(srcpath, dstpath, callback) {
@@ -2394,7 +2394,7 @@ var symlinkType_1 = {
   symlinkTypeSync: symlinkTypeSync$1
 };
 const u$3 = universalify$1.fromCallback;
-const path$c = require$$1;
+const path$c = path$o;
 const fs$3 = fs$h;
 const _mkdirs = mkdirs$2;
 const mkdirs = _mkdirs.mkdirs;
@@ -2570,7 +2570,7 @@ var jsonfile = {
 };
 const u$2 = universalify$1.fromCallback;
 const fs$2 = gracefulFs;
-const path$b = require$$1;
+const path$b = path$o;
 const mkdir = mkdirs$2;
 const pathExists$1 = pathExists_1.pathExists;
 function outputFile$1(file2, data, encoding, callback) {
@@ -2626,7 +2626,7 @@ jsonFile.readJSON = jsonFile.readJson;
 jsonFile.readJSONSync = jsonFile.readJsonSync;
 var json$1 = jsonFile;
 const fs$1 = gracefulFs;
-const path$a = require$$1;
+const path$a = path$o;
 const copy = copy$1.copy;
 const remove = remove_1.remove;
 const mkdirp = mkdirs$2.mkdirp;
@@ -2690,7 +2690,7 @@ function moveAcrossDevice$1(src2, dest, overwrite, cb) {
 }
 var move_1 = move$1;
 const fs = gracefulFs;
-const path$9 = require$$1;
+const path$9 = path$o;
 const copySync = copy$1.copySync;
 const removeSync = remove_1.removeSync;
 const mkdirpSync = mkdirs$2.mkdirpSync;
@@ -3354,7 +3354,7 @@ function requireSupportsColor() {
   if (hasRequiredSupportsColor) return supportsColor_1;
   hasRequiredSupportsColor = 1;
   const os2 = require$$2;
-  const tty = require$$1$2;
+  const tty = require$$1$1;
   const hasFlag2 = requireHasFlag();
   const { env } = process;
   let forceColor;
@@ -3455,10 +3455,10 @@ function requireNode() {
   if (hasRequiredNode) return node.exports;
   hasRequiredNode = 1;
   (function(module, exports$1) {
-    const tty = require$$1$2;
+    const tty = require$$1$1;
     const util2 = require$$4;
     exports$1.init = init;
-    exports$1.log = log;
+    exports$1.log = log2;
     exports$1.formatArgs = formatArgs;
     exports$1.save = save;
     exports$1.load = load2;
@@ -3593,7 +3593,7 @@ function requireNode() {
       }
       return (/* @__PURE__ */ new Date()).toISOString() + " ";
     }
-    function log(...args) {
+    function log2(...args) {
       return process.stderr.write(util2.formatWithOptions(exports$1.inspectOpts, ...args) + "\n");
     }
     function save(namespaces) {
@@ -4618,7 +4618,7 @@ var sax$1 = {};
     SAXStream.prototype.write = function(data) {
       if (typeof Buffer === "function" && typeof Buffer.isBuffer === "function" && Buffer.isBuffer(data)) {
         if (!this._decoder) {
-          var SD = require$$1$3.StringDecoder;
+          var SD = require$$1$2.StringDecoder;
           this._decoder = new SD("utf8");
         }
         data = this._decoder.write(data);
@@ -11017,7 +11017,7 @@ const crypto_1$2 = require$$0$3;
 const fs_1$4 = fs$k;
 const isEqual = lodash_isequalExports;
 const fs_extra_1$6 = lib;
-const path$8 = require$$1;
+const path$8 = path$o;
 class DownloadedUpdateHelper {
   constructor(cacheDir) {
     this.cacheDir = cacheDir;
@@ -11039,7 +11039,7 @@ class DownloadedUpdateHelper {
   get cacheDirForPendingUpdate() {
     return path$8.join(this.cacheDir, "pending");
   }
-  async validateDownloadedPath(updateFile, updateInfo, fileInfo, logger) {
+  async validateDownloadedPath(updateFile, updateInfo, fileInfo, logger2) {
     if (this.versionInfo != null && this.file === updateFile && this.fileInfo != null) {
       if (isEqual(this.versionInfo, updateInfo) && isEqual(this.fileInfo.info, fileInfo.info) && await (0, fs_extra_1$6.pathExists)(updateFile)) {
         return updateFile;
@@ -11047,11 +11047,11 @@ class DownloadedUpdateHelper {
         return null;
       }
     }
-    const cachedUpdateFile = await this.getValidCachedUpdateFile(fileInfo, logger);
+    const cachedUpdateFile = await this.getValidCachedUpdateFile(fileInfo, logger2);
     if (cachedUpdateFile === null) {
       return null;
     }
-    logger.info(`Update has already been downloaded to ${updateFile}).`);
+    logger2.info(`Update has already been downloaded to ${updateFile}).`);
     this._file = cachedUpdateFile;
     return cachedUpdateFile;
   }
@@ -11087,7 +11087,7 @@ class DownloadedUpdateHelper {
    * @param fileInfo
    * @param logger
    */
-  async getValidCachedUpdateFile(fileInfo, logger) {
+  async getValidCachedUpdateFile(fileInfo, logger2) {
     const updateInfoFilePath = this.getUpdateInfoFile();
     const doesUpdateInfoFileExist = await (0, fs_extra_1$6.pathExists)(updateInfoFilePath);
     if (!doesUpdateInfoFileExist) {
@@ -11102,28 +11102,28 @@ class DownloadedUpdateHelper {
         await this.cleanCacheDirForPendingUpdate();
         message += ` (error on read: ${error2.message})`;
       }
-      logger.info(message);
+      logger2.info(message);
       return null;
     }
     const isCachedInfoFileNameValid = (cachedInfo === null || cachedInfo === void 0 ? void 0 : cachedInfo.fileName) !== null;
     if (!isCachedInfoFileNameValid) {
-      logger.warn(`Cached update info is corrupted: no fileName, directory for cached update will be cleaned`);
+      logger2.warn(`Cached update info is corrupted: no fileName, directory for cached update will be cleaned`);
       await this.cleanCacheDirForPendingUpdate();
       return null;
     }
     if (fileInfo.info.sha512 !== cachedInfo.sha512) {
-      logger.info(`Cached update sha512 checksum doesn't match the latest available update. New update must be downloaded. Cached: ${cachedInfo.sha512}, expected: ${fileInfo.info.sha512}. Directory for cached update will be cleaned`);
+      logger2.info(`Cached update sha512 checksum doesn't match the latest available update. New update must be downloaded. Cached: ${cachedInfo.sha512}, expected: ${fileInfo.info.sha512}. Directory for cached update will be cleaned`);
       await this.cleanCacheDirForPendingUpdate();
       return null;
     }
     const updateFile = path$8.join(this.cacheDirForPendingUpdate, cachedInfo.fileName);
     if (!await (0, fs_extra_1$6.pathExists)(updateFile)) {
-      logger.info("Cached update file doesn't exist");
+      logger2.info("Cached update file doesn't exist");
       return null;
     }
     const sha512 = await hashFile(updateFile);
     if (fileInfo.info.sha512 !== sha512) {
-      logger.warn(`Sha512 checksum doesn't match the latest available update. New update must be downloaded. Cached: ${sha512}, expected: ${fileInfo.info.sha512}`);
+      logger2.warn(`Sha512 checksum doesn't match the latest available update. New update must be downloaded. Cached: ${sha512}, expected: ${fileInfo.info.sha512}`);
       await this.cleanCacheDirForPendingUpdate();
       return null;
     }
@@ -11149,7 +11149,7 @@ function hashFile(file2, algorithm = "sha512", encoding = "base64", options) {
     }).pipe(hash, { end: false });
   });
 }
-async function createTempUpdateFile(name, cacheDir, log) {
+async function createTempUpdateFile(name, cacheDir, log2) {
   let nameCounter = 0;
   let result = path$8.join(cacheDir, name);
   for (let i = 0; i < 3; i++) {
@@ -11160,7 +11160,7 @@ async function createTempUpdateFile(name, cacheDir, log) {
       if (e.code === "ENOENT") {
         return result;
       }
-      log.warn(`Error on remove temp update file: ${e}`);
+      log2.warn(`Error on remove temp update file: ${e}`);
       result = path$8.join(cacheDir, `${nameCounter++}-${name}`);
     }
   }
@@ -11170,7 +11170,7 @@ var ElectronAppAdapter$1 = {};
 var AppAdapter = {};
 Object.defineProperty(AppAdapter, "__esModule", { value: true });
 AppAdapter.getAppCacheDir = getAppCacheDir;
-const path$7 = require$$1;
+const path$7 = path$o;
 const os_1$1 = require$$2;
 function getAppCacheDir() {
   const homedir = (0, os_1$1.homedir)();
@@ -11186,10 +11186,10 @@ function getAppCacheDir() {
 }
 Object.defineProperty(ElectronAppAdapter$1, "__esModule", { value: true });
 ElectronAppAdapter$1.ElectronAppAdapter = void 0;
-const path$6 = require$$1;
+const path$6 = path$o;
 const AppAdapter_1 = AppAdapter;
 class ElectronAppAdapter {
-  constructor(app2 = require$$1$1.app) {
+  constructor(app2 = require$$1.app) {
     this.app = app2;
   }
   whenReady() {
@@ -11232,7 +11232,7 @@ var electronHttpExecutor = {};
   const builder_util_runtime_12 = out;
   exports$1.NET_SESSION_NAME = "electron-updater";
   function getNetSession() {
-    return require$$1$1.session.fromPartition(exports$1.NET_SESSION_NAME, {
+    return require$$1.session.fromPartition(exports$1.NET_SESSION_NAME, {
       cache: false
     });
   }
@@ -11273,7 +11273,7 @@ var electronHttpExecutor = {};
       if (this.cachedSession == null) {
         this.cachedSession = getNetSession();
       }
-      const request = require$$1$1.net.request({
+      const request = require$$1.net.request({
         ...options,
         session: this.cachedSession
       });
@@ -11799,7 +11799,7 @@ Object.defineProperty(PrivateGitHubProvider$1, "__esModule", { value: true });
 PrivateGitHubProvider$1.PrivateGitHubProvider = void 0;
 const builder_util_runtime_1$9 = out;
 const js_yaml_1$1 = jsYaml;
-const path$5 = require$$1;
+const path$5 = path$o;
 const url_1$2 = require$$4$1;
 const util_1$1 = util;
 const GitHubProvider_1$1 = GitHubProvider$1;
@@ -11954,7 +11954,7 @@ var OperationKind$1;
   OperationKind2[OperationKind2["COPY"] = 0] = "COPY";
   OperationKind2[OperationKind2["DOWNLOAD"] = 1] = "DOWNLOAD";
 })(OperationKind$1 || (downloadPlanBuilder.OperationKind = OperationKind$1 = {}));
-function computeOperations(oldBlockMap, newBlockMap, logger) {
+function computeOperations(oldBlockMap, newBlockMap, logger2) {
   const nameToOldBlocks = buildBlockFileMap(oldBlockMap.files);
   const nameToNewBlocks = buildBlockFileMap(newBlockMap.files);
   let lastOperation = null;
@@ -11967,14 +11967,14 @@ function computeOperations(oldBlockMap, newBlockMap, logger) {
   }
   const newFile = nameToNewBlocks.get(name);
   let changedBlockCount = 0;
-  const { checksumToOffset: checksumToOldOffset, checksumToOldSize } = buildChecksumMap(nameToOldBlocks.get(name), oldEntry.offset, logger);
+  const { checksumToOffset: checksumToOldOffset, checksumToOldSize } = buildChecksumMap(nameToOldBlocks.get(name), oldEntry.offset, logger2);
   let newOffset = blockMapFile.offset;
   for (let i = 0; i < newFile.checksums.length; newOffset += newFile.sizes[i], i++) {
     const blockSize = newFile.sizes[i];
     const checksum = newFile.checksums[i];
     let oldOffset = checksumToOldOffset.get(checksum);
     if (oldOffset != null && checksumToOldSize.get(checksum) !== blockSize) {
-      logger.warn(`Checksum ("${checksum}") matches, but size differs (old: ${checksumToOldSize.get(checksum)}, new: ${blockSize})`);
+      logger2.warn(`Checksum ("${checksum}") matches, but size differs (old: ${checksumToOldSize.get(checksum)}, new: ${blockSize})`);
       oldOffset = void 0;
     }
     if (oldOffset === void 0) {
@@ -12005,7 +12005,7 @@ function computeOperations(oldBlockMap, newBlockMap, logger) {
     }
   }
   if (changedBlockCount > 0) {
-    logger.info(`File${blockMapFile.name === "file" ? "" : " " + blockMapFile.name} has ${changedBlockCount} changed blocks`);
+    logger2.info(`File${blockMapFile.name === "file" ? "" : " " + blockMapFile.name} has ${changedBlockCount} changed blocks`);
   }
   return operations;
 }
@@ -12022,7 +12022,7 @@ rel: ${lastOperation.start - min} until ${lastOperation.end - min} and ${operati
   }
   operations.push(operation);
 }
-function buildChecksumMap(file2, fileOffset, logger) {
+function buildChecksumMap(file2, fileOffset, logger2) {
   const checksumToOffset = /* @__PURE__ */ new Map();
   const checksumToSize = /* @__PURE__ */ new Map();
   let offset = fileOffset;
@@ -12033,9 +12033,9 @@ function buildChecksumMap(file2, fileOffset, logger) {
     if (existing === void 0) {
       checksumToOffset.set(checksum, offset);
       checksumToSize.set(checksum, size);
-    } else if (logger.debug != null) {
+    } else if (logger2.debug != null) {
       const sizeExplanation = existing === size ? "(same size)" : `(size: ${existing}, this size: ${size})`;
-      logger.debug(`${checksum} duplicated in blockmap ${sizeExplanation}, it doesn't lead to broken differential downloader, just corresponding block will be skipped)`);
+      logger2.debug(`${checksum} duplicated in blockmap ${sizeExplanation}, it doesn't lead to broken differential downloader, just corresponding block will be skipped)`);
     }
     offset += size;
   }
@@ -12465,10 +12465,10 @@ class DifferentialDownloader {
     if (oldBlockMap.version !== newBlockMap.version) {
       throw new Error(`version is different (${oldBlockMap.version} - ${newBlockMap.version}), full download is required`);
     }
-    const logger = this.logger;
-    const operations = (0, downloadPlanBuilder_1.computeOperations)(oldBlockMap, newBlockMap, logger);
-    if (logger.debug != null) {
-      logger.debug(JSON.stringify(operations, null, 2));
+    const logger2 = this.logger;
+    const operations = (0, downloadPlanBuilder_1.computeOperations)(oldBlockMap, newBlockMap, logger2);
+    if (logger2.debug != null) {
+      logger2.debug(JSON.stringify(operations, null, 2));
     }
     let downloadSize = 0;
     let copySize = 0;
@@ -12484,7 +12484,7 @@ class DifferentialDownloader {
     if (downloadSize + copySize + (this.fileMetadataBuffer == null ? 0 : this.fileMetadataBuffer.length) !== newSize) {
       throw new Error(`Internal error, size mismatch: downloadSize: ${downloadSize}, copySize: ${copySize}, newSize: ${newSize}`);
     }
-    logger.info(`Full: ${formatBytes(newSize)}, To download: ${formatBytes(downloadSize)} (${Math.round(downloadSize / (newSize / 100))}%)`);
+    logger2.info(`Full: ${formatBytes(newSize)}, To download: ${formatBytes(downloadSize)} (${Math.round(downloadSize / (newSize / 100))}%)`);
     return this.downloadFile(operations);
   }
   downloadFile(tasks) {
@@ -12728,7 +12728,7 @@ const events_1 = require$$0$2;
 const fs_extra_1$4 = lib;
 const js_yaml_1 = jsYaml;
 const lazy_val_1 = main;
-const path$4 = require$$1;
+const path$4 = path$o;
 const semver_1 = semver$1;
 const DownloadedUpdateHelper_1 = DownloadedUpdateHelper$1;
 const ElectronAppAdapter_1 = ElectronAppAdapter$1;
@@ -12921,7 +12921,7 @@ class AppUpdater extends events_1.EventEmitter {
       }
       void it.downloadPromise.then(() => {
         const notificationContent = AppUpdater.formatDownloadNotification(it.updateInfo.version, this.app.name, downloadNotification);
-        new require$$1$1.Notification(notificationContent).show();
+        new require$$1.Notification(notificationContent).show();
       });
       return it;
     });
@@ -13152,13 +13152,13 @@ class AppUpdater extends events_1.EventEmitter {
     let result = this.downloadedUpdateHelper;
     if (result == null) {
       const dirName = (await this.configOnDisk.value).updaterCacheDirName;
-      const logger = this._logger;
+      const logger2 = this._logger;
       if (dirName == null) {
-        logger.error("updaterCacheDirName is not specified in app-update.yml Was app build using at least electron-builder 20.34.0?");
+        logger2.error("updaterCacheDirName is not specified in app-update.yml Was app build using at least electron-builder 20.34.0?");
       }
       const cacheDir = path$4.join(this.app.baseCachePath, dirName || this.app.name);
-      if (logger.debug != null) {
-        logger.debug(`updater cache dir: ${cacheDir}`);
+      if (logger2.debug != null) {
+        logger2.debug(`updater cache dir: ${cacheDir}`);
       }
       result = new DownloadedUpdateHelper_1.DownloadedUpdateHelper(cacheDir);
       this.downloadedUpdateHelper = result;
@@ -13201,8 +13201,8 @@ class AppUpdater extends events_1.EventEmitter {
       });
       return packageFile == null ? [updateFile] : [updateFile, packageFile];
     };
-    const log = this._logger;
-    const cachedUpdateFile = await downloadedUpdateHelper.validateDownloadedPath(updateFile, updateInfo, fileInfo, log);
+    const log2 = this._logger;
+    const cachedUpdateFile = await downloadedUpdateHelper.validateDownloadedPath(updateFile, updateInfo, fileInfo, log2);
     if (cachedUpdateFile != null) {
       updateFile = cachedUpdateFile;
       return await done(false);
@@ -13213,19 +13213,19 @@ class AppUpdater extends events_1.EventEmitter {
       return await (0, fs_extra_1$4.unlink)(updateFile).catch(() => {
       });
     };
-    const tempUpdateFile = await (0, DownloadedUpdateHelper_1.createTempUpdateFile)(`temp-${updateFileName}`, cacheDir, log);
+    const tempUpdateFile = await (0, DownloadedUpdateHelper_1.createTempUpdateFile)(`temp-${updateFileName}`, cacheDir, log2);
     try {
       await taskOptions.task(tempUpdateFile, downloadOptions, packageFile, removeFileIfAny);
       await (0, builder_util_runtime_1$4.retry)(() => (0, fs_extra_1$4.rename)(tempUpdateFile, updateFile), 60, 500, 0, 0, (error2) => error2 instanceof Error && /^EBUSY:/.test(error2.message));
     } catch (e) {
       await removeFileIfAny();
       if (e instanceof builder_util_runtime_1$4.CancellationError) {
-        log.info("cancelled");
+        log2.info("cancelled");
         this.emit("update-cancelled", updateInfo);
       }
       throw e;
     }
-    log.info(`New version ${version} has been downloaded to ${updateFile}`);
+    log2.info(`New version ${version} has been downloaded to ${updateFile}`);
     return await done(true);
   }
   async differentialDownloadInstaller(fileInfo, downloadUpdateOptions, installerPath, provider, oldInstallerFileName) {
@@ -13292,7 +13292,7 @@ class NoOpLogger {
 AppUpdater$1.NoOpLogger = NoOpLogger;
 Object.defineProperty(BaseUpdater$1, "__esModule", { value: true });
 BaseUpdater$1.BaseUpdater = void 0;
-const child_process_1$3 = require$$1$4;
+const child_process_1$3 = require$$1$3;
 const AppUpdater_1$1 = AppUpdater$1;
 class BaseUpdater extends AppUpdater_1$1.AppUpdater {
   constructor(options, app2) {
@@ -13305,7 +13305,7 @@ class BaseUpdater extends AppUpdater_1$1.AppUpdater {
     const isInstalled = this.install(isSilent, isSilent ? isForceRunAfter : this.autoRunAppAfterInstall);
     if (isInstalled) {
       setImmediate(() => {
-        require$$1$1.autoUpdater.emit("before-quit-for-update");
+        require$$1.autoUpdater.emit("before-quit-for-update");
         this.app.quit();
       });
     } else {
@@ -13471,10 +13471,10 @@ async function readEmbeddedBlockMapData(file2) {
 Object.defineProperty(AppImageUpdater$1, "__esModule", { value: true });
 AppImageUpdater$1.AppImageUpdater = void 0;
 const builder_util_runtime_1$3 = out;
-const child_process_1$2 = require$$1$4;
+const child_process_1$2 = require$$1$3;
 const fs_extra_1$2 = lib;
 const fs_1$1 = fs$k;
-const path$3 = require$$1;
+const path$3 = path$o;
 const BaseUpdater_1$4 = BaseUpdater$1;
 const FileWithEmbeddedBlockMapDifferentialDownloader_1$1 = FileWithEmbeddedBlockMapDifferentialDownloader$1;
 const Provider_1$5 = Provider$1;
@@ -13725,16 +13725,16 @@ MacUpdater$1.MacUpdater = void 0;
 const builder_util_runtime_1$2 = out;
 const fs_extra_1$1 = lib;
 const fs_1 = fs$k;
-const path$2 = require$$1;
+const path$2 = path$o;
 const http_1 = require$$4$2;
 const AppUpdater_1 = AppUpdater$1;
 const Provider_1$1 = Provider$1;
-const child_process_1$1 = require$$1$4;
+const child_process_1$1 = require$$1$3;
 const crypto_1 = require$$0$3;
 class MacUpdater extends AppUpdater_1.AppUpdater {
   constructor(options, app2) {
     super(options, app2);
-    this.nativeUpdater = require$$1$1.autoUpdater;
+    this.nativeUpdater = require$$1.autoUpdater;
     this.squirrelDownloadedUpdate = false;
     this.nativeUpdater.on("error", (it) => {
       this._logger.warn(it);
@@ -13762,26 +13762,26 @@ class MacUpdater extends AppUpdater_1.AppUpdater {
   }
   async doDownloadUpdate(downloadUpdateOptions) {
     let files = downloadUpdateOptions.updateInfoAndProvider.provider.resolveFiles(downloadUpdateOptions.updateInfoAndProvider.info);
-    const log = this._logger;
+    const log2 = this._logger;
     const sysctlRosettaInfoKey = "sysctl.proc_translated";
     let isRosetta = false;
     try {
       this.debug("Checking for macOS Rosetta environment");
       const result = (0, child_process_1$1.execFileSync)("sysctl", [sysctlRosettaInfoKey], { encoding: "utf8" });
       isRosetta = result.includes(`${sysctlRosettaInfoKey}: 1`);
-      log.info(`Checked for macOS Rosetta environment (isRosetta=${isRosetta})`);
+      log2.info(`Checked for macOS Rosetta environment (isRosetta=${isRosetta})`);
     } catch (e) {
-      log.warn(`sysctl shell command to check for macOS Rosetta environment failed: ${e}`);
+      log2.warn(`sysctl shell command to check for macOS Rosetta environment failed: ${e}`);
     }
     let isArm64Mac = false;
     try {
       this.debug("Checking for arm64 in uname");
       const result = (0, child_process_1$1.execFileSync)("uname", ["-a"], { encoding: "utf8" });
       const isArm = result.includes("ARM");
-      log.info(`Checked 'uname -a': arm64=${isArm}`);
+      log2.info(`Checked 'uname -a': arm64=${isArm}`);
       isArm64Mac = isArm64Mac || isArm;
     } catch (e) {
-      log.warn(`uname shell command to check for arm64 failed: ${e}`);
+      log2.warn(`uname shell command to check for arm64 failed: ${e}`);
     }
     isArm64Mac = isArm64Mac || process.arch === "arm64" || isRosetta;
     const isArm64 = (file2) => {
@@ -13807,7 +13807,7 @@ class MacUpdater extends AppUpdater_1.AppUpdater {
         const cachedUpdateFilePath = path$2.join(this.downloadedUpdateHelper.cacheDir, CURRENT_MAC_APP_ZIP_FILE_NAME);
         const canDifferentialDownload = () => {
           if (!(0, fs_extra_1$1.pathExistsSync)(cachedUpdateFilePath)) {
-            log.info("Unable to locate previous update.zip for differential download (is this first install?), falling back to full download");
+            log2.info("Unable to locate previous update.zip for differential download (is this first install?), falling back to full download");
             return false;
           }
           return !downloadUpdateOptions.disableDifferentialDownload;
@@ -13837,14 +13837,14 @@ class MacUpdater extends AppUpdater_1.AppUpdater {
     var _a;
     const downloadedFile = event.downloadedFile;
     const updateFileSize = (_a = zipFileInfo.info.size) !== null && _a !== void 0 ? _a : (await (0, fs_extra_1$1.stat)(downloadedFile)).size;
-    const log = this._logger;
+    const log2 = this._logger;
     const logContext = `fileToProxy=${zipFileInfo.url.href}`;
     this.closeServerIfExists();
     this.debug(`Creating proxy server for native Squirrel.Mac (${logContext})`);
     this.server = (0, http_1.createServer)();
     this.debug(`Proxy server for native Squirrel.Mac is created (${logContext})`);
     this.server.on("close", () => {
-      log.info(`Proxy server for native Squirrel.Mac is closed (${logContext})`);
+      log2.info(`Proxy server for native Squirrel.Mac is closed (${logContext})`);
     });
     const getServerUrl = (s) => {
       const address = s.address();
@@ -13859,13 +13859,13 @@ class MacUpdater extends AppUpdater_1.AppUpdater {
       const fileUrl = `/${(0, crypto_1.randomBytes)(64).toString("hex")}.zip`;
       this.server.on("request", (request, response) => {
         const requestUrl = request.url;
-        log.info(`${requestUrl} requested`);
+        log2.info(`${requestUrl} requested`);
         if (requestUrl === "/") {
           if (!request.headers.authorization || request.headers.authorization.indexOf("Basic ") === -1) {
             response.statusCode = 401;
             response.statusMessage = "Invalid Authentication Credentials";
             response.end();
-            log.warn("No authenthication info");
+            log2.warn("No authenthication info");
             return;
           }
           const base64Credentials = request.headers.authorization.split(" ")[1];
@@ -13875,7 +13875,7 @@ class MacUpdater extends AppUpdater_1.AppUpdater {
             response.statusCode = 401;
             response.statusMessage = "Invalid Authentication Credentials";
             response.end();
-            log.warn("Invalid authenthication credentials");
+            log2.warn("Invalid authenthication credentials");
             return;
           }
           const data = Buffer.from(`{ "url": "${getServerUrl(this.server)}${fileUrl}" }`);
@@ -13884,12 +13884,12 @@ class MacUpdater extends AppUpdater_1.AppUpdater {
           return;
         }
         if (!requestUrl.startsWith(fileUrl)) {
-          log.warn(`${requestUrl} requested, but not supported`);
+          log2.warn(`${requestUrl} requested, but not supported`);
           response.writeHead(404);
           response.end();
           return;
         }
-        log.info(`${fileUrl} requested by Squirrel.Mac, pipe ${downloadedFile}`);
+        log2.info(`${fileUrl} requested by Squirrel.Mac, pipe ${downloadedFile}`);
         let errorOccurred = false;
         response.on("finish", () => {
           if (!errorOccurred) {
@@ -13902,7 +13902,7 @@ class MacUpdater extends AppUpdater_1.AppUpdater {
           try {
             response.end();
           } catch (e) {
-            log.warn(`cannot end response: ${e}`);
+            log2.warn(`cannot end response: ${e}`);
           }
           errorOccurred = true;
           this.nativeUpdater.removeListener("error", reject);
@@ -13959,13 +13959,13 @@ var windowsExecutableCodeSignatureVerifier = {};
 Object.defineProperty(windowsExecutableCodeSignatureVerifier, "__esModule", { value: true });
 windowsExecutableCodeSignatureVerifier.verifySignature = verifySignature;
 const builder_util_runtime_1$1 = out;
-const child_process_1 = require$$1$4;
+const child_process_1 = require$$1$3;
 const os = require$$2;
-const path$1 = require$$1;
-function verifySignature(publisherNames, unescapedTempUpdateFile, logger) {
+const path$1 = path$o;
+function verifySignature(publisherNames, unescapedTempUpdateFile, logger2) {
   return new Promise((resolve, reject) => {
     const tempUpdateFile = unescapedTempUpdateFile.replace(/'/g, "''");
-    logger.info(`Verifying signature ${tempUpdateFile}`);
+    logger2.info(`Verifying signature ${tempUpdateFile}`);
     (0, child_process_1.execFile)(`set "PSModulePath=" & chcp 65001 >NUL & powershell.exe`, ["-NoProfile", "-NonInteractive", "-InputFormat", "None", "-Command", `"Get-AuthenticodeSignature -LiteralPath '${tempUpdateFile}' | ConvertTo-Json -Compress"`], {
       shell: true,
       timeout: 20 * 1e3
@@ -13973,7 +13973,7 @@ function verifySignature(publisherNames, unescapedTempUpdateFile, logger) {
       var _a;
       try {
         if (error2 != null || stderr) {
-          handleError(logger, error2, stderr, reject);
+          handleError(logger2, error2, stderr, reject);
           resolve(null);
           return;
         }
@@ -13982,14 +13982,14 @@ function verifySignature(publisherNames, unescapedTempUpdateFile, logger) {
           try {
             const normlaizedUpdateFilePath = path$1.normalize(data.Path);
             const normalizedTempUpdateFile = path$1.normalize(unescapedTempUpdateFile);
-            logger.info(`LiteralPath: ${normlaizedUpdateFilePath}. Update Path: ${normalizedTempUpdateFile}`);
+            logger2.info(`LiteralPath: ${normlaizedUpdateFilePath}. Update Path: ${normalizedTempUpdateFile}`);
             if (normlaizedUpdateFilePath !== normalizedTempUpdateFile) {
-              handleError(logger, new Error(`LiteralPath of ${normlaizedUpdateFilePath} is different than ${normalizedTempUpdateFile}`), stderr, reject);
+              handleError(logger2, new Error(`LiteralPath of ${normlaizedUpdateFilePath} is different than ${normalizedTempUpdateFile}`), stderr, reject);
               resolve(null);
               return;
             }
           } catch (error3) {
-            logger.warn(`Unable to verify LiteralPath of update asset due to missing data.Path. Skipping this step of validation. Message: ${(_a = error3.message) !== null && _a !== void 0 ? _a : error3.stack}`);
+            logger2.warn(`Unable to verify LiteralPath of update asset due to missing data.Path. Skipping this step of validation. Message: ${(_a = error3.message) !== null && _a !== void 0 ? _a : error3.stack}`);
           }
           const subject = (0, builder_util_runtime_1$1.parseDn)(data.SignerCertificate.Subject);
           let match = false;
@@ -14001,7 +14001,7 @@ function verifySignature(publisherNames, unescapedTempUpdateFile, logger) {
                 return dn.get(key) === subject.get(key);
               });
             } else if (name === subject.get("CN")) {
-              logger.warn(`Signature validated using only CN ${name}. Please add your full Distinguished Name (DN) to publisherNames configuration`);
+              logger2.warn(`Signature validated using only CN ${name}. Please add your full Distinguished Name (DN) to publisherNames configuration`);
               match = true;
             }
             if (match) {
@@ -14011,10 +14011,10 @@ function verifySignature(publisherNames, unescapedTempUpdateFile, logger) {
           }
         }
         const result = `publisherNames: ${publisherNames.join(" | ")}, raw info: ` + JSON.stringify(data, (name, value) => name === "RawData" ? void 0 : value, 2);
-        logger.warn(`Sign verification failed, installer signed with incorrect certificate: ${result}`);
+        logger2.warn(`Sign verification failed, installer signed with incorrect certificate: ${result}`);
         resolve(result);
       } catch (e) {
-        handleError(logger, e, null, reject);
+        handleError(logger2, e, null, reject);
         resolve(null);
         return;
       }
@@ -14036,15 +14036,15 @@ function parseOut(out2) {
   }
   return data;
 }
-function handleError(logger, error2, stderr, reject) {
+function handleError(logger2, error2, stderr, reject) {
   if (isOldWin6()) {
-    logger.warn(`Cannot execute Get-AuthenticodeSignature: ${error2 || stderr}. Ignoring signature validation due to unsupported powershell version. Please upgrade to powershell 3 or higher.`);
+    logger2.warn(`Cannot execute Get-AuthenticodeSignature: ${error2 || stderr}. Ignoring signature validation due to unsupported powershell version. Please upgrade to powershell 3 or higher.`);
     return;
   }
   try {
     (0, child_process_1.execFileSync)("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", "ConvertTo-Json test"], { timeout: 10 * 1e3 });
   } catch (testError) {
-    logger.warn(`Cannot execute ConvertTo-Json: ${testError.message}. Ignoring signature validation due to unsupported powershell version. Please upgrade to powershell 3 or higher.`);
+    logger2.warn(`Cannot execute ConvertTo-Json: ${testError.message}. Ignoring signature validation due to unsupported powershell version. Please upgrade to powershell 3 or higher.`);
     return;
   }
   if (error2 != null) {
@@ -14061,7 +14061,7 @@ function isOldWin6() {
 Object.defineProperty(NsisUpdater$1, "__esModule", { value: true });
 NsisUpdater$1.NsisUpdater = void 0;
 const builder_util_runtime_1 = out;
-const path = require$$1;
+const path = path$o;
 const BaseUpdater_1 = BaseUpdater$1;
 const FileWithEmbeddedBlockMapDifferentialDownloader_1 = FileWithEmbeddedBlockMapDifferentialDownloader$1;
 const types_1 = types;
@@ -14183,7 +14183,7 @@ class NsisUpdater extends BaseUpdater_1.BaseUpdater {
       if (errorCode === "UNKNOWN" || errorCode === "EACCES") {
         callUsingElevation();
       } else if (errorCode === "ENOENT") {
-        require$$1$1.shell.openPath(installerPath).catch((err) => this.dispatchError(err));
+        require$$1.shell.openPath(installerPath).catch((err) => this.dispatchError(err));
       } else {
         this.dispatchError(e);
       }
@@ -14236,7 +14236,7 @@ NsisUpdater$1.NsisUpdater = NsisUpdater;
   Object.defineProperty(exports$1, "__esModule", { value: true });
   exports$1.NsisUpdater = exports$1.MacUpdater = exports$1.RpmUpdater = exports$1.PacmanUpdater = exports$1.DebUpdater = exports$1.AppImageUpdater = exports$1.Provider = exports$1.NoOpLogger = exports$1.AppUpdater = exports$1.BaseUpdater = void 0;
   const fs_extra_12 = lib;
-  const path2 = require$$1;
+  const path2 = path$o;
   var BaseUpdater_12 = BaseUpdater$1;
   Object.defineProperty(exports$1, "BaseUpdater", { enumerable: true, get: function() {
     return BaseUpdater_12.BaseUpdater;
@@ -14865,7 +14865,150 @@ function getCategoryIcon(category) {
   };
   return iconMap[category] || "📄";
 }
-const dbPath = require$$1.join(app.getPath("userData"), "cafe_stock.db");
+const LOG_LEVEL_NAMES = {
+  [
+    0
+    /* DEBUG */
+  ]: "DEBUG",
+  [
+    1
+    /* INFO */
+  ]: "INFO",
+  [
+    2
+    /* WARN */
+  ]: "WARN",
+  [
+    3
+    /* ERROR */
+  ]: "ERROR"
+};
+function getConfig() {
+  const isDev2 = process.env.NODE_ENV !== "production" || !app.isPackaged;
+  return {
+    level: isDev2 ? 0 : 1,
+    enableFileLog: !isDev2,
+    // 生产环境启用文件日志
+    logFilePath: isDev2 ? void 0 : path$o.join(app.getPath("logs"), "cafe-stock.log"),
+    enableConsole: true
+  };
+}
+function formatTimestamp() {
+  const now = /* @__PURE__ */ new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  const hours = String(now.getHours()).padStart(2, "0");
+  const minutes = String(now.getMinutes()).padStart(2, "0");
+  const seconds = String(now.getSeconds()).padStart(2, "0");
+  const milliseconds = String(now.getMilliseconds()).padStart(3, "0");
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}.${milliseconds}`;
+}
+function formatMessage(level, category, message, ...args) {
+  const timestamp2 = formatTimestamp();
+  const levelName = LOG_LEVEL_NAMES[level];
+  const categoryStr = category ? `[${category}]` : "";
+  let formattedArgs = "";
+  if (args.length > 0) {
+    try {
+      formattedArgs = args.map((arg) => {
+        if (typeof arg === "object") {
+          return JSON.stringify(arg, null, 2);
+        }
+        return String(arg);
+      }).join(" ");
+    } catch (error2) {
+      formattedArgs = "[无法序列化的对象]";
+    }
+  }
+  const fullMessage = formattedArgs ? `${message} ${formattedArgs}` : message;
+  return `${timestamp2} [${levelName}]${categoryStr} ${fullMessage}`;
+}
+function writeToFile(config, formattedMessage) {
+  if (!config.enableFileLog || !config.logFilePath) {
+    return;
+  }
+  try {
+    const logDir = path$o.dirname(config.logFilePath);
+    if (!fs$k.existsSync(logDir)) {
+      fs$k.mkdirSync(logDir, { recursive: true });
+    }
+    fs$k.appendFileSync(config.logFilePath, formattedMessage + "\n", "utf-8");
+  } catch (error2) {
+    console.error("[Logger] Failed to write log to file:", error2);
+  }
+}
+class Logger {
+  constructor() {
+    this.config = getConfig();
+  }
+  /**
+   * 更新配置
+   */
+  updateConfig(config) {
+    this.config = { ...this.config, ...config };
+  }
+  /**
+   * 记录 DEBUG 级别日志
+   */
+  debug(category, message, ...args) {
+    this.log(0, category, message, ...args);
+  }
+  /**
+   * 记录 INFO 级别日志
+   */
+  info(category, message, ...args) {
+    this.log(1, category, message, ...args);
+  }
+  /**
+   * 记录 WARN 级别日志
+   */
+  warn(category, message, ...args) {
+    this.log(2, category, message, ...args);
+  }
+  /**
+   * 记录 ERROR 级别日志
+   */
+  error(category, message, ...args) {
+    this.log(3, category, message, ...args);
+  }
+  /**
+   * 核心日志记录方法
+   */
+  log(level, category, message, ...args) {
+    if (level < this.config.level) {
+      return;
+    }
+    const formattedMessage = formatMessage(level, category, message, ...args);
+    if (this.config.enableConsole) {
+      switch (level) {
+        case 0:
+          console.debug(formattedMessage);
+          break;
+        case 1:
+          console.info(formattedMessage);
+          break;
+        case 2:
+          console.warn(formattedMessage);
+          break;
+        case 3:
+          console.error(formattedMessage);
+          break;
+      }
+    }
+    if (level >= 2 || this.config.enableFileLog) {
+      writeToFile(this.config, formattedMessage);
+    }
+  }
+}
+const logger = new Logger();
+const log = {
+  debug: (category, message, ...args) => logger.debug(category, message, ...args),
+  info: (category, message, ...args) => logger.info(category, message, ...args),
+  warn: (category, message, ...args) => logger.warn(category, message, ...args),
+  error: (category, message, ...args) => logger.error(category, message, ...args)
+};
+const dbPath = path$o.join(app.getPath("userData"), "cafe_stock.db");
 const db = new Database(dbPath);
 const getDbPath = () => dbPath;
 db.exec(`
@@ -14992,37 +15135,37 @@ function migrateDatabase() {
   ];
   for (const column of announcementsRequiredColumns) {
     if (!announcementsColumns.has(column.name)) {
-      console.log(`[DB Migration] 添加 announcements.${column.name} 列`);
+      log.info("DB", `添加 announcements.${column.name} 列`);
       try {
         db.exec(`ALTER TABLE announcements ADD COLUMN ${column.name} ${column.type}`);
-        console.log(`[DB Migration] announcements.${column.name} 列添加成功`);
+        log.info("DB", `announcements.${column.name} 列添加成功`);
       } catch (error2) {
-        console.error(`[DB Migration Error] 添加 announcements.${column.name} 列失败:`, error2);
+        log.error("DB", `添加 announcements.${column.name} 列失败:`, error2);
       }
     }
   }
   const stocksTableInfo = db.prepare("PRAGMA table_info(stocks)").all();
   const stocksColumns = new Set(stocksTableInfo.map((col) => col.name));
   if (!stocksColumns.has("is_favorite")) {
-    console.log("[DB Migration] 添加 stocks.is_favorite 列");
+    log.info("DB", "添加 stocks.is_favorite 列");
     try {
       db.exec("ALTER TABLE stocks ADD COLUMN is_favorite INTEGER DEFAULT 0");
-      console.log("[DB Migration] stocks.is_favorite 列添加成功");
+      log.info("DB", "stocks.is_favorite 列添加成功");
       db.exec("CREATE INDEX IF NOT EXISTS idx_stock_is_favorite ON stocks (is_favorite)");
-      console.log("[DB Migration] stocks.is_favorite 索引创建成功");
+      log.info("DB", "stocks.is_favorite 索引创建成功");
     } catch (error2) {
-      console.error("[DB Migration Error] 添加 stocks.is_favorite 列失败:", error2);
+      log.error("DB", "添加 stocks.is_favorite 列失败:", error2);
     }
   }
   if (!announcementsColumns.has("category")) {
-    console.log("[DB Migration] 添加 announcements.category 列");
+    log.info("DB", "添加 announcements.category 列");
     try {
       db.exec("ALTER TABLE announcements ADD COLUMN category TEXT DEFAULT NULL");
-      console.log("[DB Migration] announcements.category 列添加成功");
+      log.info("DB", "announcements.category 列添加成功");
       db.exec("CREATE INDEX IF NOT EXISTS idx_ann_category ON announcements (category)");
-      console.log("[DB Migration] announcements.category 索引创建成功");
+      log.info("DB", "announcements.category 索引创建成功");
     } catch (error2) {
-      console.error("[DB Migration Error] 添加 announcements.category 列失败:", error2);
+      log.error("DB", "添加 announcements.category 列失败:", error2);
     }
   }
   initializeDefaultClassificationRules();
@@ -15926,9 +16069,9 @@ const _TushareClient = class _TushareClient {
       fields: Array.isArray(fields) ? fields.join(",") : fields
     };
     const startTime = Date.now();
-    console.log(`[Tushare Request] 开始请求 API: ${apiName}`);
-    console.log(`[Tushare Request] 请求参数:`, JSON.stringify(params, null, 2));
-    console.log(`[Tushare Request] 请求字段:`, fields);
+    log.debug("Tushare", `开始请求 API: ${apiName}`);
+    log.debug("Tushare", `请求参数:`, JSON.stringify(params, null, 2));
+    log.debug("Tushare", `请求字段:`, fields);
     try {
       const response = await fetch(this.BASE_URL, {
         method: "POST",
@@ -15938,17 +16081,17 @@ const _TushareClient = class _TushareClient {
         body: JSON.stringify(requestBody)
       });
       const duration = Date.now() - startTime;
-      console.log(`[Tushare Response] API: ${apiName}, HTTP状态: ${response.status}, 耗时: ${duration}ms`);
+      log.debug("Tushare", `API: ${apiName}, HTTP状态: ${response.status}, 耗时: ${duration}ms`);
       if (!response.ok) {
         throw new Error(`HTTP Error: ${response.status}`);
       }
       const res = await response.json();
-      console.log(`[Tushare Response] API: ${apiName}, 响应码: ${res.code}, 消息: ${res.msg || "成功"}`);
+      log.debug("Tushare", `API: ${apiName}, 响应码: ${res.code}, 消息: ${res.msg || "成功"}`);
       if (res.code !== 0) {
         throw new Error(`Tushare Error [${res.code}]: ${res.msg}`);
       }
       if (!res.data) {
-        console.log(`[Tushare Response] API: ${apiName}, 返回空数据`);
+        log.debug("Tushare", `API: ${apiName}, 返回空数据`);
         return [];
       }
       const { fields: columns, items } = res.data;
@@ -15959,13 +16102,13 @@ const _TushareClient = class _TushareClient {
         });
         return obj;
       });
-      console.log(`[Tushare Response] API: ${apiName}, 返回 ${result.length} 条数据, 总耗时: ${Date.now() - startTime}ms`);
+      log.info("Tushare", `API: ${apiName}, 返回 ${result.length} 条数据, 总耗时: ${Date.now() - startTime}ms`);
       return result;
     } catch (error2) {
       const duration = Date.now() - startTime;
-      console.error(`[Tushare Error] API: ${apiName}, 耗时: ${duration}ms`);
-      console.error(`[Tushare Error] 请求参数:`, JSON.stringify(params, null, 2));
-      console.error(`[Tushare Error] 错误详情:`, error2);
+      log.error("Tushare", `API: ${apiName}, 耗时: ${duration}ms`);
+      log.error("Tushare", `请求参数:`, JSON.stringify(params, null, 2));
+      log.error("Tushare", `错误详情:`, error2);
       throw error2;
     }
   }
@@ -16110,7 +16253,7 @@ const _TushareClient = class _TushareClient {
   /**
    * 获取公告原文 URL（迭代获取完整数据）
    * 处理单次 2000 条的限制，自动迭代直到获取完所有数据
-   * 
+   *
    * @param tsCode 股票代码（可选）
    * @param startDate 开始日期 YYYYMMDD
    * @param endDate 结束日期 YYYYMMDD
@@ -16123,10 +16266,10 @@ const _TushareClient = class _TushareClient {
     const BATCH_SIZE = 2e3;
     let hasMore = true;
     while (hasMore) {
-      console.log(`[Tushare] 获取公告: ts_code=${tsCode || "全市场"}, start=${startDate}, end=${currentEndDate}`);
+      log.debug("Tushare", `获取公告: ts_code=${tsCode || "全市场"}, start=${startDate}, end=${currentEndDate}`);
       const batch = await this.getAnnouncementFiles(tsCode, void 0, startDate, currentEndDate);
       if (!batch || batch.length === 0) {
-        console.log(`[Tushare] 没有更多公告数据`);
+        log.debug("Tushare", `没有更多公告数据`);
         hasMore = false;
         break;
       }
@@ -16134,14 +16277,14 @@ const _TushareClient = class _TushareClient {
       if (onProgress) {
         onProgress(batch.length, allAnnouncements.length);
       }
-      console.log(`[Tushare] 获取到 ${batch.length} 条公告，累计 ${allAnnouncements.length} 条`);
+      log.info("Tushare", `获取到 ${batch.length} 条公告，累计 ${allAnnouncements.length} 条`);
       if (batch.length < BATCH_SIZE) {
         hasMore = false;
         break;
       }
       const lastAnnDate = batch[batch.length - 1].ann_date;
       if (lastAnnDate <= startDate) {
-        console.log(`[Tushare] 已到达起始日期，停止迭代`);
+        log.debug("Tushare", `已到达起始日期，停止迭代`);
         hasMore = false;
         break;
       }
@@ -16188,11 +16331,11 @@ const _TushareClient = class _TushareClient {
   static async getAnnouncementsComplete(tsCode, startDate, endDate, onProgress) {
     const allAnnouncements = [];
     const BATCH_SIZE = 2e3;
-    console.log(`[Tushare] 开始获取完整公告数据: ${startDate} - ${endDate}`);
+    log.info("Tushare", `开始获取完整公告数据: ${startDate} - ${endDate}`);
     let batch = await this.getAnnouncements(tsCode, void 0, startDate, endDate, BATCH_SIZE, 0);
-    console.log(`[Tushare] 首次获取 ${batch.length} 条公告`);
+    log.info("Tushare", `首次获取 ${batch.length} 条公告`);
     if (!batch || batch.length === 0) {
-      console.log(`[Tushare] 该时间范围内没有公告数据`);
+      log.info("Tushare", `该时间范围内没有公告数据`);
       return [];
     }
     allAnnouncements.push(...batch);
@@ -16200,25 +16343,25 @@ const _TushareClient = class _TushareClient {
       onProgress(`已获取 ${allAnnouncements.length} 条`, allAnnouncements.length, allAnnouncements.length);
     }
     if (batch.length < BATCH_SIZE) {
-      console.log(`[Tushare] 数据量小于批次大小，获取完成`);
+      log.debug("Tushare", `数据量小于批次大小，获取完成`);
       return allAnnouncements;
     }
     const dates = batch.map((a) => a.ann_date).sort();
     const oldestDate = dates[0];
     const newestDate = dates[dates.length - 1];
-    console.log(`[Tushare] 首批数据日期范围: ${oldestDate} - ${newestDate}`);
+    log.debug("Tushare", `首批数据日期范围: ${oldestDate} - ${newestDate}`);
     if (oldestDate > startDate) {
-      console.log(`[Tushare] 向后获取更早的数据...`);
+      log.debug("Tushare", `向后获取更早的数据...`);
       let currentEndDate = this.getPreviousDay(oldestDate);
       while (currentEndDate >= startDate) {
-        console.log(`[Tushare] 获取历史数据: ${startDate} - ${currentEndDate}`);
+        log.debug("Tushare", `获取历史数据: ${startDate} - ${currentEndDate}`);
         const historyBatch = await this.getAnnouncements(tsCode, void 0, startDate, currentEndDate, BATCH_SIZE, 0);
         if (!historyBatch || historyBatch.length === 0) {
-          console.log(`[Tushare] 没有更早的数据`);
+          log.debug("Tushare", `没有更早的数据`);
           break;
         }
         allAnnouncements.push(...historyBatch);
-        console.log(`[Tushare] 获取到 ${historyBatch.length} 条历史公告，累计 ${allAnnouncements.length} 条`);
+        log.info("Tushare", `获取到 ${historyBatch.length} 条历史公告，累计 ${allAnnouncements.length} 条`);
         if (onProgress) {
           onProgress(`已获取 ${allAnnouncements.length} 条`, allAnnouncements.length, allAnnouncements.length);
         }
@@ -16234,17 +16377,17 @@ const _TushareClient = class _TushareClient {
       }
     }
     if (newestDate < endDate) {
-      console.log(`[Tushare] 向前获取更新的数据...`);
+      log.debug("Tushare", `向前获取更新的数据...`);
       let currentStartDate = this.getNextDay(newestDate);
       while (currentStartDate <= endDate) {
-        console.log(`[Tushare] 获取最新数据: ${currentStartDate} - ${endDate}`);
+        log.debug("Tushare", `获取最新数据: ${currentStartDate} - ${endDate}`);
         const futureBatch = await this.getAnnouncements(tsCode, void 0, currentStartDate, endDate, BATCH_SIZE, 0);
         if (!futureBatch || futureBatch.length === 0) {
-          console.log(`[Tushare] 没有更新的数据`);
+          log.debug("Tushare", `没有更新的数据`);
           break;
         }
         allAnnouncements.push(...futureBatch);
-        console.log(`[Tushare] 获取到 ${futureBatch.length} 条最新公告，累计 ${allAnnouncements.length} 条`);
+        log.info("Tushare", `获取到 ${futureBatch.length} 条最新公告，累计 ${allAnnouncements.length} 条`);
         if (onProgress) {
           onProgress(`已获取 ${allAnnouncements.length} 条`, allAnnouncements.length, allAnnouncements.length);
         }
@@ -16523,7 +16666,7 @@ async function getAnnouncementsGroupedFromAPI(page, pageSize, startDate, endDate
   let announcements = [];
   const isSynced = !forceRefresh && startDate && endDate ? isAnnouncementRangeSynced(null, startDate, endDate) : false;
   if (isSynced) {
-    console.log(`[DB Cache Hit] 从数据库读取公告: ${startDate} - ${endDate}`);
+    log.debug("Announcement", `从数据库读取公告: ${startDate} - ${endDate}`);
     announcements = db.prepare(
       `
       SELECT * FROM announcements 
@@ -16531,33 +16674,33 @@ async function getAnnouncementsGroupedFromAPI(page, pageSize, startDate, endDate
       ORDER BY ann_date DESC, rec_time DESC
     `
     ).all(startDate, endDate);
-    console.log(`[DB Cache Hit] 从数据库读取到 ${announcements.length} 条公告`);
+    log.info("Announcement", `从数据库读取到 ${announcements.length} 条公告`);
   } else {
     if (forceRefresh) {
-      console.log(`[Force Refresh] 强制从 API 获取公告: ${startDate || "无"} - ${endDate || "无"}`);
+      log.info("Announcement", `强制从 API 获取公告: ${startDate || "无"} - ${endDate || "无"}`);
     } else {
-      console.log(`[DB Cache Miss] 从 API 获取公告: ${startDate || "无"} - ${endDate || "无"}`);
+      log.info("Announcement", `从 API 获取公告: ${startDate || "无"} - ${endDate || "无"}`);
     }
     if (startDate && endDate) {
-      console.log(`[getAnnouncementsGroupedFromAPI] 使用完整获取方式获取公告: ${startDate} - ${endDate}`);
+      log.debug("Announcement", `使用完整获取方式获取公告: ${startDate} - ${endDate}`);
       announcements = await TushareClient.getAnnouncementsComplete(
         void 0,
         // 全市场
         startDate,
         endDate,
         (message, current, total2) => {
-          console.log(`[getAnnouncementsGroupedFromAPI] ${message}`);
+          log.debug("Announcement", message);
         }
       );
     } else {
       announcements = await TushareClient.getAnnouncements(void 0, void 0, startDate, endDate, 2e3, 0);
     }
     if (announcements.length > 0) {
-      console.log(`[DB Cache] 保存 ${announcements.length} 条公告到数据库`);
+      log.info("Announcement", `保存 ${announcements.length} 条公告到数据库`);
       upsertAnnouncements(announcements);
       if (startDate && endDate) {
         recordAnnouncementSyncRange(null, startDate, endDate);
-        console.log(`[DB Cache] 记录同步范围: ${startDate} - ${endDate}`);
+        log.debug("Announcement", `记录同步范围: ${startDate} - ${endDate}`);
       }
     }
   }
@@ -16594,7 +16737,7 @@ async function getFavoriteStocksAnnouncementsGroupedFromAPI(page, pageSize, star
   let announcements = [];
   const isSynced = startDate && endDate ? isAnnouncementRangeSynced(null, startDate, endDate) : false;
   if (isSynced) {
-    console.log(`[DB Cache Hit] 从数据库读取关注股票公告: ${startDate} - ${endDate}`);
+    log.debug("Announcement", `从数据库读取关注股票公告: ${startDate} - ${endDate}`);
     const placeholders = favoriteStocks.map(() => "?").join(",");
     const query = `
 			SELECT * FROM announcements 
@@ -16603,9 +16746,9 @@ async function getFavoriteStocksAnnouncementsGroupedFromAPI(page, pageSize, star
 			ORDER BY ann_date DESC, rec_time DESC
 		`;
     announcements = db.prepare(query).all(...favoriteStocks, startDate, endDate);
-    console.log(`[DB Cache Hit] 从数据库读取到 ${announcements.length} 条关注股票公告`);
+    log.info("Announcement", `从数据库读取到 ${announcements.length} 条关注股票公告`);
   } else {
-    console.log(`[DB Cache Miss] 从 API 获取关注股票公告: ${startDate || "无"} - ${endDate || "无"}`);
+    log.info("Announcement", `从 API 获取关注股票公告: ${startDate || "无"} - ${endDate || "无"}`);
     for (const tsCode of favoriteStocks) {
       try {
         const stockAnnouncements = await TushareClient.getAnnouncements(tsCode, void 0, startDate, endDate, 2e3, 0);
@@ -16614,11 +16757,11 @@ async function getFavoriteStocksAnnouncementsGroupedFromAPI(page, pageSize, star
           await new Promise((resolve) => setTimeout(resolve, 200));
         }
       } catch (error2) {
-        console.error(`Failed to get announcements for ${tsCode}:`, error2);
+        log.error("Announcement", `Failed to get announcements for ${tsCode}:`, error2);
       }
     }
     if (announcements.length > 0) {
-      console.log(`[DB Cache] 保存 ${announcements.length} 条关注股票公告到数据库`);
+      log.info("Announcement", `保存 ${announcements.length} 条关注股票公告到数据库`);
       upsertAnnouncements(announcements);
     }
   }
@@ -16701,21 +16844,22 @@ function registerAnnouncementHandlers() {
     "get-announcements-grouped",
     async (_event, page, pageSize, startDate, endDate, market, forceRefresh) => {
       try {
-        console.log(
-          `[IPC] get-announcements-grouped: page=${page}, pageSize=${pageSize}, dateRange=${startDate}-${endDate}, market=${market}, forceRefresh=${forceRefresh}`
+        log.debug(
+          "IPC",
+          `get-announcements-grouped: page=${page}, pageSize=${pageSize}, dateRange=${startDate}-${endDate}, market=${market}, forceRefresh=${forceRefresh}`
         );
         const result = await getAnnouncementsGroupedFromAPI(page, pageSize, startDate, endDate, market, forceRefresh);
-        console.log(`[IPC] get-announcements-grouped: page=${page}, items=${result.items.length}, total=${result.total}`);
+        log.debug("IPC", `get-announcements-grouped: page=${page}, items=${result.items.length}, total=${result.total}`);
         return result;
       } catch (error2) {
-        console.error("Failed to get grouped announcements:", error2);
+        log.error("IPC", "Failed to get grouped announcements:", error2);
         throw error2;
       }
     }
   );
   ipcMain.handle("get-stock-announcements", async (_event, tsCode, limit = 100, startDate, endDate) => {
     try {
-      console.log(`[IPC] get-stock-announcements: tsCode=${tsCode}, limit=${limit}, dateRange=${startDate}-${endDate}`);
+      log.debug("IPC", `get-stock-announcements: tsCode=${tsCode}, limit=${limit}, dateRange=${startDate}-${endDate}`);
       const announcements = await TushareClient.getAnnouncements(tsCode, void 0, startDate, endDate, limit, 0);
       announcements.sort((a, b) => {
         const dateCompare = (b.ann_date || "").localeCompare(a.ann_date || "");
@@ -16732,7 +16876,7 @@ function registerAnnouncementHandlers() {
         category: classifyAnnouncementTitle(ann.title)
       }));
     } catch (error2) {
-      console.error("Failed to get stock announcements:", error2);
+      log.error("IPC", "Failed to get stock announcements:", error2);
       throw error2;
     }
   });
@@ -16740,14 +16884,15 @@ function registerAnnouncementHandlers() {
     "search-announcements-grouped",
     async (_event, keyword, page, pageSize, startDate, endDate, market) => {
       try {
-        console.log(
-          `[IPC] search-announcements-grouped: keyword=${keyword}, page=${page}, pageSize=${pageSize}, dateRange=${startDate}-${endDate}, market=${market}`
+        log.debug(
+          "IPC",
+          `search-announcements-grouped: keyword=${keyword}, page=${page}, pageSize=${pageSize}, dateRange=${startDate}-${endDate}, market=${market}`
         );
         const result = await searchAnnouncementsGroupedFromAPI(keyword, page, pageSize, startDate, endDate, market);
-        console.log(`[IPC] search-announcements-grouped: page=${page}, items=${result.items.length}, total=${result.total}`);
+        log.debug("IPC", `search-announcements-grouped: page=${page}, items=${result.items.length}, total=${result.total}`);
         return result;
       } catch (error2) {
-        console.error("Failed to search grouped announcements:", error2);
+        log.error("IPC", "Failed to search grouped announcements:", error2);
         throw error2;
       }
     }
@@ -16756,21 +16901,21 @@ function registerAnnouncementHandlers() {
     "get-favorite-stocks-announcements-grouped",
     async (_event, page, pageSize, startDate, endDate) => {
       try {
-        console.log(`[IPC] get-favorite-stocks-announcements-grouped: page=${page}, pageSize=${pageSize}, dateRange=${startDate}-${endDate}`);
+        log.debug("IPC", `get-favorite-stocks-announcements-grouped: page=${page}, pageSize=${pageSize}, dateRange=${startDate}-${endDate}`);
         const result = await getFavoriteStocksAnnouncementsGroupedFromAPI(page, pageSize, startDate, endDate);
-        console.log(`[IPC] get-favorite-stocks-announcements-grouped: page=${page}, items=${result.items.length}, total=${result.total}`);
+        log.debug("IPC", `get-favorite-stocks-announcements-grouped: page=${page}, items=${result.items.length}, total=${result.total}`);
         return result;
       } catch (error2) {
-        console.error("Failed to get favorite stocks announcements:", error2);
+        log.error("IPC", "Failed to get favorite stocks announcements:", error2);
         throw error2;
       }
     }
   );
   ipcMain.handle("get-announcement-pdf", async (_event, tsCode, annDate, title) => {
     try {
-      console.log(`[IPC] get-announcement-pdf: tsCode=${tsCode}, annDate=${annDate}, title=${title}`);
+      log.debug("IPC", `get-announcement-pdf: tsCode=${tsCode}, annDate=${annDate}, title=${title}`);
       const files = await TushareClient.getAnnouncementFiles(tsCode, annDate);
-      console.log(`[IPC] Found ${files.length} announcements for ${tsCode} on ${annDate}`);
+      log.debug("IPC", `Found ${files.length} announcements for ${tsCode} on ${annDate}`);
       let matchedFile = files.find((file2) => file2.title === title);
       if (!matchedFile) {
         matchedFile = files.find((file2) => {
@@ -16780,19 +16925,19 @@ function registerAnnouncementHandlers() {
         });
       }
       if (matchedFile && matchedFile.url) {
-        console.log(`[IPC] Found PDF URL: ${matchedFile.url}`);
+        log.debug("IPC", `Found PDF URL: ${matchedFile.url}`);
         return {
           success: true,
           url: matchedFile.url
         };
       }
-      console.log(`[IPC] No PDF found for announcement: ${title}`);
+      log.debug("IPC", `No PDF found for announcement: ${title}`);
       return {
         success: false,
         message: "该公告暂无 PDF 文件"
       };
     } catch (error2) {
-      console.error("Failed to get announcement PDF:", error2);
+      log.error("IPC", "Failed to get announcement PDF:", error2);
       return {
         success: false,
         message: error2.message || "获取 PDF 失败"
@@ -16801,96 +16946,96 @@ function registerAnnouncementHandlers() {
   });
   ipcMain.handle("get-announcements-from-cache", async (_event, tsCode, startDate, endDate) => {
     try {
-      console.log(`[IPC] get-announcements-from-cache: tsCode=${tsCode}, dateRange=${startDate}-${endDate}`);
+      log.debug("IPC", `get-announcements-from-cache: tsCode=${tsCode}, dateRange=${startDate}-${endDate}`);
       const announcements = getAnnouncementsByDateRange(startDate, endDate, tsCode || void 0);
       const result = announcements.map((ann) => ({
         ...ann,
         category: classifyAnnouncementTitle(ann.title)
       }));
-      console.log(`[IPC] get-announcements-from-cache: found ${result.length} announcements`);
+      log.debug("IPC", `get-announcements-from-cache: found ${result.length} announcements`);
       return result;
     } catch (error2) {
-      console.error("Failed to get announcements from cache:", error2);
+      log.error("IPC", "Failed to get announcements from cache:", error2);
       throw error2;
     }
   });
   ipcMain.handle("check-announcement-range-synced", async (_event, tsCode, startDate, endDate) => {
     try {
-      console.log(`[IPC] check-announcement-range-synced: tsCode=${tsCode}, dateRange=${startDate}-${endDate}`);
+      log.debug("IPC", `check-announcement-range-synced: tsCode=${tsCode}, dateRange=${startDate}-${endDate}`);
       const isSynced = isAnnouncementRangeSynced(tsCode, startDate, endDate);
-      console.log(`[IPC] check-announcement-range-synced: isSynced=${isSynced}`);
+      log.debug("IPC", `check-announcement-range-synced: isSynced=${isSynced}`);
       return { isSynced };
     } catch (error2) {
-      console.error("Failed to check announcement range synced:", error2);
+      log.error("IPC", "Failed to check announcement range synced:", error2);
       throw error2;
     }
   });
   ipcMain.handle("search-announcements-from-cache", async (_event, keyword, limit = 100) => {
     try {
-      console.log(`[IPC] search-announcements-from-cache: keyword=${keyword}, limit=${limit}`);
+      log.debug("IPC", `search-announcements-from-cache: keyword=${keyword}, limit=${limit}`);
       const announcements = searchAnnouncements(keyword, limit);
       const result = announcements.map((ann) => ({
         ...ann,
         category: classifyAnnouncementTitle(ann.title)
       }));
-      console.log(`[IPC] search-announcements-from-cache: found ${result.length} announcements`);
+      log.debug("IPC", `search-announcements-from-cache: found ${result.length} announcements`);
       return result;
     } catch (error2) {
-      console.error("Failed to search announcements from cache:", error2);
+      log.error("IPC", "Failed to search announcements from cache:", error2);
       throw error2;
     }
   });
   ipcMain.handle("get-announcements-cache-stats", async () => {
     try {
-      console.log("[IPC] get-announcements-cache-stats");
+      log.debug("IPC", "get-announcements-cache-stats");
       const totalCount = countAnnouncements();
       return {
         totalCount
       };
     } catch (error2) {
-      console.error("Failed to get announcements cache stats:", error2);
+      log.error("IPC", "Failed to get announcements cache stats:", error2);
       throw error2;
     }
   });
   ipcMain.handle("tag-all-announcements", async (_event, batchSize = 1e3, reprocessAll = false) => {
     try {
-      console.log(`[IPC] tag-all-announcements: batchSize=${batchSize}, reprocessAll=${reprocessAll}`);
+      log.info("IPC", `tag-all-announcements: batchSize=${batchSize}, reprocessAll=${reprocessAll}`);
       const result = tagAnnouncementsBatch(batchSize, void 0, reprocessAll);
-      console.log(`[IPC] tag-all-announcements: processed ${result.processed} announcements`);
+      log.info("IPC", `tag-all-announcements: processed ${result.processed} announcements`);
       return result;
     } catch (error2) {
-      console.error("Failed to tag all announcements:", error2);
+      log.error("IPC", "Failed to tag all announcements:", error2);
       throw error2;
     }
   });
   ipcMain.handle("reprocess-all-announcements", async (_event, batchSize = 1e3) => {
     try {
-      console.log(`[IPC] reprocess-all-announcements: batchSize=${batchSize}`);
+      log.info("IPC", `reprocess-all-announcements: batchSize=${batchSize}`);
       const result = tagAnnouncementsBatch(batchSize, void 0, true);
-      console.log(`[IPC] reprocess-all-announcements: processed ${result.processed} announcements`);
+      log.info("IPC", `reprocess-all-announcements: processed ${result.processed} announcements`);
       return result;
     } catch (error2) {
-      console.error("Failed to reprocess all announcements:", error2);
+      log.error("IPC", "Failed to reprocess all announcements:", error2);
       throw error2;
     }
   });
   ipcMain.handle("sync-announcements-range", async (_event, tsCode, startDate, endDate) => {
     try {
-      console.log(`[IPC] sync-announcements-range: tsCode=${tsCode}, dateRange=${startDate}-${endDate}`);
+      log.info("IPC", `sync-announcements-range: tsCode=${tsCode}, dateRange=${startDate}-${endDate}`);
       const announcements = await TushareClient.getAnnouncementsComplete(tsCode || void 0, startDate, endDate, (message, current, total) => {
-        console.log(`[sync-announcements-range] ${message}`);
+        log.debug("IPC", message);
       });
       if (announcements.length > 0) {
         upsertAnnouncements(announcements);
         recordAnnouncementSyncRange(tsCode, startDate, endDate);
       }
-      console.log(`[IPC] sync-announcements-range: synced ${announcements.length} announcements`);
+      log.info("IPC", `sync-announcements-range: synced ${announcements.length} announcements`);
       return {
         success: true,
         count: announcements.length
       };
     } catch (error2) {
-      console.error("Failed to sync announcements range:", error2);
+      log.error("IPC", "Failed to sync announcements range:", error2);
       throw error2;
     }
   });
@@ -17246,7 +17391,7 @@ let sqliteHttpPort = 8080;
 let sqliteHttpUsername = "";
 let sqliteHttpPassword = "";
 function getColumnWidthConfigPath() {
-  return require$$1.join(app.getPath("userData"), "column-widths.json");
+  return path$o.join(app.getPath("userData"), "column-widths.json");
 }
 function registerDatabaseHandlers(mainWindow2) {
   ipcMain.handle("get-db-connection-info", async () => {
@@ -17539,7 +17684,7 @@ function registerDatabaseHandlers(mainWindow2) {
       if (options.backup) {
         try {
           const timestamp2 = (/* @__PURE__ */ new Date()).toISOString().replace(/[:.]/g, "-");
-          backupPath = require$$1.join(app.getPath("userData"), `cafe_stock_backup_${timestamp2}.db`);
+          backupPath = path$o.join(app.getPath("userData"), `cafe_stock_backup_${timestamp2}.db`);
           console.log(`[DB Reset] 正在备份数据库到: ${backupPath}`);
           fs$k.copyFileSync(dbPath2, backupPath);
           console.log("[DB Reset] 数据库备份成功");
@@ -17612,7 +17757,7 @@ function cleanupDatabaseResources() {
   }
 }
 function setupIPC(mainWindow2) {
-  console.log("[IPC] Setting up IPC handlers...");
+  log.info("IPC", "Setting up IPC handlers...");
   registerSystemHandlers();
   registerUpdaterHandlers();
   registerFavoriteHandlers();
@@ -17622,13 +17767,13 @@ function setupIPC(mainWindow2) {
   registerHolderHandlers(mainWindow2);
   registerClassificationHandlers();
   registerDatabaseHandlers(mainWindow2);
-  console.log("[IPC] All IPC handlers registered successfully");
+  log.info("IPC", "All IPC handlers registered successfully");
 }
 const extendedApp = app;
 async function initialize() {
-  console.log("=".repeat(60));
-  console.log("酷咖啡股票助手 - 启动中...");
-  console.log("=".repeat(60));
+  log.info("App", "=".repeat(60));
+  log.info("App", "酷咖啡股票助手 - 启动中...");
+  log.info("App", "=".repeat(60));
   const mainWindow2 = createWindow();
   mainWindow2.on("close", (event) => {
     if (!extendedApp.isQuitting) {
@@ -17643,19 +17788,19 @@ async function initialize() {
   try {
     await syncStocksIfNeeded();
   } catch (error2) {
-    console.error("Stock sync failed:", error2);
+    log.error("App", "Stock sync failed:", error2);
   }
-  console.log("=".repeat(60));
-  console.log("酷咖啡股票助手 - 启动完成");
-  console.log("=".repeat(60));
+  log.info("App", "=".repeat(60));
+  log.info("App", "酷咖啡股票助手 - 启动完成");
+  log.info("App", "=".repeat(60));
 }
 const gotTheLock = app.requestSingleInstanceLock();
 if (!gotTheLock) {
-  console.log("应用已经在运行，退出当前实例");
+  log.info("App", "应用已经在运行，退出当前实例");
   app.quit();
 } else {
   app.on("second-instance", () => {
-    console.log("检测到第二个实例尝试启动，聚焦到主窗口");
+    log.info("App", "检测到第二个实例尝试启动，聚焦到主窗口");
     const mainWindow2 = getMainWindow();
     if (mainWindow2) {
       if (mainWindow2.isMinimized()) {
@@ -17667,7 +17812,7 @@ if (!gotTheLock) {
   });
   app.whenReady().then(() => {
     initialize().catch((error2) => {
-      console.error("Failed to initialize app:", error2);
+      log.error("App", "Failed to initialize app:", error2);
       app.quit();
     });
   });
@@ -17681,7 +17826,7 @@ app.on("activate", () => {
   const mainWindow2 = getMainWindow();
   if (!mainWindow2) {
     initialize().catch((error2) => {
-      console.error("Failed to re-initialize app:", error2);
+      log.error("App", "Failed to re-initialize app:", error2);
     });
   } else {
     mainWindow2.show();
@@ -17689,16 +17834,16 @@ app.on("activate", () => {
 });
 app.on("before-quit", () => {
   extendedApp.isQuitting = true;
-  console.log("Application is quitting...");
+  log.info("App", "Application is quitting...");
 });
 app.on("will-quit", () => {
   globalShortcut.unregisterAll();
   cleanupDatabaseResources();
-  console.log("Application cleanup completed");
+  log.info("App", "Application cleanup completed");
 });
 process.on("uncaughtException", (error2) => {
-  console.error("Uncaught Exception:", error2);
+  log.error("App", "Uncaught Exception:", error2);
 });
 process.on("unhandledRejection", (reason, promise) => {
-  console.error("Unhandled Rejection at:", promise, "reason:", reason);
+  log.error("App", "Unhandled Rejection at:", promise, "reason:", reason);
 });

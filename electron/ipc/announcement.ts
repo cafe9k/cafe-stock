@@ -3,6 +3,7 @@
  */
 
 import { ipcMain } from "electron";
+import { log } from "../utils/logger.js";
 import { TushareClient } from "../tushare.js";
 import * as announcementService from "../services/announcement.js";
 import * as classificationService from "../services/classification.js";
@@ -25,17 +26,18 @@ export function registerAnnouncementHandlers(): void {
 		"get-announcements-grouped",
 		async (_event, page: number, pageSize: number, startDate?: string, endDate?: string, market?: string, forceRefresh?: boolean) => {
 			try {
-				console.log(
-					`[IPC] get-announcements-grouped: page=${page}, pageSize=${pageSize}, dateRange=${startDate}-${endDate}, market=${market}, forceRefresh=${forceRefresh}`
+				log.debug(
+					"IPC",
+					`get-announcements-grouped: page=${page}, pageSize=${pageSize}, dateRange=${startDate}-${endDate}, market=${market}, forceRefresh=${forceRefresh}`
 				);
 
 				const result = await announcementService.getAnnouncementsGroupedFromAPI(page, pageSize, startDate, endDate, market, forceRefresh);
 
-				console.log(`[IPC] get-announcements-grouped: page=${page}, items=${result.items.length}, total=${result.total}`);
+				log.debug("IPC", `get-announcements-grouped: page=${page}, items=${result.items.length}, total=${result.total}`);
 
 				return result;
 			} catch (error: any) {
-				console.error("Failed to get grouped announcements:", error);
+				log.error("IPC", "Failed to get grouped announcements:", error);
 				throw error;
 			}
 		}
@@ -44,7 +46,7 @@ export function registerAnnouncementHandlers(): void {
 	// 获取特定股票的公告列表
 	ipcMain.handle("get-stock-announcements", async (_event, tsCode: string, limit: number = 100, startDate?: string, endDate?: string) => {
 		try {
-			console.log(`[IPC] get-stock-announcements: tsCode=${tsCode}, limit=${limit}, dateRange=${startDate}-${endDate}`);
+			log.debug("IPC", `get-stock-announcements: tsCode=${tsCode}, limit=${limit}, dateRange=${startDate}-${endDate}`);
 
 			const announcements = await TushareClient.getAnnouncements(tsCode, undefined, startDate, endDate, limit, 0);
 
@@ -66,7 +68,7 @@ export function registerAnnouncementHandlers(): void {
 				category: classificationService.classifyAnnouncementTitle(ann.title),
 			}));
 		} catch (error: any) {
-			console.error("Failed to get stock announcements:", error);
+			log.error("IPC", "Failed to get stock announcements:", error);
 			throw error;
 		}
 	});
@@ -76,17 +78,18 @@ export function registerAnnouncementHandlers(): void {
 		"search-announcements-grouped",
 		async (_event, keyword: string, page: number, pageSize: number, startDate?: string, endDate?: string, market?: string) => {
 			try {
-				console.log(
-					`[IPC] search-announcements-grouped: keyword=${keyword}, page=${page}, pageSize=${pageSize}, dateRange=${startDate}-${endDate}, market=${market}`
+				log.debug(
+					"IPC",
+					`search-announcements-grouped: keyword=${keyword}, page=${page}, pageSize=${pageSize}, dateRange=${startDate}-${endDate}, market=${market}`
 				);
 
 				const result = await announcementService.searchAnnouncementsGroupedFromAPI(keyword, page, pageSize, startDate, endDate, market);
 
-				console.log(`[IPC] search-announcements-grouped: page=${page}, items=${result.items.length}, total=${result.total}`);
+				log.debug("IPC", `search-announcements-grouped: page=${page}, items=${result.items.length}, total=${result.total}`);
 
 				return result;
 			} catch (error: any) {
-				console.error("Failed to search grouped announcements:", error);
+				log.error("IPC", "Failed to search grouped announcements:", error);
 				throw error;
 			}
 		}
@@ -97,15 +100,15 @@ export function registerAnnouncementHandlers(): void {
 		"get-favorite-stocks-announcements-grouped",
 		async (_event, page: number, pageSize: number, startDate?: string, endDate?: string) => {
 			try {
-				console.log(`[IPC] get-favorite-stocks-announcements-grouped: page=${page}, pageSize=${pageSize}, dateRange=${startDate}-${endDate}`);
+				log.debug("IPC", `get-favorite-stocks-announcements-grouped: page=${page}, pageSize=${pageSize}, dateRange=${startDate}-${endDate}`);
 
 				const result = await announcementService.getFavoriteStocksAnnouncementsGroupedFromAPI(page, pageSize, startDate, endDate);
 
-				console.log(`[IPC] get-favorite-stocks-announcements-grouped: page=${page}, items=${result.items.length}, total=${result.total}`);
+				log.debug("IPC", `get-favorite-stocks-announcements-grouped: page=${page}, items=${result.items.length}, total=${result.total}`);
 
 				return result;
 			} catch (error: any) {
-				console.error("Failed to get favorite stocks announcements:", error);
+				log.error("IPC", "Failed to get favorite stocks announcements:", error);
 				throw error;
 			}
 		}
@@ -114,12 +117,12 @@ export function registerAnnouncementHandlers(): void {
 	// 获取公告 PDF 文件信息
 	ipcMain.handle("get-announcement-pdf", async (_event, tsCode: string, annDate: string, title: string) => {
 		try {
-			console.log(`[IPC] get-announcement-pdf: tsCode=${tsCode}, annDate=${annDate}, title=${title}`);
+			log.debug("IPC", `get-announcement-pdf: tsCode=${tsCode}, annDate=${annDate}, title=${title}`);
 
 			// 从 Tushare 获取公告原文信息
 			const files = await TushareClient.getAnnouncementFiles(tsCode, annDate);
 
-			console.log(`[IPC] Found ${files.length} announcements for ${tsCode} on ${annDate}`);
+			log.debug("IPC", `Found ${files.length} announcements for ${tsCode} on ${annDate}`);
 
 			// 查找匹配的公告
 			let matchedFile = files.find((file: any) => file.title === title);
@@ -134,20 +137,20 @@ export function registerAnnouncementHandlers(): void {
 			}
 
 			if (matchedFile && matchedFile.url) {
-				console.log(`[IPC] Found PDF URL: ${matchedFile.url}`);
+				log.debug("IPC", `Found PDF URL: ${matchedFile.url}`);
 				return {
 					success: true,
 					url: matchedFile.url,
 				};
 			}
 
-			console.log(`[IPC] No PDF found for announcement: ${title}`);
+			log.debug("IPC", `No PDF found for announcement: ${title}`);
 			return {
 				success: false,
 				message: "该公告暂无 PDF 文件",
 			};
 		} catch (error: any) {
-			console.error("Failed to get announcement PDF:", error);
+			log.error("IPC", "Failed to get announcement PDF:", error);
 			return {
 				success: false,
 				message: error.message || "获取 PDF 失败",
@@ -158,7 +161,7 @@ export function registerAnnouncementHandlers(): void {
 	// 从缓存获取公告
 	ipcMain.handle("get-announcements-from-cache", async (_event, tsCode: string | null, startDate: string, endDate: string) => {
 		try {
-			console.log(`[IPC] get-announcements-from-cache: tsCode=${tsCode}, dateRange=${startDate}-${endDate}`);
+			log.debug("IPC", `get-announcements-from-cache: tsCode=${tsCode}, dateRange=${startDate}-${endDate}`);
 
 			const announcements = getAnnouncementsByDateRange(startDate, endDate, tsCode || undefined);
 
@@ -168,10 +171,10 @@ export function registerAnnouncementHandlers(): void {
 				category: classificationService.classifyAnnouncementTitle(ann.title),
 			}));
 
-			console.log(`[IPC] get-announcements-from-cache: found ${result.length} announcements`);
+			log.debug("IPC", `get-announcements-from-cache: found ${result.length} announcements`);
 			return result;
 		} catch (error: any) {
-			console.error("Failed to get announcements from cache:", error);
+			log.error("IPC", "Failed to get announcements from cache:", error);
 			throw error;
 		}
 	});
@@ -179,14 +182,14 @@ export function registerAnnouncementHandlers(): void {
 	// 检查公告范围是否已同步
 	ipcMain.handle("check-announcement-range-synced", async (_event, tsCode: string | null, startDate: string, endDate: string) => {
 		try {
-			console.log(`[IPC] check-announcement-range-synced: tsCode=${tsCode}, dateRange=${startDate}-${endDate}`);
+			log.debug("IPC", `check-announcement-range-synced: tsCode=${tsCode}, dateRange=${startDate}-${endDate}`);
 
 			const isSynced = isAnnouncementRangeSynced(tsCode, startDate, endDate);
 
-			console.log(`[IPC] check-announcement-range-synced: isSynced=${isSynced}`);
+			log.debug("IPC", `check-announcement-range-synced: isSynced=${isSynced}`);
 			return { isSynced };
 		} catch (error: any) {
-			console.error("Failed to check announcement range synced:", error);
+			log.error("IPC", "Failed to check announcement range synced:", error);
 			throw error;
 		}
 	});
@@ -194,7 +197,7 @@ export function registerAnnouncementHandlers(): void {
 	// 从缓存搜索公告
 	ipcMain.handle("search-announcements-from-cache", async (_event, keyword: string, limit: number = 100) => {
 		try {
-			console.log(`[IPC] search-announcements-from-cache: keyword=${keyword}, limit=${limit}`);
+			log.debug("IPC", `search-announcements-from-cache: keyword=${keyword}, limit=${limit}`);
 
 			const announcements = searchAnnouncements(keyword, limit);
 
@@ -204,10 +207,10 @@ export function registerAnnouncementHandlers(): void {
 				category: classificationService.classifyAnnouncementTitle(ann.title),
 			}));
 
-			console.log(`[IPC] search-announcements-from-cache: found ${result.length} announcements`);
+			log.debug("IPC", `search-announcements-from-cache: found ${result.length} announcements`);
 			return result;
 		} catch (error: any) {
-			console.error("Failed to search announcements from cache:", error);
+			log.error("IPC", "Failed to search announcements from cache:", error);
 			throw error;
 		}
 	});
@@ -215,7 +218,7 @@ export function registerAnnouncementHandlers(): void {
 	// 获取公告缓存统计
 	ipcMain.handle("get-announcements-cache-stats", async () => {
 		try {
-			console.log("[IPC] get-announcements-cache-stats");
+			log.debug("IPC", "get-announcements-cache-stats");
 
 			const totalCount = countAnnouncements();
 
@@ -223,7 +226,7 @@ export function registerAnnouncementHandlers(): void {
 				totalCount,
 			};
 		} catch (error: any) {
-			console.error("Failed to get announcements cache stats:", error);
+			log.error("IPC", "Failed to get announcements cache stats:", error);
 			throw error;
 		}
 	});
@@ -231,14 +234,14 @@ export function registerAnnouncementHandlers(): void {
 	// 标记所有公告
 	ipcMain.handle("tag-all-announcements", async (_event, batchSize: number = 1000, reprocessAll: boolean = false) => {
 		try {
-			console.log(`[IPC] tag-all-announcements: batchSize=${batchSize}, reprocessAll=${reprocessAll}`);
+			log.info("IPC", `tag-all-announcements: batchSize=${batchSize}, reprocessAll=${reprocessAll}`);
 
 			const result = tagAnnouncementsBatch(batchSize, undefined, reprocessAll);
 
-			console.log(`[IPC] tag-all-announcements: processed ${result.processed} announcements`);
+			log.info("IPC", `tag-all-announcements: processed ${result.processed} announcements`);
 			return result;
 		} catch (error: any) {
-			console.error("Failed to tag all announcements:", error);
+			log.error("IPC", "Failed to tag all announcements:", error);
 			throw error;
 		}
 	});
@@ -246,14 +249,14 @@ export function registerAnnouncementHandlers(): void {
 	// 重新处理所有公告
 	ipcMain.handle("reprocess-all-announcements", async (_event, batchSize: number = 1000) => {
 		try {
-			console.log(`[IPC] reprocess-all-announcements: batchSize=${batchSize}`);
+			log.info("IPC", `reprocess-all-announcements: batchSize=${batchSize}`);
 
 			const result = tagAnnouncementsBatch(batchSize, undefined, true);
 
-			console.log(`[IPC] reprocess-all-announcements: processed ${result.processed} announcements`);
+			log.info("IPC", `reprocess-all-announcements: processed ${result.processed} announcements`);
 			return result;
 		} catch (error: any) {
-			console.error("Failed to reprocess all announcements:", error);
+			log.error("IPC", "Failed to reprocess all announcements:", error);
 			throw error;
 		}
 	});
@@ -261,11 +264,11 @@ export function registerAnnouncementHandlers(): void {
 	// 同步公告范围
 	ipcMain.handle("sync-announcements-range", async (_event, tsCode: string | null, startDate: string, endDate: string) => {
 		try {
-			console.log(`[IPC] sync-announcements-range: tsCode=${tsCode}, dateRange=${startDate}-${endDate}`);
+			log.info("IPC", `sync-announcements-range: tsCode=${tsCode}, dateRange=${startDate}-${endDate}`);
 
 			// 从 API 获取公告
 			const announcements = await TushareClient.getAnnouncementsComplete(tsCode || undefined, startDate, endDate, (message, current, total) => {
-				console.log(`[sync-announcements-range] ${message}`);
+				log.debug("IPC", message);
 			});
 
 			// 保存到数据库
@@ -274,13 +277,13 @@ export function registerAnnouncementHandlers(): void {
 				recordAnnouncementSyncRange(tsCode, startDate, endDate);
 			}
 
-			console.log(`[IPC] sync-announcements-range: synced ${announcements.length} announcements`);
+			log.info("IPC", `sync-announcements-range: synced ${announcements.length} announcements`);
 			return {
 				success: true,
 				count: announcements.length,
 			};
 		} catch (error: any) {
-			console.error("Failed to sync announcements range:", error);
+			log.error("IPC", "Failed to sync announcements range:", error);
 			throw error;
 		}
 	});

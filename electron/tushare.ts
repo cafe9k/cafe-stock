@@ -1,6 +1,8 @@
 // Tushare API Client for Node.js (Main Process)
 // 文档: https://tushare.pro/document/1?doc_id=130
 
+import { log } from "./utils/logger.js";
+
 interface TushareParams {
 	[key: string]: string | number | undefined;
 }
@@ -37,9 +39,9 @@ export class TushareClient {
 
 		// 记录请求开始
 		const startTime = Date.now();
-		console.log(`[Tushare Request] 开始请求 API: ${apiName}`);
-		console.log(`[Tushare Request] 请求参数:`, JSON.stringify(params, null, 2));
-		console.log(`[Tushare Request] 请求字段:`, fields);
+		log.debug("Tushare", `开始请求 API: ${apiName}`);
+		log.debug("Tushare", `请求参数:`, JSON.stringify(params, null, 2));
+		log.debug("Tushare", `请求字段:`, fields);
 
 		try {
 			const response = await fetch(this.BASE_URL, {
@@ -52,7 +54,7 @@ export class TushareClient {
 
 			// 记录响应状态
 			const duration = Date.now() - startTime;
-			console.log(`[Tushare Response] API: ${apiName}, HTTP状态: ${response.status}, 耗时: ${duration}ms`);
+			log.debug("Tushare", `API: ${apiName}, HTTP状态: ${response.status}, 耗时: ${duration}ms`);
 
 			if (!response.ok) {
 				throw new Error(`HTTP Error: ${response.status}`);
@@ -61,14 +63,14 @@ export class TushareClient {
 			const res = (await response.json()) as TushareResponse;
 
 			// 记录响应结果
-			console.log(`[Tushare Response] API: ${apiName}, 响应码: ${res.code}, 消息: ${res.msg || "成功"}`);
+			log.debug("Tushare", `API: ${apiName}, 响应码: ${res.code}, 消息: ${res.msg || "成功"}`);
 
 			if (res.code !== 0) {
 				throw new Error(`Tushare Error [${res.code}]: ${res.msg}`);
 			}
 
 			if (!res.data) {
-				console.log(`[Tushare Response] API: ${apiName}, 返回空数据`);
+				log.debug("Tushare", `API: ${apiName}, 返回空数据`);
 				return [];
 			}
 
@@ -82,15 +84,15 @@ export class TushareClient {
 			});
 
 			// 记录返回数据量
-			console.log(`[Tushare Response] API: ${apiName}, 返回 ${result.length} 条数据, 总耗时: ${Date.now() - startTime}ms`);
+			log.info("Tushare", `API: ${apiName}, 返回 ${result.length} 条数据, 总耗时: ${Date.now() - startTime}ms`);
 
 			return result;
 		} catch (error) {
 			// 增强错误日志
 			const duration = Date.now() - startTime;
-			console.error(`[Tushare Error] API: ${apiName}, 耗时: ${duration}ms`);
-			console.error(`[Tushare Error] 请求参数:`, JSON.stringify(params, null, 2));
-			console.error(`[Tushare Error] 错误详情:`, error);
+			log.error("Tushare", `API: ${apiName}, 耗时: ${duration}ms`);
+			log.error("Tushare", `请求参数:`, JSON.stringify(params, null, 2));
+			log.error("Tushare", `错误详情:`, error);
 			throw error;
 		}
 	}
@@ -248,7 +250,7 @@ export class TushareClient {
 	/**
 	 * 获取公告原文 URL（迭代获取完整数据）
 	 * 处理单次 2000 条的限制，自动迭代直到获取完所有数据
-	 * 
+	 *
 	 * @param tsCode 股票代码（可选）
 	 * @param startDate 开始日期 YYYYMMDD
 	 * @param endDate 结束日期 YYYYMMDD
@@ -267,13 +269,13 @@ export class TushareClient {
 		let hasMore = true;
 
 		while (hasMore) {
-			console.log(`[Tushare] 获取公告: ts_code=${tsCode || "全市场"}, start=${startDate}, end=${currentEndDate}`);
+			log.debug("Tushare", `获取公告: ts_code=${tsCode || "全市场"}, start=${startDate}, end=${currentEndDate}`);
 
 			// 获取一批数据
 			const batch = await this.getAnnouncementFiles(tsCode, undefined, startDate, currentEndDate);
 
 			if (!batch || batch.length === 0) {
-				console.log(`[Tushare] 没有更多公告数据`);
+				log.debug("Tushare", `没有更多公告数据`);
 				hasMore = false;
 				break;
 			}
@@ -285,7 +287,7 @@ export class TushareClient {
 				onProgress(batch.length, allAnnouncements.length);
 			}
 
-			console.log(`[Tushare] 获取到 ${batch.length} 条公告，累计 ${allAnnouncements.length} 条`);
+			log.info("Tushare", `获取到 ${batch.length} 条公告，累计 ${allAnnouncements.length} 条`);
 
 			// 如果返回的数据少于 2000 条，说明已经获取完毕
 			if (batch.length < BATCH_SIZE) {
@@ -296,10 +298,10 @@ export class TushareClient {
 			// 如果返回了 2000 条，需要继续迭代
 			// 获取最早的公告日期，作为下一次请求的结束日期
 			const lastAnnDate = batch[batch.length - 1].ann_date;
-			
+
 			// 如果最后一条公告的日期已经到达或超过起始日期，停止迭代
 			if (lastAnnDate <= startDate) {
-				console.log(`[Tushare] 已到达起始日期，停止迭代`);
+				log.debug("Tushare", `已到达起始日期，停止迭代`);
 				hasMore = false;
 				break;
 			}
@@ -363,14 +365,14 @@ export class TushareClient {
 		const allAnnouncements: any[] = [];
 		const BATCH_SIZE = 2000;
 
-		console.log(`[Tushare] 开始获取完整公告数据: ${startDate} - ${endDate}`);
+		log.info("Tushare", `开始获取完整公告数据: ${startDate} - ${endDate}`);
 
 		// 第一次请求，获取初始数据
 		let batch = await this.getAnnouncements(tsCode, undefined, startDate, endDate, BATCH_SIZE, 0);
-		console.log(`[Tushare] 首次获取 ${batch.length} 条公告`);
-		
+		log.info("Tushare", `首次获取 ${batch.length} 条公告`);
+
 		if (!batch || batch.length === 0) {
-			console.log(`[Tushare] 该时间范围内没有公告数据`);
+			log.info("Tushare", `该时间范围内没有公告数据`);
 			return [];
 		}
 
@@ -382,7 +384,7 @@ export class TushareClient {
 
 		// 如果返回的数据少于批次大小，说明已经获取完整个范围
 		if (batch.length < BATCH_SIZE) {
-			console.log(`[Tushare] 数据量小于批次大小，获取完成`);
+			log.debug("Tushare", `数据量小于批次大小，获取完成`);
 			return allAnnouncements;
 		}
 
@@ -391,24 +393,24 @@ export class TushareClient {
 		const oldestDate = dates[0];
 		const newestDate = dates[dates.length - 1];
 
-		console.log(`[Tushare] 首批数据日期范围: ${oldestDate} - ${newestDate}`);
+		log.debug("Tushare", `首批数据日期范围: ${oldestDate} - ${newestDate}`);
 
 		// 向后迭代：如果最旧的日期 > startDate，继续获取更早的数据
 		if (oldestDate > startDate) {
-			console.log(`[Tushare] 向后获取更早的数据...`);
+			log.debug("Tushare", `向后获取更早的数据...`);
 			let currentEndDate = this.getPreviousDay(oldestDate);
-			
+
 			while (currentEndDate >= startDate) {
-				console.log(`[Tushare] 获取历史数据: ${startDate} - ${currentEndDate}`);
+				log.debug("Tushare", `获取历史数据: ${startDate} - ${currentEndDate}`);
 				const historyBatch = await this.getAnnouncements(tsCode, undefined, startDate, currentEndDate, BATCH_SIZE, 0);
-				
+
 				if (!historyBatch || historyBatch.length === 0) {
-					console.log(`[Tushare] 没有更早的数据`);
+					log.debug("Tushare", `没有更早的数据`);
 					break;
 				}
 
 				allAnnouncements.push(...historyBatch);
-				console.log(`[Tushare] 获取到 ${historyBatch.length} 条历史公告，累计 ${allAnnouncements.length} 条`);
+				log.info("Tushare", `获取到 ${historyBatch.length} 条历史公告，累计 ${allAnnouncements.length} 条`);
 
 				if (onProgress) {
 					onProgress(`已获取 ${allAnnouncements.length} 条`, allAnnouncements.length, allAnnouncements.length);
@@ -430,20 +432,20 @@ export class TushareClient {
 
 		// 向前迭代：如果最新的日期 < endDate，继续获取更新的数据
 		if (newestDate < endDate) {
-			console.log(`[Tushare] 向前获取更新的数据...`);
+			log.debug("Tushare", `向前获取更新的数据...`);
 			let currentStartDate = this.getNextDay(newestDate);
-			
+
 			while (currentStartDate <= endDate) {
-				console.log(`[Tushare] 获取最新数据: ${currentStartDate} - ${endDate}`);
+				log.debug("Tushare", `获取最新数据: ${currentStartDate} - ${endDate}`);
 				const futureBatch = await this.getAnnouncements(tsCode, undefined, currentStartDate, endDate, BATCH_SIZE, 0);
-				
+
 				if (!futureBatch || futureBatch.length === 0) {
-					console.log(`[Tushare] 没有更新的数据`);
+					log.debug("Tushare", `没有更新的数据`);
 					break;
 				}
 
 				allAnnouncements.push(...futureBatch);
-				console.log(`[Tushare] 获取到 ${futureBatch.length} 条最新公告，累计 ${allAnnouncements.length} 条`);
+				log.info("Tushare", `获取到 ${futureBatch.length} 条最新公告，累计 ${allAnnouncements.length} 条`);
 
 				if (onProgress) {
 					onProgress(`已获取 ${allAnnouncements.length} 条`, allAnnouncements.length, allAnnouncements.length);

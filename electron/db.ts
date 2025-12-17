@@ -10,6 +10,7 @@ import {
 	DEFAULT_CLASSIFICATION_RULES,
 	ClassificationRule
 } from "../src/utils/announcementClassifier.js";
+import { log } from "./utils/logger.js";
 
 const dbPath = path.join(app.getPath("userData"), "cafe_stock.db");
 const db = new Database(dbPath);
@@ -151,12 +152,12 @@ function migrateDatabase() {
 
 	for (const column of announcementsRequiredColumns) {
 		if (!announcementsColumns.has(column.name)) {
-			console.log(`[DB Migration] 添加 announcements.${column.name} 列`);
+			log.info("DB", `添加 announcements.${column.name} 列`);
 			try {
 				db.exec(`ALTER TABLE announcements ADD COLUMN ${column.name} ${column.type}`);
-				console.log(`[DB Migration] announcements.${column.name} 列添加成功`);
+				log.info("DB", `announcements.${column.name} 列添加成功`);
 			} catch (error) {
-				console.error(`[DB Migration Error] 添加 announcements.${column.name} 列失败:`, error);
+				log.error("DB", `添加 announcements.${column.name} 列失败:`, error);
 			}
 		}
 	}
@@ -166,31 +167,31 @@ function migrateDatabase() {
 	const stocksColumns = new Set(stocksTableInfo.map((col) => col.name));
 
 	if (!stocksColumns.has("is_favorite")) {
-		console.log("[DB Migration] 添加 stocks.is_favorite 列");
+		log.info("DB", "添加 stocks.is_favorite 列");
 		try {
 			db.exec("ALTER TABLE stocks ADD COLUMN is_favorite INTEGER DEFAULT 0");
-			console.log("[DB Migration] stocks.is_favorite 列添加成功");
+			log.info("DB", "stocks.is_favorite 列添加成功");
 			
 			// 创建索引
 			db.exec("CREATE INDEX IF NOT EXISTS idx_stock_is_favorite ON stocks (is_favorite)");
-			console.log("[DB Migration] stocks.is_favorite 索引创建成功");
+			log.info("DB", "stocks.is_favorite 索引创建成功");
 		} catch (error) {
-			console.error("[DB Migration Error] 添加 stocks.is_favorite 列失败:", error);
+			log.error("DB", "添加 stocks.is_favorite 列失败:", error);
 		}
 	}
 
 	// 迁移 announcements 表，添加 category 字段
 	if (!announcementsColumns.has("category")) {
-		console.log("[DB Migration] 添加 announcements.category 列");
+		log.info("DB", "添加 announcements.category 列");
 		try {
 			db.exec("ALTER TABLE announcements ADD COLUMN category TEXT DEFAULT NULL");
-			console.log("[DB Migration] announcements.category 列添加成功");
+			log.info("DB", "announcements.category 列添加成功");
 			
 			// 添加索引以提升查询性能
 			db.exec("CREATE INDEX IF NOT EXISTS idx_ann_category ON announcements (category)");
-			console.log("[DB Migration] announcements.category 索引创建成功");
+			log.info("DB", "announcements.category 索引创建成功");
 		} catch (error) {
-			console.error("[DB Migration Error] 添加 announcements.category 列失败:", error);
+			log.error("DB", "添加 announcements.category 列失败:", error);
 		}
 	}
 

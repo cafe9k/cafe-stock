@@ -12,12 +12,13 @@ import { registerAnnouncementHandlers } from "./announcement.js";
 import { registerHolderHandlers } from "./holder.js";
 import { registerClassificationHandlers } from "./classification.js";
 import { registerDatabaseHandlers } from "./database.js";
+import { log } from "../utils/logger.js";
 
 /**
  * 注册所有 IPC 处理器
  */
 export function setupIPC(mainWindow: BrowserWindow | null): void {
-	console.log("[IPC] Setting up IPC handlers...");
+	log.info("IPC", "Setting up IPC handlers...");
 
 	// 系统相关（3个）
 	registerSystemHandlers();
@@ -46,11 +47,10 @@ export function setupIPC(mainWindow: BrowserWindow | null): void {
 	// 数据库相关（9个）
 	registerDatabaseHandlers(mainWindow);
 
-	console.log("[IPC] All IPC handlers registered successfully");
+	log.info("IPC", "All IPC handlers registered successfully");
 }
 
 /**
  * 导出数据库资源清理函数
  */
 export { cleanupDatabaseResources } from "./database.js";
-

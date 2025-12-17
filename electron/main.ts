@@ -11,6 +11,7 @@ import { setupIPC, cleanupDatabaseResources } from "./ipc/index.js";
 import { setupAutoUpdater } from "./updater/index.js";
 import { syncStocksIfNeeded } from "./services/stock.js";
 import { ExtendedApp } from "./types/index.js";
+import { log } from "./utils/logger.js";
 
 // 扩展 app 对象
 const extendedApp = app as typeof app & ExtendedApp;
@@ -19,9 +20,9 @@ const extendedApp = app as typeof app & ExtendedApp;
  * 应用初始化
  */
 async function initialize(): Promise<void> {
-	console.log("=".repeat(60));
-	console.log("酷咖啡股票助手 - 启动中...");
-	console.log("=".repeat(60));
+	log.info("App", "=".repeat(60));
+	log.info("App", "酷咖啡股票助手 - 启动中...");
+	log.info("App", "=".repeat(60));
 
 	// 创建主窗口
 	const mainWindow = createWindow();
@@ -50,12 +51,12 @@ async function initialize(): Promise<void> {
 	try {
 		await syncStocksIfNeeded();
 	} catch (error) {
-		console.error("Stock sync failed:", error);
+		log.error("App", "Stock sync failed:", error);
 	}
 
-	console.log("=".repeat(60));
-	console.log("酷咖啡股票助手 - 启动完成");
-	console.log("=".repeat(60));
+	log.info("App", "=".repeat(60));
+	log.info("App", "酷咖啡股票助手 - 启动完成");
+	log.info("App", "=".repeat(60));
 }
 
 /**
@@ -65,12 +66,12 @@ const gotTheLock = app.requestSingleInstanceLock();
 
 if (!gotTheLock) {
 	// 如果获取锁失败，说明已经有一个实例在运行，直接退出
-	console.log("应用已经在运行，退出当前实例");
+	log.info("App", "应用已经在运行，退出当前实例");
 	app.quit();
 } else {
 	// 当尝试启动第二个实例时，将焦点放回第一个实例的窗口
 	app.on("second-instance", () => {
-		console.log("检测到第二个实例尝试启动，聚焦到主窗口");
+		log.info("App", "检测到第二个实例尝试启动，聚焦到主窗口");
 		const mainWindow = getMainWindow();
 		if (mainWindow) {
 			if (mainWindow.isMinimized()) {
@@ -84,7 +85,7 @@ if (!gotTheLock) {
 	// 应用准备就绪时初始化
 	app.whenReady().then(() => {
 		initialize().catch((error) => {
-			console.error("Failed to initialize app:", error);
+			log.error("App", "Failed to initialize app:", error);
 			app.quit();
 		});
 	});
@@ -107,7 +108,7 @@ app.on("activate", () => {
 	const mainWindow = getMainWindow();
 	if (!mainWindow) {
 		initialize().catch((error) => {
-			console.error("Failed to re-initialize app:", error);
+			log.error("App", "Failed to re-initialize app:", error);
 		});
 	} else {
 		mainWindow.show();
@@ -119,7 +120,7 @@ app.on("activate", () => {
  */
 app.on("before-quit", () => {
 	extendedApp.isQuitting = true;
-	console.log("Application is quitting...");
+	log.info("App", "Application is quitting...");
 });
 
 /**
@@ -132,19 +133,19 @@ app.on("will-quit", () => {
 	// 清理数据库资源
 	cleanupDatabaseResources();
 
-	console.log("Application cleanup completed");
+	log.info("App", "Application cleanup completed");
 });
 
 /**
  * 处理未捕获的异常
  */
 process.on("uncaughtException", (error) => {
-	console.error("Uncaught Exception:", error);
+	log.error("App", "Uncaught Exception:", error);
 });
 
 /**
  * 处理未处理的 Promise 拒绝
  */
 process.on("unhandledRejection", (reason, promise) => {
-	console.error("Unhandled Rejection at:", promise, "reason:", reason);
+	log.error("App", "Unhandled Rejection at:", promise, "reason:", reason);
 });

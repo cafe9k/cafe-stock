@@ -15,6 +15,7 @@ import {
 import db from "../db.js";
 import { classifyAnnouncement } from "../../src/utils/announcementClassifier.js";
 import { AnnouncementListResponse, GroupedAnnouncement } from "../types/index.js";
+import { log } from "../utils/logger.js";
 
 /**
  * 从 Tushare API 获取公告数据并按股票聚合
@@ -44,7 +45,7 @@ export async function getAnnouncementsGroupedFromAPI(
 
 	if (isSynced) {
 		// 从数据库读取
-		console.log(`[DB Cache Hit] 从数据库读取公告: ${startDate} - ${endDate}`);
+		log.debug("Announcement", `从数据库读取公告: ${startDate} - ${endDate}`);
 		announcements = db
 			.prepare(
 				`
@@ -54,24 +55,24 @@ export async function getAnnouncementsGroupedFromAPI(
     `
 			)
 			.all(startDate, endDate);
-		console.log(`[DB Cache Hit] 从数据库读取到 ${announcements.length} 条公告`);
+		log.info("Announcement", `从数据库读取到 ${announcements.length} 条公告`);
 	} else {
 		// 从 API 获取
 		if (forceRefresh) {
-			console.log(`[Force Refresh] 强制从 API 获取公告: ${startDate || "无"} - ${endDate || "无"}`);
+			log.info("Announcement", `强制从 API 获取公告: ${startDate || "无"} - ${endDate || "无"}`);
 		} else {
-			console.log(`[DB Cache Miss] 从 API 获取公告: ${startDate || "无"} - ${endDate || "无"}`);
+			log.info("Announcement", `从 API 获取公告: ${startDate || "无"} - ${endDate || "无"}`);
 		}
 
 		if (startDate && endDate) {
 			// 如果有日期范围，使用完整获取方式确保覆盖整个日期范围
-			console.log(`[getAnnouncementsGroupedFromAPI] 使用完整获取方式获取公告: ${startDate} - ${endDate}`);
+			log.debug("Announcement", `使用完整获取方式获取公告: ${startDate} - ${endDate}`);
 			announcements = await TushareClient.getAnnouncementsComplete(
 				undefined, // 全市场
 				startDate,
 				endDate,
 				(message, current, total) => {
-					console.log(`[getAnnouncementsGroupedFromAPI] ${message}`);
+					log.debug("Announcement", message);
 				}
 			);
 		} else {
@@ -81,13 +82,13 @@ export async function getAnnouncementsGroupedFromAPI(
 
 		// 保存到数据库
 		if (announcements.length > 0) {
-			console.log(`[DB Cache] 保存 ${announcements.length} 条公告到数据库`);
+			log.info("Announcement", `保存 ${announcements.length} 条公告到数据库`);
 			upsertAnnouncements(announcements);
 
 			// 记录已同步的时间范围
 			if (startDate && endDate) {
 				recordAnnouncementSyncRange(null, startDate, endDate);
-				console.log(`[DB Cache] 记录同步范围: ${startDate} - ${endDate}`);
+				log.debug("Announcement", `记录同步范围: ${startDate} - ${endDate}`);
 			}
 		}
 	}
@@ -170,7 +171,7 @@ export async function getFavoriteStocksAnnouncementsGroupedFromAPI(
 
 	if (isSynced) {
 		// 从数据库读取关注股票的公告
-		console.log(`[DB Cache Hit] 从数据库读取关注股票公告: ${startDate} - ${endDate}`);
+		log.debug("Announcement", `从数据库读取关注股票公告: ${startDate} - ${endDate}`);
 
 		// 构建 SQL 查询，使用 IN 子句查询多个股票代码
 		const placeholders = favoriteStocks.map(() => "?").join(",");
@@ -182,10 +183,10 @@ export async function getFavoriteStocksAnnouncementsGroupedFromAPI(
 		`;
 
 		announcements = db.prepare(query).all(...favoriteStocks, startDate, endDate);
-		console.log(`[DB Cache Hit] 从数据库读取到 ${announcements.length} 条关注股票公告`);
+		log.info("Announcement", `从数据库读取到 ${announcements.length} 条关注股票公告`);
 	} else {
 		// 从 API 获取（逐个股票查询以避免 API 限制）
-		console.log(`[DB Cache Miss] 从 API 获取关注股票公告: ${startDate || "无"} - ${endDate || "无"}`);
+		log.info("Announcement", `从 API 获取关注股票公告: ${startDate || "无"} - ${endDate || "无"}`);
 
 		for (const tsCode of favoriteStocks) {
 			try {
@@ -197,13 +198,13 @@ export async function getFavoriteStocksAnnouncementsGroupedFromAPI(
 					await new Promise((resolve) => setTimeout(resolve, 200));
 				}
 			} catch (error) {
-				console.error(`Failed to get announcements for ${tsCode}:`, error);
+				log.error("Announcement", `Failed to get announcements for ${tsCode}:`, error);
 			}
 		}
 
 		// 保存到数据库
 		if (announcements.length > 0) {
-			console.log(`[DB Cache] 保存 ${announcements.length} 条关注股票公告到数据库`);
+			log.info("Announcement", `保存 ${announcements.length} 条关注股票公告到数据库`);
 			upsertAnnouncements(announcements);
 		}
 	}
