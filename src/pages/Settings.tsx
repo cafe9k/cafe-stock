@@ -293,10 +293,10 @@ export function Settings() {
 				</span>
 			),
 			children: (
-				<Space direction="vertical" size="large" style={{ width: "100%" }}>
+				<Space orientation="vertical" size="large" style={{ width: "100%" }}>
 					{/* 批量打标卡片 */}
 					<Card>
-						<Space direction="vertical" size="middle" style={{ width: "100%" }}>
+						<Space orientation="vertical" size="middle" style={{ width: "100%" }}>
 							<div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
 								<Statistic
 									title="未分类公告数量"
@@ -397,7 +397,7 @@ export function Settings() {
 							}
 							style={{ height: '100%' }}
 						>
-							<Space direction="vertical" size="large" style={{ width: "100%" }}>
+							<Space orientation="vertical" size="large" style={{ width: "100%" }}>
 								<Descriptions column={1} size="middle" bordered>
 									<Descriptions.Item label="数据库文件">
 										<Text copyable ellipsis style={{ maxWidth: 400 }}>
@@ -417,7 +417,7 @@ export function Settings() {
 									icon={<InfoCircleOutlined />}
 								/>
 
-								<Space direction="vertical" style={{ width: "100%" }}>
+								<Space orientation="vertical" style={{ width: "100%" }}>
 									<Button
 										danger
 										icon={<ReloadOutlined />}
@@ -449,7 +449,7 @@ export function Settings() {
 							}
 							style={{ height: '100%' }}
 						>
-							<Space direction="vertical" size="large" style={{ width: "100%" }}>
+							<Space orientation="vertical" size="large" style={{ width: "100%" }}>
 								<Descriptions column={1} size="middle" bordered>
 									<Descriptions.Item label="HTTP 服务器">
 										<Badge 
@@ -478,7 +478,7 @@ export function Settings() {
 									icon={<InfoCircleOutlined />}
 								/>
 
-								<Space direction="vertical" style={{ width: "100%" }} size="middle">
+								<Space orientation="vertical" style={{ width: "100%" }} size="middle">
 									<Space wrap style={{ width: "100%" }}>
 										<Button
 											type="primary"
@@ -552,7 +552,7 @@ export function Settings() {
 			),
 			children: (
 				<Card>
-					<Space direction="vertical" size="large" style={{ width: "100%" }}>
+					<Space orientation="vertical" size="large" style={{ width: "100%" }}>
 						<div style={{ textAlign: "center", padding: "24px 0" }}>
 							<Title level={2} style={{ marginBottom: 8 }}>酷咖啡</Title>
 							<Text type="secondary" style={{ fontSize: 16 }}>股票数据管理工具</Text>
@@ -651,7 +651,7 @@ export function Settings() {
 				closable={!resetting}
 				maskClosable={!resetting}
 			>
-				<Space direction="vertical" size="large" style={{ width: "100%" }}>
+				<Space orientation="vertical" size="large" style={{ width: "100%" }}>
 					<Alert
 						message="警告：此操作将删除所有本地数据！"
 						type="error"

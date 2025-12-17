@@ -68,7 +68,7 @@ export function StockListSyncIndicator({ visible, progress }: StockListSyncIndic
 					boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
 				}}
 			>
-				<Space direction="vertical" size="large" style={{ width: "100%" }}>
+				<Space orientation="vertical" size="large" style={{ width: "100%" }}>
 					<Spin spinning={isSyncing} size="large" indicator={<SyncOutlined spin style={{ fontSize: 32 }} />} />
 
 					<div>

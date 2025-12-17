@@ -325,7 +325,7 @@ export function DataInsights() {
 
 	return (
 		<div style={{ padding: 24 }}>
-			<Space direction="vertical" size="large" style={{ width: "100%" }}>
+			<Space orientation="vertical" size="large" style={{ width: "100%" }}>
 				{/* 同步进度提示 - 显示在页面顶部 */}
 				{syncProgress && (
 					<Card
@@ -336,7 +336,7 @@ export function DataInsights() {
 							boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
 						}}
 					>
-						<Space direction="vertical" size="middle" style={{ width: "100%" }}>
+						<Space orientation="vertical" size="middle" style={{ width: "100%" }}>
 							<div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
 								<Space>
 									<Text strong style={{ fontSize: 16 }}>
@@ -394,7 +394,7 @@ export function DataInsights() {
 
 				{/* 股票查询卡片 */}
 				<Card>
-					<Space direction="vertical" size="middle" style={{ width: "100%" }}>
+					<Space orientation="vertical" size="middle" style={{ width: "100%" }}>
 						{/* 同步统计信息 */}
 						<div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
 							<Text type="secondary" style={{ fontSize: 12 }}>
