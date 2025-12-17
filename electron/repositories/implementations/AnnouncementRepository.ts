@@ -7,7 +7,7 @@ import Database from "better-sqlite3";
 import { IAnnouncementRepository } from "../interfaces/IAnnouncementRepository.js";
 import { BaseRepository } from "../base/BaseRepository.js";
 import { ClassificationRepository } from "./ClassificationRepository.js";
-import { classifyAnnouncement, classifyAnnouncementWithRules, ClassificationRule } from "../../../src/utils/announcementClassifier.js";
+import { classifyAnnouncement, classifyAnnouncementWithRules, ClassificationRule } from "../../utils/announcementClassifier.js";
 
 /**
  * 公告仓储实现类

@@ -12,6 +12,7 @@ import { setupAutoUpdater } from "./updater/index.js";
 import { syncStocksIfNeeded } from "./services/stock.js";
 import { ExtendedApp } from "./types/index.js";
 import { log } from "./utils/logger.js";
+import { registerServices } from "./di/serviceRegistry.js";
 
 // 扩展 app 对象
 const extendedApp = app as typeof app & ExtendedApp;
@@ -23,6 +24,9 @@ async function initialize(): Promise<void> {
 	log.info("App", "=".repeat(60));
 	log.info("App", "酷咖啡股票助手 - 启动中...");
 	log.info("App", "=".repeat(60));
+
+	// 初始化依赖注入容器
+	registerServices();
 
 	// 创建主窗口
 	const mainWindow = createWindow();

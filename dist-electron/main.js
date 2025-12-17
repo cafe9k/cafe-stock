@@ -14383,31 +14383,276 @@ function installUpdate() {
 function getCurrentVersion() {
   return app.getVersion();
 }
-function registerSystemHandlers() {
-  ipcMain.handle("show-notification", async (_event, title, body) => {
-    if (Notification.isSupported()) {
-      new Notification({ title, body }).show();
+var ErrorCode = /* @__PURE__ */ ((ErrorCode2) => {
+  ErrorCode2["UNKNOWN_ERROR"] = "UNKNOWN_ERROR";
+  ErrorCode2["INVALID_PARAMS"] = "INVALID_PARAMS";
+  ErrorCode2["OPERATION_FAILED"] = "OPERATION_FAILED";
+  ErrorCode2["DATABASE_ERROR"] = "DATABASE_ERROR";
+  ErrorCode2["DATABASE_CONNECTION_ERROR"] = "DATABASE_CONNECTION_ERROR";
+  ErrorCode2["DATABASE_QUERY_ERROR"] = "DATABASE_QUERY_ERROR";
+  ErrorCode2["API_ERROR"] = "API_ERROR";
+  ErrorCode2["API_REQUEST_FAILED"] = "API_REQUEST_FAILED";
+  ErrorCode2["API_RESPONSE_ERROR"] = "API_RESPONSE_ERROR";
+  ErrorCode2["API_RATE_LIMIT"] = "API_RATE_LIMIT";
+  ErrorCode2["STOCK_NOT_FOUND"] = "STOCK_NOT_FOUND";
+  ErrorCode2["ANNOUNCEMENT_NOT_FOUND"] = "ANNOUNCEMENT_NOT_FOUND";
+  ErrorCode2["SYNC_IN_PROGRESS"] = "SYNC_IN_PROGRESS";
+  ErrorCode2["SYNC_FAILED"] = "SYNC_FAILED";
+  ErrorCode2["FILE_NOT_FOUND"] = "FILE_NOT_FOUND";
+  ErrorCode2["FILE_READ_ERROR"] = "FILE_READ_ERROR";
+  ErrorCode2["FILE_WRITE_ERROR"] = "FILE_WRITE_ERROR";
+  return ErrorCode2;
+})(ErrorCode || {});
+class AppError extends Error {
+  constructor(code, message, details) {
+    super(message);
+    this.name = "AppError";
+    this.code = code;
+    this.details = details;
+    if (Error.captureStackTrace) {
+      Error.captureStackTrace(this, AppError);
     }
-  });
-  ipcMain.handle("get-app-version", async () => {
-    return getCurrentVersion();
-  });
-  ipcMain.handle("open-external", async (_event, url) => {
+  }
+}
+function getErrorCode(error2) {
+  if (error2 instanceof AppError) {
+    return error2.code;
+  }
+  if (error2 instanceof Error) {
+    const message = error2.message.toLowerCase();
+    if (message.includes("database") || message.includes("sqlite")) {
+      return "DATABASE_ERROR";
+    }
+    if (message.includes("api") || message.includes("fetch") || message.includes("network")) {
+      return "API_ERROR";
+    }
+    if (message.includes("file") || message.includes("enoent")) {
+      return "FILE_NOT_FOUND";
+    }
+  }
+  return "UNKNOWN_ERROR";
+}
+function getErrorMessage(error2) {
+  if (error2 instanceof Error) {
+    return error2.message;
+  }
+  if (typeof error2 === "string") {
+    return error2;
+  }
+  return "未知错误";
+}
+function getErrorDetails(error2) {
+  if (error2 instanceof AppError) {
+    return error2.details;
+  }
+  if (error2 instanceof Error) {
+    return {
+      name: error2.name,
+      stack: error2.stack
+    };
+  }
+  return error2;
+}
+function createSuccessResponse(data) {
+  return {
+    success: true,
+    data
+  };
+}
+function createErrorResponse(error2) {
+  return {
+    success: false,
+    error: {
+      code: getErrorCode(error2),
+      message: getErrorMessage(error2),
+      details: getErrorDetails(error2)
+    }
+  };
+}
+const LOG_LEVEL_NAMES = {
+  [
+    0
+    /* DEBUG */
+  ]: "DEBUG",
+  [
+    1
+    /* INFO */
+  ]: "INFO",
+  [
+    2
+    /* WARN */
+  ]: "WARN",
+  [
+    3
+    /* ERROR */
+  ]: "ERROR"
+};
+function getConfig() {
+  const isDev2 = process.env.NODE_ENV !== "production" || !app.isPackaged;
+  return {
+    level: isDev2 ? 0 : 1,
+    enableFileLog: !isDev2,
+    // 生产环境启用文件日志
+    logFilePath: isDev2 ? void 0 : path$o.join(app.getPath("logs"), "cafe-stock.log"),
+    enableConsole: true
+  };
+}
+function formatTimestamp() {
+  const now = /* @__PURE__ */ new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  const hours = String(now.getHours()).padStart(2, "0");
+  const minutes = String(now.getMinutes()).padStart(2, "0");
+  const seconds = String(now.getSeconds()).padStart(2, "0");
+  const milliseconds = String(now.getMilliseconds()).padStart(3, "0");
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}.${milliseconds}`;
+}
+function formatMessage(level, category, message, ...args) {
+  const timestamp2 = formatTimestamp();
+  const levelName = LOG_LEVEL_NAMES[level];
+  const categoryStr = category ? `[${category}]` : "";
+  let formattedArgs = "";
+  if (args.length > 0) {
     try {
-      console.log(`[IPC] open-external: ${url}`);
+      formattedArgs = args.map((arg) => {
+        if (typeof arg === "object") {
+          return JSON.stringify(arg, null, 2);
+        }
+        return String(arg);
+      }).join(" ");
+    } catch (error2) {
+      formattedArgs = "[无法序列化的对象]";
+    }
+  }
+  const fullMessage = formattedArgs ? `${message} ${formattedArgs}` : message;
+  return `${timestamp2} [${levelName}]${categoryStr} ${fullMessage}`;
+}
+function writeToFile(config, formattedMessage) {
+  if (!config.enableFileLog || !config.logFilePath) {
+    return;
+  }
+  try {
+    const logDir = path$o.dirname(config.logFilePath);
+    if (!fs$k.existsSync(logDir)) {
+      fs$k.mkdirSync(logDir, { recursive: true });
+    }
+    fs$k.appendFileSync(config.logFilePath, formattedMessage + "\n", "utf-8");
+  } catch (error2) {
+    console.error("[Logger] Failed to write log to file:", error2);
+  }
+}
+class Logger {
+  constructor() {
+    this.config = getConfig();
+  }
+  /**
+   * 更新配置
+   */
+  updateConfig(config) {
+    this.config = { ...this.config, ...config };
+  }
+  /**
+   * 记录 DEBUG 级别日志
+   */
+  debug(category, message, ...args) {
+    this.log(0, category, message, ...args);
+  }
+  /**
+   * 记录 INFO 级别日志
+   */
+  info(category, message, ...args) {
+    this.log(1, category, message, ...args);
+  }
+  /**
+   * 记录 WARN 级别日志
+   */
+  warn(category, message, ...args) {
+    this.log(2, category, message, ...args);
+  }
+  /**
+   * 记录 ERROR 级别日志
+   */
+  error(category, message, ...args) {
+    this.log(3, category, message, ...args);
+  }
+  /**
+   * 核心日志记录方法
+   */
+  log(level, category, message, ...args) {
+    if (level < this.config.level) {
+      return;
+    }
+    const formattedMessage = formatMessage(level, category, message, ...args);
+    if (this.config.enableConsole) {
+      switch (level) {
+        case 0:
+          console.debug(formattedMessage);
+          break;
+        case 1:
+          console.info(formattedMessage);
+          break;
+        case 2:
+          console.warn(formattedMessage);
+          break;
+        case 3:
+          console.error(formattedMessage);
+          break;
+      }
+    }
+    if (level >= 2 || this.config.enableFileLog) {
+      writeToFile(this.config, formattedMessage);
+    }
+  }
+}
+const logger = new Logger();
+const log = {
+  debug: (category, message, ...args) => logger.debug(category, message, ...args),
+  info: (category, message, ...args) => logger.info(category, message, ...args),
+  warn: (category, message, ...args) => logger.warn(category, message, ...args),
+  error: (category, message, ...args) => logger.error(category, message, ...args)
+};
+function withErrorHandler(handler, handlerName) {
+  return async (event, ...args) => {
+    const name = handlerName || handler.name || "unknown";
+    try {
+      log.debug("IPC", `处理请求: ${name}`, args.length > 0 ? args : void 0);
+      const result = await handler(event, ...args);
+      log.debug("IPC", `请求成功: ${name}`);
+      return createSuccessResponse(result);
+    } catch (error2) {
+      log.error("IPC", `请求失败: ${name}`, error2);
+      return createErrorResponse(error2);
+    }
+  };
+}
+function registerSystemHandlers() {
+  ipcMain.handle(
+    "show-notification",
+    withErrorHandler(async (_event, title, body) => {
+      if (Notification.isSupported()) {
+        new Notification({ title, body }).show();
+      }
+      return { success: true };
+    }, "show-notification")
+  );
+  ipcMain.handle(
+    "get-app-version",
+    withErrorHandler(async () => {
+      return getCurrentVersion();
+    }, "get-app-version")
+  );
+  ipcMain.handle(
+    "open-external",
+    withErrorHandler(async (_event, url) => {
+      log.debug("IPC", `打开外部链接: ${url}`);
       if (!url.startsWith("http://") && !url.startsWith("https://")) {
-        throw new Error("只支持 HTTP/HTTPS 协议");
+        throw new AppError(ErrorCode.INVALID_PARAMS, "只支持 HTTP/HTTPS 协议");
       }
       await shell.openExternal(url);
       return { success: true };
-    } catch (error2) {
-      console.error("Failed to open external URL:", error2);
-      return {
-        success: false,
-        error: error2.message || "打开链接失败"
-      };
-    }
-  });
+    }, "open-external")
+  );
 }
 function registerUpdaterHandlers() {
   ipcMain.handle("check-for-updates", async () => {
@@ -14432,6 +14677,69 @@ function registerUpdaterHandlers() {
     console.log("[IPC] install-update");
     installUpdate();
   });
+}
+let dbInstance = null;
+let dbPath = null;
+function getDatabasePath() {
+  if (!dbPath) {
+    dbPath = path$o.join(app.getPath("userData"), "cafe_stock.db");
+  }
+  return dbPath;
+}
+function initializeDatabase() {
+  if (dbInstance) {
+    return dbInstance;
+  }
+  const path2 = getDatabasePath();
+  log.info("DB", `初始化数据库连接: ${path2}`);
+  try {
+    dbInstance = new Database(path2);
+    configureDatabasePerformance(dbInstance);
+    log.info("DB", "数据库连接初始化成功");
+    return dbInstance;
+  } catch (error2) {
+    log.error("DB", "数据库连接初始化失败:", error2);
+    throw error2;
+  }
+}
+function configureDatabasePerformance(db2) {
+  try {
+    db2.pragma("journal_mode = WAL");
+    db2.pragma("synchronous = NORMAL");
+    db2.pragma("cache_size = -64000");
+    db2.pragma("temp_store = MEMORY");
+    log.debug("DB", "数据库性能参数配置完成");
+  } catch (error2) {
+    log.error("DB", "配置数据库性能参数失败:", error2);
+    throw error2;
+  }
+}
+function getDatabase() {
+  if (!dbInstance) {
+    return initializeDatabase();
+  }
+  return dbInstance;
+}
+function closeDatabase$1() {
+  if (!dbInstance) {
+    log.warn("DB", "数据库连接未初始化，无需关闭");
+    return true;
+  }
+  try {
+    dbInstance.close();
+    dbInstance = null;
+    log.info("DB", "数据库连接已关闭");
+    return true;
+  } catch (error2) {
+    log.error("DB", "关闭数据库连接失败:", error2);
+    return false;
+  }
+}
+function analyzeQuery$1(sql, params = []) {
+  const db2 = getDatabase();
+  const plan = db2.prepare(`EXPLAIN QUERY PLAN ${sql}`).all(...params);
+  log.debug("DB", "Query Plan:", JSON.stringify(plan, null, 2));
+  return plan;
 }
 const CLASSIFICATION_RULES = [
   // 优先级1: 财务报告类 (覆盖率: 7.19%)
@@ -14865,330 +15173,198 @@ function getCategoryIcon(category) {
   };
   return iconMap[category] || "📄";
 }
-const LOG_LEVEL_NAMES = {
-  [
-    0
-    /* DEBUG */
-  ]: "DEBUG",
-  [
-    1
-    /* INFO */
-  ]: "INFO",
-  [
-    2
-    /* WARN */
-  ]: "WARN",
-  [
-    3
-    /* ERROR */
-  ]: "ERROR"
-};
-function getConfig() {
-  const isDev2 = process.env.NODE_ENV !== "production" || !app.isPackaged;
-  return {
-    level: isDev2 ? 0 : 1,
-    enableFileLog: !isDev2,
-    // 生产环境启用文件日志
-    logFilePath: isDev2 ? void 0 : path$o.join(app.getPath("logs"), "cafe-stock.log"),
-    enableConsole: true
-  };
-}
-function formatTimestamp() {
-  const now = /* @__PURE__ */ new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
-  const hours = String(now.getHours()).padStart(2, "0");
-  const minutes = String(now.getMinutes()).padStart(2, "0");
-  const seconds = String(now.getSeconds()).padStart(2, "0");
-  const milliseconds = String(now.getMilliseconds()).padStart(3, "0");
-  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}.${milliseconds}`;
-}
-function formatMessage(level, category, message, ...args) {
-  const timestamp2 = formatTimestamp();
-  const levelName = LOG_LEVEL_NAMES[level];
-  const categoryStr = category ? `[${category}]` : "";
-  let formattedArgs = "";
-  if (args.length > 0) {
-    try {
-      formattedArgs = args.map((arg) => {
-        if (typeof arg === "object") {
-          return JSON.stringify(arg, null, 2);
-        }
-        return String(arg);
-      }).join(" ");
-    } catch (error2) {
-      formattedArgs = "[无法序列化的对象]";
-    }
-  }
-  const fullMessage = formattedArgs ? `${message} ${formattedArgs}` : message;
-  return `${timestamp2} [${levelName}]${categoryStr} ${fullMessage}`;
-}
-function writeToFile(config, formattedMessage) {
-  if (!config.enableFileLog || !config.logFilePath) {
-    return;
-  }
+function createTables(db2) {
+  log.info("DB", "开始创建数据库表...");
   try {
-    const logDir = path$o.dirname(config.logFilePath);
-    if (!fs$k.existsSync(logDir)) {
-      fs$k.mkdirSync(logDir, { recursive: true });
-    }
-    fs$k.appendFileSync(config.logFilePath, formattedMessage + "\n", "utf-8");
+    db2.exec(`
+			CREATE TABLE IF NOT EXISTS stocks (
+				id INTEGER PRIMARY KEY AUTOINCREMENT,
+				ts_code TEXT NOT NULL UNIQUE,
+				symbol TEXT,
+				name TEXT,
+				area TEXT,
+				industry TEXT,
+				fullname TEXT,
+				enname TEXT,
+				cnspell TEXT,
+				market TEXT,
+				exchange TEXT,
+				curr_type TEXT,
+				list_status TEXT,
+				list_date TEXT,
+				delist_date TEXT,
+				is_hs TEXT,
+				updated_at TEXT NOT NULL
+			);
+
+			CREATE INDEX IF NOT EXISTS idx_stock_name ON stocks (name);
+			CREATE INDEX IF NOT EXISTS idx_stock_industry ON stocks (industry);
+			CREATE INDEX IF NOT EXISTS idx_stock_list_status ON stocks (list_status);
+
+			CREATE TABLE IF NOT EXISTS favorite_stocks (
+				id INTEGER PRIMARY KEY AUTOINCREMENT,
+				ts_code TEXT NOT NULL UNIQUE,
+				created_at TEXT NOT NULL
+			);
+
+			CREATE INDEX IF NOT EXISTS idx_favorite_ts_code ON favorite_stocks (ts_code);
+
+			CREATE TABLE IF NOT EXISTS sync_flags (
+				id INTEGER PRIMARY KEY AUTOINCREMENT,
+				sync_type TEXT NOT NULL UNIQUE,
+				last_sync_date TEXT NOT NULL,
+				updated_at TEXT NOT NULL
+			);
+
+			CREATE TABLE IF NOT EXISTS top10_holders (
+				id INTEGER PRIMARY KEY AUTOINCREMENT,
+				ts_code TEXT NOT NULL,
+				ann_date TEXT NOT NULL,
+				end_date TEXT NOT NULL,
+				holder_name TEXT NOT NULL,
+				hold_amount REAL,
+				hold_ratio REAL,
+				updated_at TEXT NOT NULL,
+				UNIQUE(ts_code, end_date, holder_name)
+			);
+
+			CREATE INDEX IF NOT EXISTS idx_top10_ts_code ON top10_holders (ts_code);
+			CREATE INDEX IF NOT EXISTS idx_top10_end_date ON top10_holders (end_date DESC);
+			CREATE INDEX IF NOT EXISTS idx_top10_holder_name ON top10_holders (holder_name);
+			CREATE INDEX IF NOT EXISTS idx_top10_ts_end_date ON top10_holders (ts_code, end_date DESC);
+
+			CREATE TABLE IF NOT EXISTS announcements (
+				id INTEGER PRIMARY KEY AUTOINCREMENT,
+				ts_code TEXT NOT NULL,
+				ann_date TEXT NOT NULL,
+				ann_type TEXT,
+				title TEXT,
+				content TEXT,
+				pub_time TEXT,
+				file_path TEXT,
+				name TEXT,
+				UNIQUE(ts_code, ann_date, title)
+			);
+
+			CREATE INDEX IF NOT EXISTS idx_ann_date ON announcements (ann_date DESC);
+			CREATE INDEX IF NOT EXISTS idx_ann_ts_code ON announcements (ts_code);
+			CREATE INDEX IF NOT EXISTS idx_ann_ts_code_date ON announcements (ts_code, ann_date DESC, pub_time DESC);
+
+			CREATE TABLE IF NOT EXISTS announcement_sync_ranges (
+				id INTEGER PRIMARY KEY AUTOINCREMENT,
+				ts_code TEXT,
+				start_date TEXT NOT NULL,
+				end_date TEXT NOT NULL,
+				synced_at TEXT NOT NULL
+			);
+
+			CREATE INDEX IF NOT EXISTS idx_sync_range_ts_code ON announcement_sync_ranges (ts_code);
+			CREATE INDEX IF NOT EXISTS idx_sync_range_dates ON announcement_sync_ranges (start_date, end_date);
+
+			CREATE TABLE IF NOT EXISTS classification_categories (
+				id INTEGER PRIMARY KEY AUTOINCREMENT,
+				category_key TEXT NOT NULL UNIQUE,
+				category_name TEXT NOT NULL,
+				color TEXT,
+				icon TEXT,
+				priority INTEGER NOT NULL,
+				enabled INTEGER DEFAULT 1,
+				created_at TEXT NOT NULL,
+				updated_at TEXT NOT NULL
+			);
+
+			CREATE INDEX IF NOT EXISTS idx_category_priority ON classification_categories (priority);
+			CREATE INDEX IF NOT EXISTS idx_category_enabled ON classification_categories (enabled);
+
+			CREATE TABLE IF NOT EXISTS classification_rules (
+				id INTEGER PRIMARY KEY AUTOINCREMENT,
+				category_key TEXT NOT NULL,
+				keyword TEXT NOT NULL,
+				enabled INTEGER DEFAULT 1,
+				created_at TEXT NOT NULL,
+				updated_at TEXT NOT NULL,
+				FOREIGN KEY (category_key) REFERENCES classification_categories(category_key)
+			);
+
+			CREATE INDEX IF NOT EXISTS idx_rules_category ON classification_rules(category_key);
+			CREATE INDEX IF NOT EXISTS idx_rules_enabled ON classification_rules(enabled);
+		`);
+    log.info("DB", "数据库表创建完成");
   } catch (error2) {
-    console.error("[Logger] Failed to write log to file:", error2);
+    log.error("DB", "创建数据库表失败:", error2);
+    throw error2;
   }
 }
-class Logger {
-  constructor() {
-    this.config = getConfig();
-  }
-  /**
-   * 更新配置
-   */
-  updateConfig(config) {
-    this.config = { ...this.config, ...config };
-  }
-  /**
-   * 记录 DEBUG 级别日志
-   */
-  debug(category, message, ...args) {
-    this.log(0, category, message, ...args);
-  }
-  /**
-   * 记录 INFO 级别日志
-   */
-  info(category, message, ...args) {
-    this.log(1, category, message, ...args);
-  }
-  /**
-   * 记录 WARN 级别日志
-   */
-  warn(category, message, ...args) {
-    this.log(2, category, message, ...args);
-  }
-  /**
-   * 记录 ERROR 级别日志
-   */
-  error(category, message, ...args) {
-    this.log(3, category, message, ...args);
-  }
-  /**
-   * 核心日志记录方法
-   */
-  log(level, category, message, ...args) {
-    if (level < this.config.level) {
-      return;
-    }
-    const formattedMessage = formatMessage(level, category, message, ...args);
-    if (this.config.enableConsole) {
-      switch (level) {
-        case 0:
-          console.debug(formattedMessage);
-          break;
-        case 1:
-          console.info(formattedMessage);
-          break;
-        case 2:
-          console.warn(formattedMessage);
-          break;
-        case 3:
-          console.error(formattedMessage);
-          break;
-      }
-    }
-    if (level >= 2 || this.config.enableFileLog) {
-      writeToFile(this.config, formattedMessage);
-    }
+function migrateDatabase(db2) {
+  log.info("DB", "开始数据库迁移...");
+  try {
+    migrateAnnouncementsTable(db2);
+    migrateStocksTable(db2);
+    initializeDefaultClassificationRules(db2);
+    log.info("DB", "数据库迁移完成");
+  } catch (error2) {
+    log.error("DB", "数据库迁移失败:", error2);
+    throw error2;
   }
 }
-const logger = new Logger();
-const log = {
-  debug: (category, message, ...args) => logger.debug(category, message, ...args),
-  info: (category, message, ...args) => logger.info(category, message, ...args),
-  warn: (category, message, ...args) => logger.warn(category, message, ...args),
-  error: (category, message, ...args) => logger.error(category, message, ...args)
-};
-const dbPath = path$o.join(app.getPath("userData"), "cafe_stock.db");
-const db = new Database(dbPath);
-const getDb = () => db;
-const getDbPath = () => dbPath;
-db.exec(`
-  CREATE TABLE IF NOT EXISTS stocks (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    ts_code TEXT NOT NULL UNIQUE,
-    symbol TEXT,
-    name TEXT,
-    area TEXT,
-    industry TEXT,
-    fullname TEXT,
-    enname TEXT,
-    cnspell TEXT,
-    market TEXT,
-    exchange TEXT,
-    curr_type TEXT,
-    list_status TEXT,
-    list_date TEXT,
-    delist_date TEXT,
-    is_hs TEXT,
-    updated_at TEXT NOT NULL
-  );
-
-  CREATE INDEX IF NOT EXISTS idx_stock_name ON stocks (name);
-  CREATE INDEX IF NOT EXISTS idx_stock_industry ON stocks (industry);
-  CREATE INDEX IF NOT EXISTS idx_stock_list_status ON stocks (list_status);
-
-  CREATE TABLE IF NOT EXISTS favorite_stocks (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    ts_code TEXT NOT NULL UNIQUE,
-    created_at TEXT NOT NULL
-  );
-
-  CREATE INDEX IF NOT EXISTS idx_favorite_ts_code ON favorite_stocks (ts_code);
-
-  CREATE TABLE IF NOT EXISTS sync_flags (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    sync_type TEXT NOT NULL UNIQUE,
-    last_sync_date TEXT NOT NULL,
-    updated_at TEXT NOT NULL
-  );
-
-
-  CREATE TABLE IF NOT EXISTS top10_holders (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    ts_code TEXT NOT NULL,
-    ann_date TEXT NOT NULL,
-    end_date TEXT NOT NULL,
-    holder_name TEXT NOT NULL,
-    hold_amount REAL,
-    hold_ratio REAL,
-    updated_at TEXT NOT NULL,
-    UNIQUE(ts_code, end_date, holder_name)
-  );
-
-  CREATE INDEX IF NOT EXISTS idx_top10_ts_code ON top10_holders (ts_code);
-  CREATE INDEX IF NOT EXISTS idx_top10_end_date ON top10_holders (end_date DESC);
-  CREATE INDEX IF NOT EXISTS idx_top10_holder_name ON top10_holders (holder_name);
-  CREATE INDEX IF NOT EXISTS idx_top10_ts_end_date ON top10_holders (ts_code, end_date DESC);
-
-  CREATE TABLE IF NOT EXISTS announcements (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    ts_code TEXT NOT NULL,
-    ann_date TEXT NOT NULL,
-    ann_type TEXT,
-    title TEXT,
-    content TEXT,
-    pub_time TEXT,
-    file_path TEXT,
-    name TEXT,
-    UNIQUE(ts_code, ann_date, title)
-  );
-
-  CREATE INDEX IF NOT EXISTS idx_ann_date ON announcements (ann_date DESC);
-  CREATE INDEX IF NOT EXISTS idx_ann_ts_code ON announcements (ts_code);
-  CREATE INDEX IF NOT EXISTS idx_ann_ts_code_date ON announcements (ts_code, ann_date DESC, pub_time DESC);
-
-  CREATE TABLE IF NOT EXISTS announcement_sync_ranges (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    ts_code TEXT,
-    start_date TEXT NOT NULL,
-    end_date TEXT NOT NULL,
-    synced_at TEXT NOT NULL
-  );
-
-  CREATE INDEX IF NOT EXISTS idx_sync_range_ts_code ON announcement_sync_ranges (ts_code);
-  CREATE INDEX IF NOT EXISTS idx_sync_range_dates ON announcement_sync_ranges (start_date, end_date);
-
-  CREATE TABLE IF NOT EXISTS classification_categories (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    category_key TEXT NOT NULL UNIQUE,
-    category_name TEXT NOT NULL,
-    color TEXT,
-    icon TEXT,
-    priority INTEGER NOT NULL,
-    enabled INTEGER DEFAULT 1,
-    created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL
-  );
-
-  CREATE INDEX IF NOT EXISTS idx_category_priority ON classification_categories (priority);
-  CREATE INDEX IF NOT EXISTS idx_category_enabled ON classification_categories (enabled);
-
-  CREATE TABLE IF NOT EXISTS classification_rules (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    category_key TEXT NOT NULL,
-    keyword TEXT NOT NULL,
-    enabled INTEGER DEFAULT 1,
-    created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL,
-    FOREIGN KEY (category_key) REFERENCES classification_categories(category_key)
-  );
-
-  CREATE INDEX IF NOT EXISTS idx_rules_category ON classification_rules(category_key);
-  CREATE INDEX IF NOT EXISTS idx_rules_enabled ON classification_rules(enabled);
-`);
-function migrateDatabase() {
-  const announcementsTableInfo = db.prepare("PRAGMA table_info(announcements)").all();
-  const announcementsColumns = new Set(announcementsTableInfo.map((col) => col.name));
-  const announcementsRequiredColumns = [
+function migrateAnnouncementsTable(db2) {
+  const tableInfo = db2.prepare("PRAGMA table_info(announcements)").all();
+  const columns = new Set(tableInfo.map((col) => col.name));
+  const requiredColumns = [
     { name: "name", type: "TEXT" },
     { name: "url", type: "TEXT" },
-    { name: "rec_time", type: "TEXT" }
+    { name: "rec_time", type: "TEXT" },
+    { name: "category", type: "TEXT DEFAULT NULL" }
   ];
-  for (const column of announcementsRequiredColumns) {
-    if (!announcementsColumns.has(column.name)) {
+  for (const column of requiredColumns) {
+    if (!columns.has(column.name)) {
       log.info("DB", `添加 announcements.${column.name} 列`);
       try {
-        db.exec(`ALTER TABLE announcements ADD COLUMN ${column.name} ${column.type}`);
+        db2.exec(`ALTER TABLE announcements ADD COLUMN ${column.name} ${column.type}`);
         log.info("DB", `announcements.${column.name} 列添加成功`);
+        if (column.name === "category") {
+          db2.exec("CREATE INDEX IF NOT EXISTS idx_ann_category ON announcements (category)");
+          log.info("DB", "announcements.category 索引创建成功");
+        }
       } catch (error2) {
         log.error("DB", `添加 announcements.${column.name} 列失败:`, error2);
       }
     }
   }
-  const stocksTableInfo = db.prepare("PRAGMA table_info(stocks)").all();
-  const stocksColumns = new Set(stocksTableInfo.map((col) => col.name));
-  if (!stocksColumns.has("is_favorite")) {
+}
+function migrateStocksTable(db2) {
+  const tableInfo = db2.prepare("PRAGMA table_info(stocks)").all();
+  const columns = new Set(tableInfo.map((col) => col.name));
+  if (!columns.has("is_favorite")) {
     log.info("DB", "添加 stocks.is_favorite 列");
     try {
-      db.exec("ALTER TABLE stocks ADD COLUMN is_favorite INTEGER DEFAULT 0");
+      db2.exec("ALTER TABLE stocks ADD COLUMN is_favorite INTEGER DEFAULT 0");
       log.info("DB", "stocks.is_favorite 列添加成功");
-      db.exec("CREATE INDEX IF NOT EXISTS idx_stock_is_favorite ON stocks (is_favorite)");
+      db2.exec("CREATE INDEX IF NOT EXISTS idx_stock_is_favorite ON stocks (is_favorite)");
       log.info("DB", "stocks.is_favorite 索引创建成功");
     } catch (error2) {
       log.error("DB", "添加 stocks.is_favorite 列失败:", error2);
     }
   }
-  if (!announcementsColumns.has("category")) {
-    log.info("DB", "添加 announcements.category 列");
-    try {
-      db.exec("ALTER TABLE announcements ADD COLUMN category TEXT DEFAULT NULL");
-      log.info("DB", "announcements.category 列添加成功");
-      db.exec("CREATE INDEX IF NOT EXISTS idx_ann_category ON announcements (category)");
-      log.info("DB", "announcements.category 索引创建成功");
-    } catch (error2) {
-      log.error("DB", "添加 announcements.category 列失败:", error2);
-    }
-  }
-  initializeDefaultClassificationRules();
 }
-function initializeDefaultClassificationRules() {
+function initializeDefaultClassificationRules(db2) {
   try {
-    const categoryCount = db.prepare("SELECT COUNT(*) as count FROM classification_categories").get();
+    const categoryCount = db2.prepare("SELECT COUNT(*) as count FROM classification_categories").get();
     if (categoryCount.count > 0) {
-      console.log("[DB Migration] 分类规则已存在，跳过初始化");
+      log.debug("DB", "分类规则已存在，跳过初始化");
       return;
     }
-    console.log("[DB Migration] 开始初始化默认分类规则");
+    log.info("DB", "开始初始化默认分类规则");
     const now = (/* @__PURE__ */ new Date()).toISOString();
-    const insertCategory = db.prepare(`
+    const insertCategory = db2.prepare(`
 			INSERT INTO classification_categories (category_key, category_name, color, icon, priority, enabled, created_at, updated_at)
 			VALUES (?, ?, ?, ?, ?, 1, ?, ?)
 		`);
-    const insertRule = db.prepare(`
+    const insertRule = db2.prepare(`
 			INSERT INTO classification_rules (category_key, keyword, enabled, created_at, updated_at)
 			VALUES (?, ?, 1, ?, ?)
 		`);
-    const insertAll = db.transaction(() => {
+    const insertAll = db2.transaction(() => {
       for (const rule of DEFAULT_CLASSIFICATION_RULES) {
         const categoryKey = rule.category;
         const categoryName = rule.category;
@@ -15202,62 +15378,138 @@ function initializeDefaultClassificationRules() {
       }
     });
     insertAll();
-    console.log("[DB Migration] 默认分类规则初始化完成");
+    log.info("DB", "默认分类规则初始化完成");
   } catch (error2) {
-    console.error("[DB Migration Error] 初始化分类规则失败:", error2);
+    log.error("DB", "初始化分类规则失败:", error2);
   }
 }
-migrateDatabase();
+class SyncFlagManager {
+  constructor(db2) {
+    this.db = db2;
+  }
+  /**
+   * 获取上次同步日期
+   */
+  getLastSyncDate(syncType) {
+    try {
+      const row = this.db.prepare("SELECT last_sync_date FROM sync_flags WHERE sync_type = ?").get(syncType);
+      return (row == null ? void 0 : row.last_sync_date) || null;
+    } catch (error2) {
+      log.error("SyncFlag", `获取同步日期失败 (${syncType}):`, error2);
+      return null;
+    }
+  }
+  /**
+   * 更新同步标志位
+   */
+  updateSyncFlag(syncType, syncDate) {
+    try {
+      const now = (/* @__PURE__ */ new Date()).toISOString();
+      this.db.prepare(
+        `
+				INSERT INTO sync_flags (sync_type, last_sync_date, updated_at)
+				VALUES (?, ?, ?)
+				ON CONFLICT(sync_type) DO UPDATE SET
+					last_sync_date = excluded.last_sync_date,
+					updated_at = excluded.updated_at
+			`
+      ).run(syncType, syncDate, now);
+      log.debug("SyncFlag", `更新同步标志位成功: ${syncType} = ${syncDate}`);
+      return true;
+    } catch (error2) {
+      log.error("SyncFlag", `更新同步标志位失败 (${syncType}):`, error2);
+      return false;
+    }
+  }
+  /**
+   * 检查今天是否已同步
+   */
+  isSyncedToday(syncType) {
+    const lastSync = this.getLastSyncDate(syncType);
+    if (!lastSync) return false;
+    const today = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10).replace(/-/g, "");
+    return lastSync === today;
+  }
+  /**
+   * 获取所有同步标志位
+   */
+  getAllSyncFlags() {
+    try {
+      return this.db.prepare("SELECT sync_type, last_sync_date, updated_at FROM sync_flags ORDER BY updated_at DESC").all();
+    } catch (error2) {
+      log.error("SyncFlag", "获取所有同步标志位失败:", error2);
+      return [];
+    }
+  }
+  /**
+   * 删除同步标志位
+   */
+  deleteSyncFlag(syncType) {
+    try {
+      this.db.prepare("DELETE FROM sync_flags WHERE sync_type = ?").run(syncType);
+      log.debug("SyncFlag", `删除同步标志位成功: ${syncType}`);
+      return true;
+    } catch (error2) {
+      log.error("SyncFlag", `删除同步标志位失败 (${syncType}):`, error2);
+      return false;
+    }
+  }
+  /**
+   * 清空所有同步标志位
+   */
+  clearAllSyncFlags() {
+    try {
+      this.db.prepare("DELETE FROM sync_flags").run();
+      log.info("SyncFlag", "清空所有同步标志位成功");
+      return true;
+    } catch (error2) {
+      log.error("SyncFlag", "清空所有同步标志位失败:", error2);
+      return false;
+    }
+  }
+}
+const db = initializeDatabase();
+createTables(db);
+migrateDatabase(db);
+const syncFlagManager = new SyncFlagManager(db);
+const getDb = () => {
+  return getDatabase();
+};
+const getDbPath = () => {
+  return getDatabasePath();
+};
 const getLastSyncDate = (syncType) => {
-  const row = db.prepare("SELECT last_sync_date FROM sync_flags WHERE sync_type = ?").get(syncType);
-  return (row == null ? void 0 : row.last_sync_date) || null;
+  return syncFlagManager.getLastSyncDate(syncType);
 };
 const updateSyncFlag = (syncType, syncDate) => {
-  const now = (/* @__PURE__ */ new Date()).toISOString();
-  db.prepare(
-    `
-    INSERT INTO sync_flags (sync_type, last_sync_date, updated_at)
-    VALUES (?, ?, ?)
-    ON CONFLICT(sync_type) DO UPDATE SET
-      last_sync_date = excluded.last_sync_date,
-      updated_at = excluded.updated_at
-  `
-  ).run(syncType, syncDate, now);
+  syncFlagManager.updateSyncFlag(syncType, syncDate);
 };
 const isSyncedToday = (syncType) => {
-  const lastSync = getLastSyncDate(syncType);
-  if (!lastSync) return false;
-  const today = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10).replace(/-/g, "");
-  return lastSync === today;
+  return syncFlagManager.isSyncedToday(syncType);
 };
-db.pragma("journal_mode = WAL");
-db.pragma("synchronous = NORMAL");
-db.pragma("cache_size = -64000");
-db.pragma("temp_store = MEMORY");
 const analyzeQuery = (sql, params = []) => {
-  const plan = db.prepare(`EXPLAIN QUERY PLAN ${sql}`).all(...params);
-  console.log("Query Plan:", JSON.stringify(plan, null, 2));
-  return plan;
+  return analyzeQuery$1(sql, params);
 };
 const closeDatabase = () => {
-  try {
-    db.close();
-    console.log("[DB] 数据库连接已关闭");
-    return true;
-  } catch (error2) {
-    console.error("[DB Error] 关闭数据库连接失败:", error2);
-    return false;
-  }
+  return closeDatabase$1();
 };
+log.info("DB", "数据库模块初始化完成");
 const db$1 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
+  SyncFlagManager,
   analyzeQuery,
   closeDatabase,
+  closeDatabaseConnection: closeDatabase$1,
+  createTables,
   default: db,
+  getDatabase,
+  getDatabasePath,
   getDb,
   getDbPath,
   getLastSyncDate,
   isSyncedToday,
+  migrateDatabase,
+  syncFlagManager,
   updateSyncFlag
 }, Symbol.toStringTag, { value: "Module" }));
 class BaseRepository {
@@ -17906,11 +18158,125 @@ function setupIPC(mainWindow2) {
   registerDatabaseHandlers(mainWindow2);
   log.info("IPC", "All IPC handlers registered successfully");
 }
+class DIContainer {
+  constructor() {
+    this.services = /* @__PURE__ */ new Map();
+    this.factories = /* @__PURE__ */ new Map();
+    this.singletons = /* @__PURE__ */ new Map();
+  }
+  /**
+   * 注册服务工厂函数
+   * @param key 服务标识
+   * @param factory 工厂函数
+   * @param singleton 是否单例（默认 true）
+   */
+  register(key, factory, singleton = true) {
+    this.factories.set(key, factory);
+    if (!singleton) {
+      this.services.set(key, factory);
+    }
+    log.debug("DI", `注册服务: ${key} (单例: ${singleton})`);
+  }
+  /**
+   * 注册服务实例（直接注册）
+   * @param key 服务标识
+   * @param instance 服务实例
+   */
+  registerInstance(key, instance) {
+    this.singletons.set(key, instance);
+    log.debug("DI", `注册服务实例: ${key}`);
+  }
+  /**
+   * 解析服务
+   * @param key 服务标识
+   * @returns 服务实例
+   */
+  resolve(key) {
+    if (this.singletons.has(key)) {
+      return this.singletons.get(key);
+    }
+    const factory = this.factories.get(key);
+    if (!factory) {
+      throw new Error(`服务未注册: ${key}`);
+    }
+    const instance = factory();
+    if (!this.services.has(key)) {
+      this.singletons.set(key, instance);
+    }
+    return instance;
+  }
+  /**
+   * 检查服务是否已注册
+   * @param key 服务标识
+   * @returns 是否已注册
+   */
+  has(key) {
+    return this.factories.has(key) || this.singletons.has(key);
+  }
+  /**
+   * 清空容器
+   */
+  clear() {
+    this.services.clear();
+    this.factories.clear();
+    this.singletons.clear();
+    log.debug("DI", "容器已清空");
+  }
+  /**
+   * 获取所有已注册的服务标识
+   */
+  getRegisteredKeys() {
+    const keys = /* @__PURE__ */ new Set();
+    this.factories.forEach((_, key) => keys.add(key));
+    this.singletons.forEach((_, key) => keys.add(key));
+    return Array.from(keys);
+  }
+}
+const container = new DIContainer();
+const SERVICE_KEYS = {
+  // 仓储
+  STOCK_REPOSITORY: "StockRepository",
+  FAVORITE_REPOSITORY: "FavoriteRepository",
+  ANNOUNCEMENT_REPOSITORY: "AnnouncementRepository",
+  HOLDER_REPOSITORY: "HolderRepository",
+  CLASSIFICATION_REPOSITORY: "ClassificationRepository"
+};
+function registerServices() {
+  log.info("DI", "开始注册服务...");
+  const db2 = getDatabase();
+  container.register(
+    SERVICE_KEYS.STOCK_REPOSITORY,
+    () => new StockRepository(db2),
+    true
+  );
+  container.register(
+    SERVICE_KEYS.FAVORITE_REPOSITORY,
+    () => new FavoriteRepository(db2),
+    true
+  );
+  container.register(
+    SERVICE_KEYS.ANNOUNCEMENT_REPOSITORY,
+    () => new AnnouncementRepository(db2),
+    true
+  );
+  container.register(
+    SERVICE_KEYS.HOLDER_REPOSITORY,
+    () => new HolderRepository(db2),
+    true
+  );
+  container.register(
+    SERVICE_KEYS.CLASSIFICATION_REPOSITORY,
+    () => new ClassificationRepository(db2),
+    true
+  );
+  log.info("DI", "服务注册完成");
+}
 const extendedApp = app;
 async function initialize() {
   log.info("App", "=".repeat(60));
   log.info("App", "酷咖啡股票助手 - 启动中...");
   log.info("App", "=".repeat(60));
+  registerServices();
   const mainWindow2 = createWindow();
   mainWindow2.on("close", (event) => {
     if (!extendedApp.isQuitting) {

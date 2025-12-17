@@ -33,7 +33,6 @@ import {
 	SettingOutlined,
 	CloudServerOutlined,
 	AppstoreOutlined,
-	ToolOutlined,
 	InfoCircleOutlined
 } from "@ant-design/icons";
 import { ClassificationRuleEditor } from "../components/ClassificationRuleEditor";

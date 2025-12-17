@@ -10,12 +10,10 @@ import {
 	message, 
 	Spin,
 	Typography,
-	InputNumber,
 	Tooltip
 } from "antd";
 import { 
 	PlusOutlined, 
-	DeleteOutlined, 
 	ArrowUpOutlined, 
 	ArrowDownOutlined,
 	SaveOutlined,
@@ -35,7 +33,7 @@ interface ClassificationRuleEditorProps {
 	onSave?: () => void;
 }
 
-export function ClassificationRuleEditor({ onSave }: ClassificationRuleEditorProps) {
+export function ClassificationRuleEditor({}: ClassificationRuleEditorProps) {
 	const [loading, setLoading] = useState(false);
 	const [saving, setSaving] = useState(false);
 	const [categories, setCategories] = useState<CategoryWithRules[]>([]);

@@ -142,12 +142,12 @@ export function AnnouncementList() {
 				});
 
 				// 直接在系统默认浏览器中打开
-				const openResult = await window.electronAPI.openExternal(result.url);
-				if (openResult.success) {
-					message.success("已在浏览器中打开公告");
-				} else {
-					message.error(openResult.error || "打开浏览器失败");
-				}
+			const openResult = await window.electronAPI.openExternal(result.url);
+			if (openResult.success) {
+				message.success("已在浏览器中打开公告");
+			} else {
+				message.error((openResult as any).error || "打开浏览器失败");
+			}
 			} else {
 				message.warning(result.message || "该公告暂无 PDF 文件");
 			}

@@ -6,6 +6,9 @@
 import { BrowserWindow, Tray, NativeImage } from "electron";
 import { Server } from "http";
 
+// 导出错误相关类型
+export * from "./errors.js";
+
 // ==================== 应用相关类型 ====================
 
 /**

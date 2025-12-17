@@ -8,7 +8,7 @@ import { getDb } from "../db.js";
 import { StockRepository } from "../repositories/implementations/StockRepository.js";
 import { FavoriteRepository } from "../repositories/implementations/FavoriteRepository.js";
 import { AnnouncementRepository } from "../repositories/implementations/AnnouncementRepository.js";
-import { classifyAnnouncement } from "../../src/utils/announcementClassifier.js";
+import { classifyAnnouncement } from "../utils/announcementClassifier.js";
 import { AnnouncementListResponse, GroupedAnnouncement } from "../types/index.js";
 import { log } from "../utils/logger.js";
 

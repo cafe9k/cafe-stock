@@ -11,7 +11,7 @@ import {
 	getCategoryIcon,
 	DEFAULT_CLASSIFICATION_RULES,
 	AnnouncementCategory,
-} from "../../../src/utils/announcementClassifier.js";
+} from "../../utils/announcementClassifier.js";
 
 /**
  * 分类仓储实现类
