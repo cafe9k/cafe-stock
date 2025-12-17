@@ -9561,14 +9561,6 @@ function Pf(e) {
 			CREATE INDEX IF NOT EXISTS idx_stock_industry ON stocks (industry);
 			CREATE INDEX IF NOT EXISTS idx_stock_list_status ON stocks (list_status);
 
-			CREATE TABLE IF NOT EXISTS favorite_stocks (
-				id INTEGER PRIMARY KEY AUTOINCREMENT,
-				ts_code TEXT NOT NULL UNIQUE,
-				created_at TEXT NOT NULL
-			);
-
-			CREATE INDEX IF NOT EXISTS idx_favorite_ts_code ON favorite_stocks (ts_code);
-
 			CREATE TABLE IF NOT EXISTS sync_flags (
 				id INTEGER PRIMARY KEY AUTOINCREMENT,
 				sync_type TEXT NOT NULL UNIQUE,
@@ -9656,7 +9648,7 @@ function Pf(e) {
 function Ff(e) {
   S.info("DB", "开始数据库迁移...");
   try {
-    iS(e), oS(e), sS(e), S.info("DB", "数据库迁移完成");
+    iS(e), oS(e), sS(e), aS(e), S.info("DB", "数据库迁移完成");
   } catch (t) {
     throw S.error("DB", "数据库迁移失败:", t), t;
   }
@@ -9690,6 +9682,13 @@ function oS(e) {
   }
 }
 function sS(e) {
+  try {
+    e.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='favorite_stocks'").get() ? (S.info("DB", "删除未使用的 favorite_stocks 表"), e.exec("DROP INDEX IF EXISTS idx_favorite_ts_code"), e.exec("DROP TABLE IF EXISTS favorite_stocks"), S.info("DB", "favorite_stocks 表删除成功")) : S.debug("DB", "favorite_stocks 表不存在，跳过删除");
+  } catch (t) {
+    S.error("DB", "删除 favorite_stocks 表失败:", t);
+  }
+}
+function aS(e) {
   try {
     if (e.prepare("SELECT COUNT(*) as count FROM classification_categories").get().count > 0) {
       S.debug("DB", "分类规则已存在，跳过初始化");
@@ -9792,14 +9791,14 @@ class Lf {
 const ji = If();
 Pf(ji);
 Ff(ji);
-const Rn = new Lf(ji), ye = () => Hi(), ri = () => Fs(), aS = (e) => Rn.getLastSyncDate(e), lS = (e, t) => {
+const Rn = new Lf(ji), ye = () => Hi(), ri = () => Fs(), lS = (e) => Rn.getLastSyncDate(e), cS = (e, t) => {
   Rn.updateSyncFlag(e, t);
-}, kf = (e) => Rn.isSyncedToday(e), cS = (e, t = []) => rS(e, t), xf = () => bf();
+}, kf = (e) => Rn.isSyncedToday(e), uS = (e, t = []) => rS(e, t), xf = () => bf();
 S.info("DB", "数据库模块初始化完成");
-const uS = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const fS = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   SyncFlagManager: Lf,
-  analyzeQuery: cS,
+  analyzeQuery: uS,
   closeDatabase: xf,
   closeDatabaseConnection: bf,
   createTables: Pf,
@@ -9808,11 +9807,11 @@ const uS = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   getDatabasePath: Fs,
   getDb: ye,
   getDbPath: ri,
-  getLastSyncDate: aS,
+  getLastSyncDate: lS,
   isSyncedToday: kf,
   migrateDatabase: Ff,
   syncFlagManager: Rn,
-  updateSyncFlag: lS
+  updateSyncFlag: cS
 }, Symbol.toStringTag, { value: "Module" }));
 class Sr {
   constructor(t) {
@@ -9910,49 +9909,49 @@ class qi extends Sr {
   }
 }
 const Ar = new qi(ye());
-function fS(e) {
+function dS(e) {
   return Ar.addFavoriteStock(e);
 }
-function dS(e) {
+function hS(e) {
   return Ar.removeFavoriteStock(e);
 }
-function hS(e) {
+function pS(e) {
   return Ar.isFavoriteStock(e);
 }
-function pS() {
+function gS() {
   return Ar.getAllFavoriteStocks();
 }
-function gS() {
+function mS() {
   return Ar.countFavoriteStocks();
 }
-function mS() {
+function yS() {
   x.handle("add-favorite-stock", async (e, t) => {
     try {
-      return console.log(`[IPC] add-favorite-stock: ${t}`), { success: fS(t) };
+      return console.log(`[IPC] add-favorite-stock: ${t}`), { success: dS(t) };
     } catch (n) {
       throw console.error("Failed to add favorite stock:", n), n;
     }
   }), x.handle("remove-favorite-stock", async (e, t) => {
     try {
-      return console.log(`[IPC] remove-favorite-stock: ${t}`), { success: dS(t) };
+      return console.log(`[IPC] remove-favorite-stock: ${t}`), { success: hS(t) };
     } catch (n) {
       throw console.error("Failed to remove favorite stock:", n), n;
     }
   }), x.handle("is-favorite-stock", async (e, t) => {
     try {
-      return { isFavorite: hS(t) };
+      return pS(t);
     } catch (n) {
       throw console.error("Failed to check favorite stock:", n), n;
     }
   }), x.handle("get-all-favorite-stocks", async () => {
     try {
-      return console.log("[IPC] get-all-favorite-stocks"), pS();
+      return console.log("[IPC] get-all-favorite-stocks"), gS();
     } catch (e) {
       throw console.error("Failed to get all favorite stocks:", e), e;
     }
   }), x.handle("count-favorite-stocks", async () => {
     try {
-      return console.log("[IPC] count-favorite-stocks"), { count: gS() };
+      return console.log("[IPC] count-favorite-stocks"), mS();
     } catch (e) {
       throw console.error("Failed to count favorite stocks:", e), e;
     }
@@ -10310,13 +10309,13 @@ const mi = class mi {
 };
 mi.TOKEN = "834c0133bb912100b3cdacaeb7b5741523839fd9f8932d9e24c0aa1d", mi.BASE_URL = "http://api.tushare.pro";
 let Ce = mi;
-async function yS(e, t, n) {
+async function ES(e, t, n) {
   return await Ce.getNews(e, t, n);
 }
-function ES() {
+function _S() {
   x.handle("get-news", async (e, t, n, r) => {
     try {
-      return console.log(`[IPC] get-news: src=${t}, dateRange=${n}-${r}`), await yS(t, n, r);
+      return console.log(`[IPC] get-news: src=${t}, dateRange=${n}-${r}`), await ES(t, n, r);
     } catch (i) {
       throw console.error("Failed to get news:", i), i;
     }
@@ -10913,7 +10912,7 @@ class Yi extends Sr {
   }
 }
 const Zo = new Cn(ye());
-async function _S() {
+async function vS() {
   try {
     const e = Zo.countStocks();
     if (e > 0) {
@@ -10934,7 +10933,7 @@ async function _S() {
     console.error("Failed to sync stocks:", e);
   }
 }
-async function vS(e) {
+async function wS(e) {
   try {
     console.log("Starting to sync all stocks..."), e == null || e({
       status: "started",
@@ -10978,8 +10977,8 @@ async function vS(e) {
     };
   }
 }
-const Un = new Cn(ye()), wS = new qi(ye()), TS = new Gi(ye()), tc = new Yi(ye());
-function SS(e) {
+const Un = new Cn(ye()), TS = new qi(ye()), SS = new Gi(ye()), tc = new Yi(ye());
+function AS(e) {
   x.handle("search-stocks", async (t, n, r = 50) => {
     try {
       return console.log(`[IPC] search-stocks: keyword=${n}, limit=${r}`), Un.searchStocks(n, r);
@@ -10994,7 +10993,7 @@ function SS(e) {
     }
   }), x.handle("sync-all-stocks", async () => {
     try {
-      return console.log("[IPC] sync-all-stocks"), await vS((n) => {
+      return console.log("[IPC] sync-all-stocks"), await wS((n) => {
         e == null || e.webContents.send("stock-list-sync-progress", n);
       });
     } catch (t) {
@@ -11032,7 +11031,7 @@ function SS(e) {
   }), x.handle("get-cache-data-stats", async () => {
     try {
       console.log("[IPC] get-cache-data-stats");
-      const t = Un.countStocks(), n = wS.countFavoriteStocks(), r = TS.countStocksWithTop10Holders(), i = tc.countAnnouncements(), o = Un.getStockListSyncInfo(), s = ye().prepare("SELECT sync_type, last_sync_date, updated_at FROM sync_flags ORDER BY sync_type").all(), l = ye().prepare("SELECT COUNT(*) as count FROM top10_holders").get().count;
+      const t = Un.countStocks(), n = TS.countFavoriteStocks(), r = SS.countStocksWithTop10Holders(), i = tc.countAnnouncements(), o = Un.getStockListSyncInfo(), s = ye().prepare("SELECT sync_type, last_sync_date, updated_at FROM sync_flags ORDER BY sync_type").all(), l = ye().prepare("SELECT COUNT(*) as count FROM top10_holders").get().count;
       return {
         stocks: {
           count: t,
@@ -11065,8 +11064,8 @@ function SS(e) {
     }
   });
 }
-const xs = new Cn(ye()), AS = new qi(ye()), Yt = new Yi(ye());
-async function RS(e, t, n, r, i, o) {
+const xs = new Cn(ye()), RS = new qi(ye()), Yt = new Yi(ye());
+async function CS(e, t, n, r, i, o) {
   const s = xs.getAllStocks();
   let a = s;
   i && i !== "all" && (a = s.filter((E) => E.market === i));
@@ -11083,7 +11082,7 @@ async function RS(e, t, n, r, i, o) {
   const c = Us(a, l), u = c.length, h = (e - 1) * t;
   return { items: c.slice(h, h + t), total: u, page: e, pageSize: t };
 }
-async function CS(e, t, n, r, i, o) {
+async function IS(e, t, n, r, i, o) {
   const s = xs.searchStocks(e, 1e3);
   let a = s;
   if (o && o !== "all" && (a = s.filter((E) => E.market === o)), a.length === 0)
@@ -11091,8 +11090,8 @@ async function CS(e, t, n, r, i, o) {
   const l = a.map((E) => E.ts_code).join(","), d = await Ce.getAnnouncements(l, void 0, r, i, 2e3, 0), c = Us(a, d), u = c.length, h = (t - 1) * n;
   return { items: c.slice(h, h + n), total: u, page: t, pageSize: n };
 }
-async function IS(e, t, n, r) {
-  const i = AS.getAllFavoriteStocks();
+async function bS(e, t, n, r) {
+  const i = RS.getAllFavoriteStocks();
   if (i.length === 0)
     return { items: [], total: 0, page: e, pageSize: t };
   const s = xs.getAllStocks().filter((g) => i.includes(g.ts_code));
@@ -11173,7 +11172,7 @@ function Lo(e) {
   return cr(e);
 }
 const mt = new Yi(ye());
-function bS() {
+function OS() {
   x.handle(
     "get-announcements-grouped",
     async (e, t, n, r, i, o, s) => {
@@ -11182,7 +11181,7 @@ function bS() {
           "IPC",
           `get-announcements-grouped: page=${t}, pageSize=${n}, dateRange=${r}-${i}, market=${o}, forceRefresh=${s}`
         );
-        const a = await RS(t, n, r, i, o, s);
+        const a = await CS(t, n, r, i, o, s);
         return S.debug("IPC", `get-announcements-grouped: page=${t}, items=${a.items.length}, total=${a.total}`), a;
       } catch (a) {
         throw S.error("IPC", "Failed to get grouped announcements:", a), a;
@@ -11215,7 +11214,7 @@ function bS() {
           "IPC",
           `search-announcements-grouped: keyword=${t}, page=${n}, pageSize=${r}, dateRange=${i}-${o}, market=${s}`
         );
-        const a = await CS(t, n, r, i, o, s);
+        const a = await IS(t, n, r, i, o, s);
         return S.debug("IPC", `search-announcements-grouped: page=${n}, items=${a.items.length}, total=${a.total}`), a;
       } catch (a) {
         throw S.error("IPC", "Failed to search grouped announcements:", a), a;
@@ -11226,7 +11225,7 @@ function bS() {
     async (e, t, n, r, i) => {
       try {
         S.debug("IPC", `get-favorite-stocks-announcements-grouped: page=${t}, pageSize=${n}, dateRange=${r}-${i}`);
-        const o = await IS(t, n, r, i);
+        const o = await bS(t, n, r, i);
         return S.debug("IPC", `get-favorite-stocks-announcements-grouped: page=${t}, items=${o.items.length}, total=${o.total}`), o;
       } catch (o) {
         throw S.error("IPC", "Failed to get favorite stocks announcements:", o), o;
@@ -11323,15 +11322,15 @@ function bS() {
     }
   });
 }
-const OS = new Cn(ye()), es = new Gi(ye());
+const NS = new Cn(ye()), es = new Gi(ye());
 let vt = !1, St = !1;
-async function NS(e, t) {
+async function $S(e, t) {
   var n, r;
   if (vt)
     return { success: !1, status: "skipped", message: "同步正在进行中" };
   vt = !0, St = !1, console.log("[Holder Service] Starting sync all top10 holders...");
   try {
-    const i = OS.getAllStocks(), o = i.length;
+    const i = NS.getAllStocks(), o = i.length;
     if (o === 0)
       return { success: !1, status: "failed", message: "没有股票数据，请先同步股票列表" };
     console.log(`[Holder Service] Total stocks to sync: ${o}`);
@@ -11410,17 +11409,17 @@ async function NS(e, t) {
     vt = !1, St = !1;
   }
 }
-function $S() {
+function DS() {
   if (!vt)
     return { status: "failed", message: "没有正在进行的同步任务" };
   St = !St;
   const e = St ? "paused" : "resumed", t = St ? "同步已暂停" : "同步已恢复";
   return console.log(`[Holder Service] Sync ${e}`), { status: e, message: t };
 }
-function DS() {
+function PS() {
   return vt ? (vt = !1, St = !1, console.log("[Holder Service] Sync stopped"), { status: "stopped", message: "同步已停止" }) : { status: "failed", message: "没有正在进行的同步任务" };
 }
-async function PS(e) {
+async function FS(e) {
   try {
     console.log(`[Holder Service] Syncing top10 holders for ${e}...`);
     const t = await Ce.getTop10Holders(e);
@@ -11440,8 +11439,8 @@ async function PS(e) {
     };
   }
 }
-const FS = new Cn(ye()), Mt = new Gi(ye());
-function LS(e) {
+const LS = new Cn(ye()), Mt = new Gi(ye());
+function kS(e) {
   x.handle("get-top10-holders", async (t, n, r, i, o, s) => {
     try {
       return console.log(
@@ -11452,25 +11451,25 @@ function LS(e) {
     }
   }), x.handle("sync-all-top10-holders", async (t) => {
     try {
-      return console.log("[IPC] sync-all-top10-holders"), await NS(e);
+      return console.log("[IPC] sync-all-top10-holders"), await $S(e);
     } catch (n) {
       throw console.error("Failed to sync all top10 holders:", n), n;
     }
   }), x.handle("toggle-pause-top10-holders-sync", async () => {
     try {
-      return console.log("[IPC] toggle-pause-top10-holders-sync"), $S();
+      return console.log("[IPC] toggle-pause-top10-holders-sync"), DS();
     } catch (t) {
       throw console.error("Failed to toggle pause sync:", t), t;
     }
   }), x.handle("stop-top10-holders-sync", async () => {
     try {
-      return console.log("[IPC] stop-top10-holders-sync"), DS();
+      return console.log("[IPC] stop-top10-holders-sync"), PS();
     } catch (t) {
       throw console.error("Failed to stop sync:", t), t;
     }
   }), x.handle("sync-stock-top10-holders", async (t, n) => {
     try {
-      return console.log(`[IPC] sync-stock-top10-holders: tsCode=${n}`), Mt.deleteTop10HoldersByStock(n), await PS(n);
+      return console.log(`[IPC] sync-stock-top10-holders: tsCode=${n}`), Mt.deleteTop10HoldersByStock(n), await FS(n);
     } catch (r) {
       return console.error("Failed to sync stock top10 holders:", r), {
         status: "failed",
@@ -11491,7 +11490,7 @@ function LS(e) {
     }
   }), x.handle("get-top10-holders-sync-stats", async () => {
     try {
-      const t = FS.countStocks(), n = Mt.countStocksWithTop10Holders(), r = Mt.getStocksWithTop10Holders();
+      const t = LS.countStocks(), n = Mt.countStocksWithTop10Holders(), r = Mt.getStocksWithTop10Holders();
       return {
         totalStocks: t,
         syncedStocks: n,
@@ -11516,7 +11515,7 @@ function LS(e) {
   });
 }
 const yt = new ks(ye());
-function kS() {
+function xS() {
   x.handle("get-classification-categories", async () => {
     try {
       return { success: !0, categories: yt.getClassificationCategories() };
@@ -11572,7 +11571,7 @@ let ge = null, Bt = 8080, qe = "", at = "";
 function nc() {
   return z.join(se.getPath("userData"), "column-widths.json");
 }
-function xS(e) {
+function US(e) {
   x.handle("get-db-connection-info", async () => {
     try {
       const t = ri(), n = ge !== null, r = n ? `http://localhost:${Bt}` : null, i = !!(qe && at);
@@ -11601,7 +11600,7 @@ function xS(e) {
           message: "HTTP 服务器已在运行",
           port: Bt
         };
-      const r = n || Bt, i = ri(), s = (await Promise.resolve().then(() => uS)).default;
+      const r = n || Bt, i = ri(), s = (await Promise.resolve().then(() => fS)).default;
       return ge = Kd(async (a, l) => {
         if (l.setHeader("Access-Control-Allow-Origin", "*"), l.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS"), l.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization"), l.setHeader("Content-Type", "application/json; charset=utf-8"), a.method === "OPTIONS") {
           l.writeHead(200), l.end();
@@ -11833,13 +11832,13 @@ function xS(e) {
     }
   });
 }
-function US() {
+function MS() {
   ge && (ge.close(), ge = null);
 }
-function MS(e) {
-  S.info("IPC", "Setting up IPC handlers..."), eS(), tS(), mS(), ES(), SS(e), bS(), LS(e), kS(), xS(e), S.info("IPC", "All IPC handlers registered successfully");
+function BS(e) {
+  S.info("IPC", "Setting up IPC handlers..."), eS(), tS(), yS(), _S(), AS(e), OS(), kS(e), xS(), US(e), S.info("IPC", "All IPC handlers registered successfully");
 }
-class BS {
+class HS {
   constructor() {
     this.services = /* @__PURE__ */ new Map(), this.factories = /* @__PURE__ */ new Map(), this.singletons = /* @__PURE__ */ new Map();
   }
@@ -11896,7 +11895,7 @@ class BS {
     return this.factories.forEach((n, r) => t.add(r)), this.singletons.forEach((n, r) => t.add(r)), Array.from(t);
   }
 }
-const Mn = new BS(), Bn = {
+const Mn = new HS(), Bn = {
   // 仓储
   STOCK_REPOSITORY: "StockRepository",
   FAVORITE_REPOSITORY: "FavoriteRepository",
@@ -11904,7 +11903,7 @@ const Mn = new BS(), Bn = {
   HOLDER_REPOSITORY: "HolderRepository",
   CLASSIFICATION_REPOSITORY: "ClassificationRepository"
 };
-function HS() {
+function jS() {
   S.info("DI", "开始注册服务...");
   const e = Hi();
   Mn.register(
@@ -11931,20 +11930,20 @@ function HS() {
 }
 const ts = se;
 async function Uf() {
-  S.info("App", "=".repeat(60)), S.info("App", "酷咖啡股票助手 - 启动中..."), S.info("App", "=".repeat(60)), HS();
+  S.info("App", "=".repeat(60)), S.info("App", "酷咖啡股票助手 - 启动中..."), S.info("App", "=".repeat(60)), jS();
   const e = Ah();
   e.on("close", (t) => {
     ts.isQuitting || (t.preventDefault(), e.hide());
-  }), bh(e, ts), Oh(e), MS(e), UT(e);
+  }), bh(e, ts), Oh(e), BS(e), UT(e);
   try {
-    await _S();
+    await vS();
   } catch (t) {
     S.error("App", "Stock sync failed:", t);
   }
   S.info("App", "=".repeat(60)), S.info("App", "酷咖啡股票助手 - 启动完成"), S.info("App", "=".repeat(60));
 }
-const jS = se.requestSingleInstanceLock();
-jS ? (se.on("second-instance", () => {
+const qS = se.requestSingleInstanceLock();
+qS ? (se.on("second-instance", () => {
   S.info("App", "检测到第二个实例尝试启动，聚焦到主窗口");
   const e = mc();
   e && (e.isMinimized() && e.restore(), e.focus(), e.show());
@@ -11966,7 +11965,7 @@ se.on("before-quit", () => {
   ts.isQuitting = !0, S.info("App", "Application is quitting...");
 });
 se.on("will-quit", () => {
-  rc.unregisterAll(), US(), S.info("App", "Application cleanup completed");
+  rc.unregisterAll(), MS(), S.info("App", "Application cleanup completed");
 });
 process.on("uncaughtException", (e) => {
   S.error("App", "Uncaught Exception:", e);

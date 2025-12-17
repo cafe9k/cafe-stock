@@ -500,10 +500,9 @@ cafe-stock/
 
 **核心表结构**:
 
--   `stocks`: 股票基本信息
+-   `stocks`: 股票基本信息（包含 `is_favorite` 字段用于关注功能）
 -   `announcements`: 公告数据
 -   `top10_holders`: 十大股东数据
--   `favorite_stocks`: 收藏股票（通过 stocks.is_favorite）
 -   `sync_flags`: 同步标志位
 -   `announcement_sync_ranges`: 公告同步范围记录
 -   `classification_categories`: 分类定义

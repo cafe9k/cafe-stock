@@ -37,7 +37,7 @@ export function registerFavoriteHandlers(): void {
 	ipcMain.handle("is-favorite-stock", async (_event, tsCode: string) => {
 		try {
 			const isFavorite = favoriteService.isFavoriteStock(tsCode);
-			return { isFavorite };
+			return isFavorite;
 		} catch (error: any) {
 			console.error("Failed to check favorite stock:", error);
 			throw error;
@@ -61,7 +61,7 @@ export function registerFavoriteHandlers(): void {
 		try {
 			console.log("[IPC] count-favorite-stocks");
 			const count = favoriteService.countFavoriteStocks();
-			return { count };
+			return count;
 		} catch (error: any) {
 			console.error("Failed to count favorite stocks:", error);
 			throw error;

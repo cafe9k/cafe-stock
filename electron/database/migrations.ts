@@ -39,14 +39,6 @@ export function createTables(db: Database.Database): void {
 			CREATE INDEX IF NOT EXISTS idx_stock_industry ON stocks (industry);
 			CREATE INDEX IF NOT EXISTS idx_stock_list_status ON stocks (list_status);
 
-			CREATE TABLE IF NOT EXISTS favorite_stocks (
-				id INTEGER PRIMARY KEY AUTOINCREMENT,
-				ts_code TEXT NOT NULL UNIQUE,
-				created_at TEXT NOT NULL
-			);
-
-			CREATE INDEX IF NOT EXISTS idx_favorite_ts_code ON favorite_stocks (ts_code);
-
 			CREATE TABLE IF NOT EXISTS sync_flags (
 				id INTEGER PRIMARY KEY AUTOINCREMENT,
 				sync_type TEXT NOT NULL UNIQUE,
@@ -148,6 +140,9 @@ export function migrateDatabase(db: Database.Database): void {
 		// 迁移 stocks 表
 		migrateStocksTable(db);
 
+		// 删除未使用的 favorite_stocks 表
+		dropFavoriteStocksTable(db);
+
 		// 初始化分类规则
 		initializeDefaultClassificationRules(db);
 
@@ -210,6 +205,33 @@ function migrateStocksTable(db: Database.Database): void {
 		} catch (error) {
 			log.error("DB", "添加 stocks.is_favorite 列失败:", error);
 		}
+	}
+}
+
+/**
+ * 删除未使用的 favorite_stocks 表
+ * 注意：关注功能现在使用 stocks.is_favorite 字段，不再需要单独的 favorite_stocks 表
+ */
+function dropFavoriteStocksTable(db: Database.Database): void {
+	try {
+		// 检查表是否存在
+		const tableExists = db
+			.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='favorite_stocks'")
+			.get() as { name: string } | undefined;
+
+		if (tableExists) {
+			log.info("DB", "删除未使用的 favorite_stocks 表");
+			// 先删除索引
+			db.exec("DROP INDEX IF EXISTS idx_favorite_ts_code");
+			// 删除表
+			db.exec("DROP TABLE IF EXISTS favorite_stocks");
+			log.info("DB", "favorite_stocks 表删除成功");
+		} else {
+			log.debug("DB", "favorite_stocks 表不存在，跳过删除");
+		}
+	} catch (error) {
+		log.error("DB", "删除 favorite_stocks 表失败:", error);
+		// 不抛出错误，允许迁移继续执行
 	}
 }
 
