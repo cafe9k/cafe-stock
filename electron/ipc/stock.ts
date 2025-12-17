@@ -4,8 +4,18 @@
 
 import { ipcMain, BrowserWindow } from "electron";
 import { TushareClient } from "../tushare.js";
-import { searchStocks, getStockListSyncInfo, isSyncedToday, getCacheDataStats, getUntaggedAnnouncementsCount } from "../db.js";
+import { getDb, isSyncedToday } from "../db.js";
+import { StockRepository } from "../repositories/implementations/StockRepository.js";
+import { FavoriteRepository } from "../repositories/implementations/FavoriteRepository.js";
+import { HolderRepository } from "../repositories/implementations/HolderRepository.js";
+import { AnnouncementRepository } from "../repositories/implementations/AnnouncementRepository.js";
 import * as stockService from "../services/stock.js";
+
+// 创建仓储实例
+const stockRepository = new StockRepository(getDb());
+const favoriteRepository = new FavoriteRepository(getDb());
+const holderRepository = new HolderRepository(getDb());
+const announcementRepository = new AnnouncementRepository(getDb());
 
 /**
  * 注册股票相关 IPC 处理器
@@ -15,7 +25,7 @@ export function registerStockHandlers(mainWindow: BrowserWindow | null): void {
 	ipcMain.handle("search-stocks", async (_event, keyword: string, limit: number = 50) => {
 		try {
 			console.log(`[IPC] search-stocks: keyword=${keyword}, limit=${limit}`);
-			return searchStocks(keyword, limit);
+			return stockRepository.searchStocks(keyword, limit);
 		} catch (error: any) {
 			console.error("Failed to search stocks:", error);
 			throw error;
@@ -26,7 +36,7 @@ export function registerStockHandlers(mainWindow: BrowserWindow | null): void {
 	ipcMain.handle("get-stock-list-sync-info", async () => {
 		try {
 			console.log("[IPC] get-stock-list-sync-info");
-			return getStockListSyncInfo();
+			return stockRepository.getStockListSyncInfo();
 		} catch (error: any) {
 			console.error("Failed to get stock list sync info:", error);
 			throw error;
@@ -51,7 +61,7 @@ export function registerStockHandlers(mainWindow: BrowserWindow | null): void {
 	ipcMain.handle("check-stock-list-sync-status", async () => {
 		try {
 			console.log("[IPC] check-stock-list-sync-status");
-			const syncInfo = getStockListSyncInfo();
+			const syncInfo = stockRepository.getStockListSyncInfo();
 			const isSynced = isSyncedToday("stock_list");
 
 			return {
@@ -106,8 +116,48 @@ export function registerStockHandlers(mainWindow: BrowserWindow | null): void {
 	ipcMain.handle("get-cache-data-stats", async () => {
 		try {
 			console.log("[IPC] get-cache-data-stats");
-			const stats = getCacheDataStats();
-			return stats;
+			const stockCount = stockRepository.countStocks();
+			const favoriteCount = favoriteRepository.countFavoriteStocks();
+			const top10HoldersCount = holderRepository.countStocksWithTop10Holders();
+			const announcementsCount = announcementRepository.countAnnouncements();
+			const stockSyncInfo = stockRepository.getStockListSyncInfo();
+
+			// 获取同步标志位信息
+			const syncFlags = getDb()
+				.prepare("SELECT sync_type, last_sync_date, updated_at FROM sync_flags ORDER BY sync_type")
+				.all() as Array<{
+					sync_type: string;
+					last_sync_date: string;
+					updated_at: string;
+				}>;
+
+			// 统计十大股东记录总数
+			const top10HoldersRecordRow = getDb()
+				.prepare("SELECT COUNT(*) as count FROM top10_holders")
+				.get() as { count: number };
+			const top10HoldersRecordCount = top10HoldersRecordRow.count;
+
+			return {
+				stocks: {
+					count: stockCount,
+					lastSyncTime: stockSyncInfo.lastSyncTime,
+				},
+				favoriteStocks: {
+					count: favoriteCount,
+				},
+				top10Holders: {
+					stockCount: top10HoldersCount,
+					recordCount: top10HoldersRecordCount,
+				},
+				announcements: {
+					count: announcementsCount,
+				},
+				syncFlags: syncFlags.map((flag) => ({
+					type: flag.sync_type,
+					lastSyncDate: flag.last_sync_date,
+					updatedAt: flag.updated_at,
+				})),
+			};
 		} catch (error: any) {
 			console.error("Failed to get cache data stats:", error);
 			throw error;
@@ -118,7 +168,7 @@ export function registerStockHandlers(mainWindow: BrowserWindow | null): void {
 	ipcMain.handle("get-untagged-count", async () => {
 		try {
 			console.log("[IPC] get-untagged-count");
-			const count = getUntaggedAnnouncementsCount();
+			const count = announcementRepository.getUntaggedAnnouncementsCount();
 			return { count };
 		} catch (error: any) {
 			console.error("Failed to get untagged count:", error);

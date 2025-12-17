@@ -15010,6 +15010,7 @@ const log = {
 };
 const dbPath = path$o.join(app.getPath("userData"), "cafe_stock.db");
 const db = new Database(dbPath);
+const getDb = () => db;
 const getDbPath = () => dbPath;
 db.exec(`
   CREATE TABLE IF NOT EXISTS stocks (
@@ -15170,611 +15171,6 @@ function migrateDatabase() {
   }
   initializeDefaultClassificationRules();
 }
-migrateDatabase();
-const upsertStocks = (items) => {
-  const now = (/* @__PURE__ */ new Date()).toISOString();
-  const upsert = db.prepare(`
-    INSERT INTO stocks (
-      ts_code, symbol, name, area, industry, fullname, enname, cnspell,
-      market, exchange, curr_type, list_status, list_date, delist_date, is_hs, updated_at
-    )
-    VALUES (
-      @ts_code, @symbol, @name, @area, @industry, @fullname, @enname, @cnspell,
-      @market, @exchange, @curr_type, @list_status, @list_date, @delist_date, @is_hs, @updated_at
-    )
-    ON CONFLICT(ts_code) DO UPDATE SET
-      symbol = excluded.symbol,
-      name = excluded.name,
-      area = excluded.area,
-      industry = excluded.industry,
-      fullname = excluded.fullname,
-      enname = excluded.enname,
-      cnspell = excluded.cnspell,
-      market = excluded.market,
-      exchange = excluded.exchange,
-      curr_type = excluded.curr_type,
-      list_status = excluded.list_status,
-      list_date = excluded.list_date,
-      delist_date = excluded.delist_date,
-      is_hs = excluded.is_hs,
-      updated_at = excluded.updated_at
-  `);
-  const upsertMany = db.transaction((stocks) => {
-    for (const stock of stocks) {
-      upsert.run({
-        ts_code: stock.ts_code || null,
-        symbol: stock.symbol || null,
-        name: stock.name || null,
-        area: stock.area || null,
-        industry: stock.industry || null,
-        fullname: stock.fullname || null,
-        enname: stock.enname || null,
-        cnspell: stock.cnspell || null,
-        market: stock.market || null,
-        exchange: stock.exchange || null,
-        curr_type: stock.curr_type || null,
-        list_status: stock.list_status || null,
-        list_date: stock.list_date || null,
-        delist_date: stock.delist_date || null,
-        is_hs: stock.is_hs || null,
-        updated_at: now
-      });
-    }
-  });
-  upsertMany(items);
-};
-const getAllStocks = () => {
-  return db.prepare("SELECT * FROM stocks ORDER BY ts_code").all();
-};
-const countStocks = () => {
-  const row = db.prepare("SELECT COUNT(*) as count FROM stocks").get();
-  return row.count;
-};
-const getStockListSyncInfo = () => {
-  const stockCount = countStocks();
-  const row = db.prepare("SELECT MAX(updated_at) as last_sync_time FROM stocks").get();
-  return {
-    stockCount,
-    lastSyncTime: (row == null ? void 0 : row.last_sync_time) || null
-  };
-};
-const searchStocks = (keyword, limit = 50) => {
-  const likePattern = `%${keyword}%`;
-  return db.prepare(
-    `
-    SELECT * FROM stocks 
-    WHERE name LIKE ? OR ts_code LIKE ? OR symbol LIKE ? OR cnspell LIKE ?
-    ORDER BY 
-      CASE 
-        WHEN ts_code = ? THEN 1
-        WHEN symbol = ? THEN 2
-        WHEN name = ? THEN 3
-        ELSE 4
-      END,
-      ts_code
-    LIMIT ?
-  `
-  ).all(likePattern, likePattern, likePattern, likePattern, keyword, keyword, keyword, limit);
-};
-const addFavoriteStock$1 = (tsCode) => {
-  try {
-    const stmt = db.prepare("UPDATE stocks SET is_favorite = 1 WHERE ts_code = ?");
-    const result = stmt.run(tsCode);
-    return result.changes > 0;
-  } catch (error2) {
-    console.error("Failed to add favorite stock:", error2);
-    return false;
-  }
-};
-const removeFavoriteStock$1 = (tsCode) => {
-  try {
-    const stmt = db.prepare("UPDATE stocks SET is_favorite = 0 WHERE ts_code = ?");
-    const result = stmt.run(tsCode);
-    return result.changes > 0;
-  } catch (error2) {
-    console.error("Failed to remove favorite stock:", error2);
-    return false;
-  }
-};
-const isFavoriteStock$1 = (tsCode) => {
-  try {
-    const stmt = db.prepare("SELECT is_favorite FROM stocks WHERE ts_code = ?");
-    const result = stmt.get(tsCode);
-    return (result == null ? void 0 : result.is_favorite) === 1;
-  } catch (error2) {
-    console.error("Failed to check favorite stock:", error2);
-    return false;
-  }
-};
-const getAllFavoriteStocks$1 = () => {
-  try {
-    const stmt = db.prepare("SELECT ts_code FROM stocks WHERE is_favorite = 1 ORDER BY ts_code");
-    const results = stmt.all();
-    return results.map((r) => r.ts_code);
-  } catch (error2) {
-    console.error("Failed to get all favorite stocks:", error2);
-    return [];
-  }
-};
-const countFavoriteStocks$1 = () => {
-  try {
-    const stmt = db.prepare("SELECT COUNT(*) as count FROM stocks WHERE is_favorite = 1");
-    const result = stmt.get();
-    return (result == null ? void 0 : result.count) || 0;
-  } catch (error2) {
-    console.error("Failed to count favorite stocks:", error2);
-    return 0;
-  }
-};
-const getLastSyncDate = (syncType) => {
-  const row = db.prepare("SELECT last_sync_date FROM sync_flags WHERE sync_type = ?").get(syncType);
-  return (row == null ? void 0 : row.last_sync_date) || null;
-};
-const updateSyncFlag = (syncType, syncDate) => {
-  const now = (/* @__PURE__ */ new Date()).toISOString();
-  db.prepare(
-    `
-    INSERT INTO sync_flags (sync_type, last_sync_date, updated_at)
-    VALUES (?, ?, ?)
-    ON CONFLICT(sync_type) DO UPDATE SET
-      last_sync_date = excluded.last_sync_date,
-      updated_at = excluded.updated_at
-  `
-  ).run(syncType, syncDate, now);
-};
-const isSyncedToday = (syncType) => {
-  const lastSync = getLastSyncDate(syncType);
-  if (!lastSync) return false;
-  const today = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10).replace(/-/g, "");
-  return lastSync === today;
-};
-const upsertTop10Holders = (items) => {
-  const now = (/* @__PURE__ */ new Date()).toISOString();
-  const upsert = db.prepare(`
-    INSERT INTO top10_holders (
-      ts_code, ann_date, end_date, holder_name, hold_amount, hold_ratio, updated_at
-    )
-    VALUES (
-      @ts_code, @ann_date, @end_date, @holder_name, @hold_amount, @hold_ratio, @updated_at
-    )
-    ON CONFLICT(ts_code, end_date, holder_name) DO UPDATE SET
-      ann_date = excluded.ann_date,
-      hold_amount = excluded.hold_amount,
-      hold_ratio = excluded.hold_ratio,
-      updated_at = excluded.updated_at
-  `);
-  const upsertMany = db.transaction((holders) => {
-    for (const holder of holders) {
-      upsert.run({
-        ts_code: holder.ts_code || null,
-        ann_date: holder.ann_date || null,
-        end_date: holder.end_date || null,
-        holder_name: holder.holder_name || null,
-        hold_amount: holder.hold_amount || null,
-        hold_ratio: holder.hold_ratio || null,
-        updated_at: now
-      });
-    }
-  });
-  upsertMany(items);
-};
-const getTop10HoldersByStock = (tsCode, limit = 100) => {
-  return db.prepare(
-    `
-    SELECT * FROM top10_holders 
-    WHERE ts_code = ?
-    ORDER BY end_date DESC, hold_ratio DESC
-    LIMIT ?
-  `
-  ).all(tsCode, limit);
-};
-const getTop10HoldersEndDates = (tsCode) => {
-  const rows = db.prepare(
-    `
-    SELECT DISTINCT end_date 
-    FROM top10_holders 
-    WHERE ts_code = ?
-    ORDER BY end_date DESC
-  `
-  ).all(tsCode);
-  return rows.map((row) => row.end_date);
-};
-const getTop10HoldersByStockAndEndDate = (tsCode, endDate) => {
-  return db.prepare(
-    `
-    SELECT * FROM top10_holders 
-    WHERE ts_code = ? AND end_date = ?
-    ORDER BY hold_ratio DESC
-  `
-  ).all(tsCode, endDate);
-};
-const hasTop10HoldersData = (tsCode) => {
-  const row = db.prepare("SELECT COUNT(*) as count FROM top10_holders WHERE ts_code = ?").get(tsCode);
-  return row.count > 0;
-};
-const getStocksWithTop10Holders = () => {
-  const rows = db.prepare("SELECT DISTINCT ts_code FROM top10_holders ORDER BY ts_code").all();
-  return rows.map((row) => row.ts_code);
-};
-const countStocksWithTop10Holders = () => {
-  const row = db.prepare("SELECT COUNT(DISTINCT ts_code) as count FROM top10_holders").get();
-  return row.count;
-};
-const searchHoldersByName = (holderName, limit = 100) => {
-  const likePattern = `%${holderName}%`;
-  return db.prepare(
-    `
-    SELECT h.*, s.name as stock_name, s.industry, s.market
-    FROM top10_holders h
-    INNER JOIN stocks s ON h.ts_code = s.ts_code
-    WHERE h.holder_name LIKE ?
-    ORDER BY h.end_date DESC, h.hold_ratio DESC
-    LIMIT ?
-  `
-  ).all(likePattern, limit);
-};
-const getStocksByHolder = (holderName) => {
-  return db.prepare(
-    `
-    SELECT DISTINCT h.ts_code, s.name as stock_name, s.industry, s.market,
-           MAX(h.end_date) as latest_end_date,
-           MAX(h.hold_ratio) as latest_hold_ratio
-    FROM top10_holders h
-    INNER JOIN stocks s ON h.ts_code = s.ts_code
-    WHERE h.holder_name = ?
-    GROUP BY h.ts_code, s.name, s.industry, s.market
-    ORDER BY latest_end_date DESC, latest_hold_ratio DESC
-  `
-  ).all(holderName);
-};
-const deleteTop10HoldersByStock = (tsCode) => {
-  const result = db.prepare("DELETE FROM top10_holders WHERE ts_code = ?").run(tsCode);
-  return result.changes;
-};
-const upsertAnnouncements = (items) => {
-  const upsert = db.prepare(`
-    INSERT INTO announcements (
-      ts_code, ann_date, ann_type, title, content, pub_time, file_path, name, category
-    )
-    VALUES (
-      @ts_code, @ann_date, @ann_type, @title, @content, @pub_time, @file_path, @name, @category
-    )
-    ON CONFLICT(ts_code, ann_date, title) DO UPDATE SET
-      ann_type = excluded.ann_type,
-      content = excluded.content,
-      pub_time = excluded.pub_time,
-      file_path = excluded.file_path,
-      name = excluded.name,
-      category = COALESCE(announcements.category, excluded.category)
-  `);
-  const upsertMany = db.transaction((announcements) => {
-    for (const ann of announcements) {
-      const category = ann.category || classifyAnnouncement(ann.title || "");
-      upsert.run({
-        ts_code: ann.ts_code || null,
-        ann_date: ann.ann_date || null,
-        ann_type: ann.ann_type || null,
-        title: ann.title || null,
-        content: ann.content || null,
-        pub_time: ann.pub_time || null,
-        file_path: ann.file_path || null,
-        name: ann.name || null,
-        category
-      });
-    }
-  });
-  upsertMany(items);
-};
-const isAnnouncementRangeSynced = (tsCode, startDate, endDate) => {
-  let query;
-  let params;
-  if (tsCode) {
-    query = `
-      SELECT start_date, end_date 
-      FROM announcement_sync_ranges 
-      WHERE ts_code = ?
-        AND start_date <= ?
-        AND end_date >= ?
-      ORDER BY start_date
-    `;
-    params = [tsCode, endDate, startDate];
-  } else {
-    query = `
-      SELECT start_date, end_date 
-      FROM announcement_sync_ranges 
-      WHERE ts_code IS NULL
-        AND start_date <= ?
-        AND end_date >= ?
-      ORDER BY start_date
-    `;
-    params = [endDate, startDate];
-  }
-  const ranges = db.prepare(query).all(...params);
-  if (ranges.length === 0) {
-    return false;
-  }
-  for (const range2 of ranges) {
-    if (range2.start_date <= startDate && range2.end_date >= endDate) {
-      return true;
-    }
-  }
-  return false;
-};
-const getUnsyncedAnnouncementRanges = (tsCode, startDate, endDate) => {
-  let query;
-  let params;
-  if (tsCode) {
-    query = `
-      SELECT start_date, end_date 
-      FROM announcement_sync_ranges 
-      WHERE ts_code = ?
-        AND NOT (end_date < ? OR start_date > ?)
-      ORDER BY start_date
-    `;
-    params = [tsCode, startDate, endDate];
-  } else {
-    query = `
-      SELECT start_date, end_date 
-      FROM announcement_sync_ranges 
-      WHERE ts_code IS NULL
-        AND NOT (end_date < ? OR start_date > ?)
-      ORDER BY start_date
-    `;
-    params = [startDate, endDate];
-  }
-  const syncedRanges = db.prepare(query).all(...params);
-  if (syncedRanges.length === 0) {
-    return [{ start_date: startDate, end_date: endDate }];
-  }
-  const unsyncedRanges = [];
-  let currentStart = startDate;
-  for (const range2 of syncedRanges) {
-    if (currentStart < range2.start_date) {
-      const gapEnd = getPreviousDay(range2.start_date);
-      unsyncedRanges.push({
-        start_date: currentStart,
-        end_date: gapEnd
-      });
-    }
-    currentStart = getNextDay(range2.end_date);
-  }
-  if (currentStart <= endDate) {
-    unsyncedRanges.push({
-      start_date: currentStart,
-      end_date: endDate
-    });
-  }
-  return unsyncedRanges;
-};
-const recordAnnouncementSyncRange = (tsCode, startDate, endDate) => {
-  const now = (/* @__PURE__ */ new Date()).toISOString();
-  if (tsCode) {
-    db.prepare(`
-      INSERT INTO announcement_sync_ranges (ts_code, start_date, end_date, synced_at)
-      VALUES (?, ?, ?, ?)
-    `).run(tsCode, startDate, endDate, now);
-  } else {
-    db.prepare(`
-      INSERT INTO announcement_sync_ranges (ts_code, start_date, end_date, synced_at)
-      VALUES (NULL, ?, ?, ?)
-    `).run(startDate, endDate, now);
-  }
-  mergeAnnouncementSyncRanges(tsCode);
-};
-const mergeAnnouncementSyncRanges = (tsCode) => {
-  var _a, _b;
-  let query;
-  let params;
-  if (tsCode) {
-    query = "SELECT id, start_date, end_date FROM announcement_sync_ranges WHERE ts_code = ? ORDER BY start_date";
-    params = [tsCode];
-  } else {
-    query = "SELECT id, start_date, end_date FROM announcement_sync_ranges WHERE ts_code IS NULL ORDER BY start_date";
-    params = [];
-  }
-  const ranges = db.prepare(query).all(...params);
-  if (ranges.length <= 1) {
-    return;
-  }
-  const toDelete = [];
-  const toUpdate = [];
-  let current = ranges[0];
-  for (let i = 1; i < ranges.length; i++) {
-    const next = ranges[i];
-    if (getNextDay(current.end_date) >= next.start_date) {
-      current = {
-        id: current.id,
-        start_date: current.start_date,
-        end_date: next.end_date > current.end_date ? next.end_date : current.end_date
-      };
-      toDelete.push(next.id);
-    } else {
-      if (current.end_date !== ((_a = ranges.find((r) => r.id === current.id)) == null ? void 0 : _a.end_date)) {
-        toUpdate.push(current);
-      }
-      current = next;
-    }
-  }
-  if (current.end_date !== ((_b = ranges.find((r) => r.id === current.id)) == null ? void 0 : _b.end_date)) {
-    toUpdate.push(current);
-  }
-  const updateStmt = db.prepare("UPDATE announcement_sync_ranges SET end_date = ? WHERE id = ?");
-  const deleteStmt = db.prepare("DELETE FROM announcement_sync_ranges WHERE id = ?");
-  db.transaction(() => {
-    for (const range2 of toUpdate) {
-      updateStmt.run(range2.end_date, range2.id);
-    }
-    for (const id of toDelete) {
-      deleteStmt.run(id);
-    }
-  })();
-};
-const getAnnouncementsByStock = (tsCode, categories, limit = 100) => {
-  let query = "SELECT * FROM announcements WHERE ts_code = ?";
-  const params = [tsCode];
-  if (categories && categories.length > 0) {
-    const placeholders = categories.map(() => "?").join(",");
-    query += ` AND category IN (${placeholders})`;
-    params.push(...categories);
-  }
-  query += " ORDER BY ann_date DESC, rec_time DESC LIMIT ?";
-  params.push(limit);
-  return db.prepare(query).all(...params);
-};
-const getAnnouncementsByDateRange = (startDate, endDate, tsCode, categories, limit = 200) => {
-  let query = "SELECT * FROM announcements WHERE ann_date >= ? AND ann_date <= ?";
-  const params = [startDate, endDate];
-  if (tsCode) {
-    query += " AND ts_code = ?";
-    params.push(tsCode);
-  }
-  if (categories && categories.length > 0) {
-    const placeholders = categories.map(() => "?").join(",");
-    query += ` AND category IN (${placeholders})`;
-    params.push(...categories);
-  }
-  query += " ORDER BY ann_date DESC, rec_time DESC LIMIT ?";
-  params.push(limit);
-  return db.prepare(query).all(...params);
-};
-const searchAnnouncements = (keyword, limit = 100) => {
-  const likePattern = `%${keyword}%`;
-  return db.prepare(
-    `
-    SELECT a.*, s.name as stock_name 
-    FROM announcements a
-    LEFT JOIN stocks s ON a.ts_code = s.ts_code
-    WHERE a.title LIKE ? OR a.ts_code LIKE ? OR s.name LIKE ?
-    ORDER BY a.ann_date DESC, a.rec_time DESC
-    LIMIT ?
-  `
-  ).all(likePattern, likePattern, likePattern, limit);
-};
-const countAnnouncements = () => {
-  const row = db.prepare("SELECT COUNT(*) as count FROM announcements").get();
-  return row.count;
-};
-const getUntaggedAnnouncementsCount = () => {
-  const row = db.prepare("SELECT COUNT(*) as count FROM announcements WHERE category IS NULL").get();
-  return row.count;
-};
-const tagAnnouncementsBatch = (batchSize = 1e3, onProgress, reprocessAll = false, useDbRules = true) => {
-  const total = reprocessAll ? countAnnouncements() : getUntaggedAnnouncementsCount();
-  let processed = 0;
-  if (total === 0) {
-    return { success: true, processed: 0, total: 0 };
-  }
-  console.log(`[Tagging] 开始批量打标，共 ${total} 条公告，重新处理所有: ${reprocessAll}`);
-  let rules;
-  if (useDbRules) {
-    const dbRules = loadClassificationRulesFromDb();
-    rules = dbRules.map((r) => ({
-      category: r.category,
-      keywords: r.keywords,
-      priority: r.priority
-    }));
-    console.log(`[Tagging] 使用数据库规则，共 ${rules.length} 个分类`);
-  } else {
-    console.log(`[Tagging] 使用默认规则`);
-  }
-  const updateStmt = db.prepare("UPDATE announcements SET category = ? WHERE id = ?");
-  const processBatch = db.transaction(() => {
-    while (processed < total) {
-      const query = reprocessAll ? `SELECT id, title FROM announcements LIMIT ? OFFSET ?` : `SELECT id, title FROM announcements WHERE category IS NULL LIMIT ?`;
-      const announcements = reprocessAll ? db.prepare(query).all(batchSize, processed) : db.prepare(query).all(batchSize);
-      if (announcements.length === 0) break;
-      for (const ann of announcements) {
-        const category = useDbRules ? classifyAnnouncementWithRules(ann.title || "", rules) : classifyAnnouncement(ann.title || "");
-        updateStmt.run(category, ann.id);
-      }
-      processed += announcements.length;
-      if (onProgress) {
-        onProgress(processed, total);
-      }
-      console.log(`[Tagging] 已处理 ${processed}/${total} (${(processed / total * 100).toFixed(2)}%)`);
-    }
-  });
-  try {
-    processBatch();
-    console.log(`[Tagging] 批量打标完成，共处理 ${processed} 条`);
-    return { success: true, processed, total };
-  } catch (error2) {
-    console.error("[Tagging Error]", error2);
-    return { success: false, processed, total };
-  }
-};
-const getAnnouncementsByCategory = (category, limit = 100) => {
-  return db.prepare(
-    `
-        SELECT * FROM announcements 
-        WHERE category = ? 
-        ORDER BY ann_date DESC, pub_time DESC 
-        LIMIT ?
-    `
-  ).all(category, limit);
-};
-const getPreviousDay = (dateStr) => {
-  const year = parseInt(dateStr.substring(0, 4));
-  const month = parseInt(dateStr.substring(4, 6)) - 1;
-  const day = parseInt(dateStr.substring(6, 8));
-  const date = new Date(year, month, day);
-  date.setDate(date.getDate() - 1);
-  return formatDateToYYYYMMDD(date);
-};
-const getNextDay = (dateStr) => {
-  const year = parseInt(dateStr.substring(0, 4));
-  const month = parseInt(dateStr.substring(4, 6)) - 1;
-  const day = parseInt(dateStr.substring(6, 8));
-  const date = new Date(year, month, day);
-  date.setDate(date.getDate() + 1);
-  return formatDateToYYYYMMDD(date);
-};
-const formatDateToYYYYMMDD = (date) => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}${month}${day}`;
-};
-db.pragma("journal_mode = WAL");
-db.pragma("synchronous = NORMAL");
-db.pragma("cache_size = -64000");
-db.pragma("temp_store = MEMORY");
-const analyzeQuery = (sql, params = []) => {
-  const plan = db.prepare(`EXPLAIN QUERY PLAN ${sql}`).all(...params);
-  console.log("Query Plan:", JSON.stringify(plan, null, 2));
-  return plan;
-};
-const getCacheDataStats = () => {
-  const stockCount = countStocks();
-  const favoriteCount = countFavoriteStocks$1();
-  const top10HoldersCount = countStocksWithTop10Holders();
-  const top10HoldersRecordRow = db.prepare("SELECT COUNT(*) as count FROM top10_holders").get();
-  const top10HoldersRecordCount = top10HoldersRecordRow.count;
-  const announcementsCount = countAnnouncements();
-  const stockSyncInfo = getStockListSyncInfo();
-  const syncFlags = db.prepare("SELECT sync_type, last_sync_date, updated_at FROM sync_flags ORDER BY sync_type").all();
-  return {
-    stocks: {
-      count: stockCount,
-      lastSyncTime: stockSyncInfo.lastSyncTime
-    },
-    favoriteStocks: {
-      count: favoriteCount
-    },
-    top10Holders: {
-      stockCount: top10HoldersCount,
-      recordCount: top10HoldersRecordCount
-    },
-    announcements: {
-      count: announcementsCount
-    },
-    syncFlags: syncFlags.map((flag) => ({
-      type: flag.sync_type,
-      lastSyncDate: flag.last_sync_date,
-      updatedAt: flag.updated_at
-    }))
-  };
-};
 function initializeDefaultClassificationRules() {
   try {
     const categoryCount = db.prepare("SELECT COUNT(*) as count FROM classification_categories").get();
@@ -15811,127 +15207,37 @@ function initializeDefaultClassificationRules() {
     console.error("[DB Migration Error] 初始化分类规则失败:", error2);
   }
 }
-const getClassificationCategories = () => {
-  return db.prepare(`
-		SELECT * FROM classification_categories 
-		ORDER BY priority ASC
-	`).all();
+migrateDatabase();
+const getLastSyncDate = (syncType) => {
+  const row = db.prepare("SELECT last_sync_date FROM sync_flags WHERE sync_type = ?").get(syncType);
+  return (row == null ? void 0 : row.last_sync_date) || null;
 };
-const getClassificationRules = () => {
-  return db.prepare(`
-		SELECT * FROM classification_rules 
-		ORDER BY category_key, id
-	`).all();
-};
-const getClassificationRulesByCategory = (categoryKey) => {
-  return db.prepare(`
-		SELECT id, category_key, keyword, enabled 
-		FROM classification_rules 
-		WHERE category_key = ?
-		ORDER BY id
-	`).all(categoryKey);
-};
-const updateClassificationCategory = (id, updates) => {
+const updateSyncFlag = (syncType, syncDate) => {
   const now = (/* @__PURE__ */ new Date()).toISOString();
-  const fields = [];
-  const values = [];
-  if (updates.category_name !== void 0) {
-    fields.push("category_name = ?");
-    values.push(updates.category_name);
-  }
-  if (updates.color !== void 0) {
-    fields.push("color = ?");
-    values.push(updates.color);
-  }
-  if (updates.icon !== void 0) {
-    fields.push("icon = ?");
-    values.push(updates.icon);
-  }
-  if (updates.priority !== void 0) {
-    fields.push("priority = ?");
-    values.push(updates.priority);
-  }
-  if (updates.enabled !== void 0) {
-    fields.push("enabled = ?");
-    values.push(updates.enabled ? 1 : 0);
-  }
-  fields.push("updated_at = ?");
-  values.push(now);
-  values.push(id);
-  const sql = `UPDATE classification_categories SET ${fields.join(", ")} WHERE id = ?`;
-  const result = db.prepare(sql).run(...values);
-  return result.changes;
+  db.prepare(
+    `
+    INSERT INTO sync_flags (sync_type, last_sync_date, updated_at)
+    VALUES (?, ?, ?)
+    ON CONFLICT(sync_type) DO UPDATE SET
+      last_sync_date = excluded.last_sync_date,
+      updated_at = excluded.updated_at
+  `
+  ).run(syncType, syncDate, now);
 };
-const addClassificationRule = (categoryKey, keyword) => {
-  const now = (/* @__PURE__ */ new Date()).toISOString();
-  const result = db.prepare(`
-		INSERT INTO classification_rules (category_key, keyword, enabled, created_at, updated_at)
-		VALUES (?, ?, 1, ?, ?)
-	`).run(categoryKey, keyword, now, now);
-  return result.lastInsertRowid;
+const isSyncedToday = (syncType) => {
+  const lastSync = getLastSyncDate(syncType);
+  if (!lastSync) return false;
+  const today = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10).replace(/-/g, "");
+  return lastSync === today;
 };
-const updateClassificationRule = (id, keyword, enabled) => {
-  const now = (/* @__PURE__ */ new Date()).toISOString();
-  const result = db.prepare(`
-		UPDATE classification_rules 
-		SET keyword = ?, enabled = ?, updated_at = ?
-		WHERE id = ?
-	`).run(keyword, enabled ? 1 : 0, now, id);
-  return result.changes;
-};
-const deleteClassificationRule = (id) => {
-  const result = db.prepare("DELETE FROM classification_rules WHERE id = ?").run(id);
-  return result.changes;
-};
-const resetClassificationRules = () => {
-  try {
-    const resetAll = db.transaction(() => {
-      db.prepare("DELETE FROM classification_rules").run();
-      db.prepare("DELETE FROM classification_categories").run();
-      const now = (/* @__PURE__ */ new Date()).toISOString();
-      const insertCategory = db.prepare(`
-				INSERT INTO classification_categories (category_key, category_name, color, icon, priority, enabled, created_at, updated_at)
-				VALUES (?, ?, ?, ?, ?, 1, ?, ?)
-			`);
-      const insertRule = db.prepare(`
-				INSERT INTO classification_rules (category_key, keyword, enabled, created_at, updated_at)
-				VALUES (?, ?, 1, ?, ?)
-			`);
-      for (const rule of DEFAULT_CLASSIFICATION_RULES) {
-        const categoryKey = rule.category;
-        const categoryName = rule.category;
-        const color = getCategoryColor(rule.category);
-        const icon = getCategoryIcon(rule.category);
-        const priority = rule.priority;
-        insertCategory.run(categoryKey, categoryName, color, icon, priority, now, now);
-        for (const keyword of rule.keywords) {
-          insertRule.run(categoryKey, keyword, now, now);
-        }
-      }
-    });
-    resetAll();
-    console.log("[DB] 分类规则已重置为默认");
-    return { success: true };
-  } catch (error2) {
-    console.error("[DB Error] 重置分类规则失败:", error2);
-    return { success: false, error: String(error2) };
-  }
-};
-const loadClassificationRulesFromDb = () => {
-  const categories = getClassificationCategories().filter((c) => c.enabled);
-  const rules = getClassificationRules().filter((r) => r.enabled);
-  const rulesByCategory = /* @__PURE__ */ new Map();
-  for (const rule of rules) {
-    if (!rulesByCategory.has(rule.category_key)) {
-      rulesByCategory.set(rule.category_key, []);
-    }
-    rulesByCategory.get(rule.category_key).push(rule.keyword);
-  }
-  return categories.map((cat) => ({
-    category: cat.category_key,
-    keywords: rulesByCategory.get(cat.category_key) || [],
-    priority: cat.priority
-  }));
+db.pragma("journal_mode = WAL");
+db.pragma("synchronous = NORMAL");
+db.pragma("cache_size = -64000");
+db.pragma("temp_store = MEMORY");
+const analyzeQuery = (sql, params = []) => {
+  const plan = db.prepare(`EXPLAIN QUERY PLAN ${sql}`).all(...params);
+  console.log("Query Plan:", JSON.stringify(plan, null, 2));
+  return plan;
 };
 const closeDatabase = () => {
   try {
@@ -15945,69 +15251,149 @@ const closeDatabase = () => {
 };
 const db$1 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
-  addClassificationRule,
-  addFavoriteStock: addFavoriteStock$1,
   analyzeQuery,
   closeDatabase,
-  countAnnouncements,
-  countFavoriteStocks: countFavoriteStocks$1,
-  countStocks,
-  countStocksWithTop10Holders,
   default: db,
-  deleteClassificationRule,
-  deleteTop10HoldersByStock,
-  getAllFavoriteStocks: getAllFavoriteStocks$1,
-  getAllStocks,
-  getAnnouncementsByCategory,
-  getAnnouncementsByDateRange,
-  getAnnouncementsByStock,
-  getCacheDataStats,
-  getClassificationCategories,
-  getClassificationRules,
-  getClassificationRulesByCategory,
+  getDb,
   getDbPath,
   getLastSyncDate,
-  getStockListSyncInfo,
-  getStocksByHolder,
-  getStocksWithTop10Holders,
-  getTop10HoldersByStock,
-  getTop10HoldersByStockAndEndDate,
-  getTop10HoldersEndDates,
-  getUnsyncedAnnouncementRanges,
-  getUntaggedAnnouncementsCount,
-  hasTop10HoldersData,
-  isAnnouncementRangeSynced,
-  isFavoriteStock: isFavoriteStock$1,
   isSyncedToday,
-  loadClassificationRulesFromDb,
-  recordAnnouncementSyncRange,
-  removeFavoriteStock: removeFavoriteStock$1,
-  resetClassificationRules,
-  searchAnnouncements,
-  searchHoldersByName,
-  searchStocks,
-  tagAnnouncementsBatch,
-  updateClassificationCategory,
-  updateClassificationRule,
-  updateSyncFlag,
-  upsertAnnouncements,
-  upsertStocks,
-  upsertTop10Holders
+  updateSyncFlag
 }, Symbol.toStringTag, { value: "Module" }));
+class BaseRepository {
+  constructor(db2) {
+    this.db = db2;
+  }
+  /**
+   * 执行事务
+   */
+  transaction(fn) {
+    const transactionFn = this.db.transaction(fn);
+    return transactionFn();
+  }
+  /**
+   * 获取当前时间戳（ISO格式）
+   */
+  getCurrentTimestamp() {
+    return (/* @__PURE__ */ new Date()).toISOString();
+  }
+  /**
+   * 格式化日期为 YYYYMMDD
+   */
+  formatDateToYYYYMMDD(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}${month}${day}`;
+  }
+  /**
+   * 获取日期的前一天（YYYYMMDD格式）
+   */
+  getPreviousDay(dateStr) {
+    const year = parseInt(dateStr.substring(0, 4));
+    const month = parseInt(dateStr.substring(4, 6)) - 1;
+    const day = parseInt(dateStr.substring(6, 8));
+    const date = new Date(year, month, day);
+    date.setDate(date.getDate() - 1);
+    return this.formatDateToYYYYMMDD(date);
+  }
+  /**
+   * 获取日期的后一天（YYYYMMDD格式）
+   */
+  getNextDay(dateStr) {
+    const year = parseInt(dateStr.substring(0, 4));
+    const month = parseInt(dateStr.substring(4, 6)) - 1;
+    const day = parseInt(dateStr.substring(6, 8));
+    const date = new Date(year, month, day);
+    date.setDate(date.getDate() + 1);
+    return this.formatDateToYYYYMMDD(date);
+  }
+}
+class FavoriteRepository extends BaseRepository {
+  constructor(db2) {
+    super(db2);
+  }
+  /**
+   * 添加收藏股票
+   */
+  addFavoriteStock(tsCode) {
+    try {
+      const stmt = this.db.prepare("UPDATE stocks SET is_favorite = 1 WHERE ts_code = ?");
+      const result = stmt.run(tsCode);
+      return result.changes > 0;
+    } catch (error2) {
+      console.error("Failed to add favorite stock:", error2);
+      return false;
+    }
+  }
+  /**
+   * 取消收藏股票
+   */
+  removeFavoriteStock(tsCode) {
+    try {
+      const stmt = this.db.prepare("UPDATE stocks SET is_favorite = 0 WHERE ts_code = ?");
+      const result = stmt.run(tsCode);
+      return result.changes > 0;
+    } catch (error2) {
+      console.error("Failed to remove favorite stock:", error2);
+      return false;
+    }
+  }
+  /**
+   * 检查股票是否已收藏
+   */
+  isFavoriteStock(tsCode) {
+    try {
+      const stmt = this.db.prepare("SELECT is_favorite FROM stocks WHERE ts_code = ?");
+      const result = stmt.get(tsCode);
+      return (result == null ? void 0 : result.is_favorite) === 1;
+    } catch (error2) {
+      console.error("Failed to check favorite stock:", error2);
+      return false;
+    }
+  }
+  /**
+   * 获取所有收藏的股票代码
+   */
+  getAllFavoriteStocks() {
+    try {
+      const stmt = this.db.prepare("SELECT ts_code FROM stocks WHERE is_favorite = 1 ORDER BY ts_code");
+      const results = stmt.all();
+      return results.map((r) => r.ts_code);
+    } catch (error2) {
+      console.error("Failed to get all favorite stocks:", error2);
+      return [];
+    }
+  }
+  /**
+   * 统计收藏的股票数量
+   */
+  countFavoriteStocks() {
+    try {
+      const stmt = this.db.prepare("SELECT COUNT(*) as count FROM stocks WHERE is_favorite = 1");
+      const result = stmt.get();
+      return (result == null ? void 0 : result.count) || 0;
+    } catch (error2) {
+      console.error("Failed to count favorite stocks:", error2);
+      return 0;
+    }
+  }
+}
+const favoriteRepository$2 = new FavoriteRepository(getDb());
 function addFavoriteStock(tsCode) {
-  return addFavoriteStock$1(tsCode);
+  return favoriteRepository$2.addFavoriteStock(tsCode);
 }
 function removeFavoriteStock(tsCode) {
-  return removeFavoriteStock$1(tsCode);
+  return favoriteRepository$2.removeFavoriteStock(tsCode);
 }
 function isFavoriteStock(tsCode) {
-  return isFavoriteStock$1(tsCode);
+  return favoriteRepository$2.isFavoriteStock(tsCode);
 }
 function getAllFavoriteStocks() {
-  return getAllFavoriteStocks$1();
+  return favoriteRepository$2.getAllFavoriteStocks();
 }
 function countFavoriteStocks() {
-  return countFavoriteStocks$1();
+  return favoriteRepository$2.countFavoriteStocks();
 }
 function registerFavoriteHandlers() {
   ipcMain.handle("add-favorite-stock", async (_event, tsCode) => {
@@ -16493,9 +15879,732 @@ function registerNewsHandlers() {
     }
   });
 }
+class StockRepository extends BaseRepository {
+  constructor(db2) {
+    super(db2);
+  }
+  /**
+   * 批量插入或更新股票数据
+   */
+  upsertStocks(stocks) {
+    const now = this.getCurrentTimestamp();
+    const upsert = this.db.prepare(`
+			INSERT INTO stocks (
+				ts_code, symbol, name, area, industry, fullname, enname, cnspell,
+				market, exchange, curr_type, list_status, list_date, delist_date, is_hs, updated_at
+			)
+			VALUES (
+				@ts_code, @symbol, @name, @area, @industry, @fullname, @enname, @cnspell,
+				@market, @exchange, @curr_type, @list_status, @list_date, @delist_date, @is_hs, @updated_at
+			)
+			ON CONFLICT(ts_code) DO UPDATE SET
+				symbol = excluded.symbol,
+				name = excluded.name,
+				area = excluded.area,
+				industry = excluded.industry,
+				fullname = excluded.fullname,
+				enname = excluded.enname,
+				cnspell = excluded.cnspell,
+				market = excluded.market,
+				exchange = excluded.exchange,
+				curr_type = excluded.curr_type,
+				list_status = excluded.list_status,
+				list_date = excluded.list_date,
+				delist_date = excluded.delist_date,
+				is_hs = excluded.is_hs,
+				updated_at = excluded.updated_at
+		`);
+    this.transaction(() => {
+      for (const stock of stocks) {
+        upsert.run({
+          ts_code: stock.ts_code || null,
+          symbol: stock.symbol || null,
+          name: stock.name || null,
+          area: stock.area || null,
+          industry: stock.industry || null,
+          fullname: stock.fullname || null,
+          enname: stock.enname || null,
+          cnspell: stock.cnspell || null,
+          market: stock.market || null,
+          exchange: stock.exchange || null,
+          curr_type: stock.curr_type || null,
+          list_status: stock.list_status || null,
+          list_date: stock.list_date || null,
+          delist_date: stock.delist_date || null,
+          is_hs: stock.is_hs || null,
+          updated_at: now
+        });
+      }
+    });
+  }
+  /**
+   * 获取所有股票列表
+   */
+  getAllStocks() {
+    return this.db.prepare("SELECT * FROM stocks ORDER BY ts_code").all();
+  }
+  /**
+   * 统计股票数量
+   */
+  countStocks() {
+    const row = this.db.prepare("SELECT COUNT(*) as count FROM stocks").get();
+    return row.count;
+  }
+  /**
+   * 根据关键词搜索股票（名称、代码、拼音）
+   */
+  searchStocks(keyword, limit = 50) {
+    const likePattern = `%${keyword}%`;
+    return this.db.prepare(
+      `
+				SELECT * FROM stocks 
+				WHERE name LIKE ? OR ts_code LIKE ? OR symbol LIKE ? OR cnspell LIKE ?
+				ORDER BY 
+					CASE 
+						WHEN ts_code = ? THEN 1
+						WHEN symbol = ? THEN 2
+						WHEN name = ? THEN 3
+						ELSE 4
+					END,
+					ts_code
+				LIMIT ?
+			`
+    ).all(likePattern, likePattern, likePattern, likePattern, keyword, keyword, keyword, limit);
+  }
+  /**
+   * 获取股票列表同步信息
+   */
+  getStockListSyncInfo() {
+    const stockCount = this.countStocks();
+    const row = this.db.prepare("SELECT MAX(updated_at) as last_sync_time FROM stocks").get();
+    return {
+      stockCount,
+      lastSyncTime: (row == null ? void 0 : row.last_sync_time) || null
+    };
+  }
+}
+class HolderRepository extends BaseRepository {
+  constructor(db2) {
+    super(db2);
+  }
+  /**
+   * 批量插入或更新十大股东数据
+   */
+  upsertTop10Holders(holders) {
+    const now = this.getCurrentTimestamp();
+    const upsert = this.db.prepare(`
+			INSERT INTO top10_holders (
+				ts_code, ann_date, end_date, holder_name, hold_amount, hold_ratio, updated_at
+			)
+			VALUES (
+				@ts_code, @ann_date, @end_date, @holder_name, @hold_amount, @hold_ratio, @updated_at
+			)
+			ON CONFLICT(ts_code, end_date, holder_name) DO UPDATE SET
+				ann_date = excluded.ann_date,
+				hold_amount = excluded.hold_amount,
+				hold_ratio = excluded.hold_ratio,
+				updated_at = excluded.updated_at
+		`);
+    this.transaction(() => {
+      for (const holder of holders) {
+        upsert.run({
+          ts_code: holder.ts_code || null,
+          ann_date: holder.ann_date || null,
+          end_date: holder.end_date || null,
+          holder_name: holder.holder_name || null,
+          hold_amount: holder.hold_amount || null,
+          hold_ratio: holder.hold_ratio || null,
+          updated_at: now
+        });
+      }
+    });
+  }
+  /**
+   * 获取指定股票的十大股东数据
+   */
+  getTop10HoldersByStock(tsCode, limit = 100) {
+    return this.db.prepare(
+      `
+				SELECT * FROM top10_holders 
+				WHERE ts_code = ?
+				ORDER BY end_date DESC, hold_ratio DESC
+				LIMIT ?
+			`
+    ).all(tsCode, limit);
+  }
+  /**
+   * 获取股票的所有报告期列表
+   */
+  getTop10HoldersEndDates(tsCode) {
+    const rows = this.db.prepare(
+      `
+				SELECT DISTINCT end_date 
+				FROM top10_holders 
+				WHERE ts_code = ?
+				ORDER BY end_date DESC
+			`
+    ).all(tsCode);
+    return rows.map((row) => row.end_date);
+  }
+  /**
+   * 根据报告期获取十大股东
+   */
+  getTop10HoldersByStockAndEndDate(tsCode, endDate) {
+    return this.db.prepare(
+      `
+				SELECT * FROM top10_holders 
+				WHERE ts_code = ? AND end_date = ?
+				ORDER BY hold_ratio DESC
+			`
+    ).all(tsCode, endDate);
+  }
+  /**
+   * 检查股票是否已有十大股东数据
+   */
+  hasTop10HoldersData(tsCode) {
+    const row = this.db.prepare("SELECT COUNT(*) as count FROM top10_holders WHERE ts_code = ?").get(tsCode);
+    return row.count > 0;
+  }
+  /**
+   * 获取所有已同步十大股东的股票代码列表
+   */
+  getStocksWithTop10Holders() {
+    const rows = this.db.prepare("SELECT DISTINCT ts_code FROM top10_holders ORDER BY ts_code").all();
+    return rows.map((row) => row.ts_code);
+  }
+  /**
+   * 统计已同步十大股东的股票数量
+   */
+  countStocksWithTop10Holders() {
+    const row = this.db.prepare("SELECT COUNT(DISTINCT ts_code) as count FROM top10_holders").get();
+    return row.count;
+  }
+  /**
+   * 根据股东名称搜索股东持股信息
+   */
+  searchHoldersByName(holderName, limit = 100) {
+    const likePattern = `%${holderName}%`;
+    return this.db.prepare(
+      `
+				SELECT h.*, s.name as stock_name, s.industry, s.market
+				FROM top10_holders h
+				INNER JOIN stocks s ON h.ts_code = s.ts_code
+				WHERE h.holder_name LIKE ?
+				ORDER BY h.end_date DESC, h.hold_ratio DESC
+				LIMIT ?
+			`
+    ).all(likePattern, limit);
+  }
+  /**
+   * 获取股东持有的所有股票
+   */
+  getStocksByHolder(holderName) {
+    return this.db.prepare(
+      `
+				SELECT DISTINCT h.ts_code, s.name as stock_name, s.industry, s.market,
+						MAX(h.end_date) as latest_end_date,
+						MAX(h.hold_ratio) as latest_hold_ratio
+				FROM top10_holders h
+				INNER JOIN stocks s ON h.ts_code = s.ts_code
+				WHERE h.holder_name = ?
+				GROUP BY h.ts_code, s.name, s.industry, s.market
+				ORDER BY latest_end_date DESC, latest_hold_ratio DESC
+			`
+    ).all(holderName);
+  }
+  /**
+   * 删除指定股票的十大股东数据（用于重新同步）
+   */
+  deleteTop10HoldersByStock(tsCode) {
+    const result = this.db.prepare("DELETE FROM top10_holders WHERE ts_code = ?").run(tsCode);
+    return result.changes;
+  }
+}
+class ClassificationRepository extends BaseRepository {
+  constructor(db2) {
+    super(db2);
+  }
+  /**
+   * 获取所有分类
+   */
+  getClassificationCategories() {
+    return this.db.prepare(
+      `
+			SELECT * FROM classification_categories 
+			ORDER BY priority ASC
+		`
+    ).all();
+  }
+  /**
+   * 获取所有规则
+   */
+  getClassificationRules() {
+    return this.db.prepare(
+      `
+			SELECT * FROM classification_rules 
+			ORDER BY category_key, id
+		`
+    ).all();
+  }
+  /**
+   * 获取指定分类的规则
+   */
+  getClassificationRulesByCategory(categoryKey) {
+    return this.db.prepare(
+      `
+			SELECT id, category_key, keyword, enabled 
+			FROM classification_rules 
+			WHERE category_key = ?
+			ORDER BY id
+		`
+    ).all(categoryKey);
+  }
+  /**
+   * 更新分类信息
+   */
+  updateClassificationCategory(id, updates) {
+    const now = this.getCurrentTimestamp();
+    const fields = [];
+    const values = [];
+    if (updates.category_name !== void 0) {
+      fields.push("category_name = ?");
+      values.push(updates.category_name);
+    }
+    if (updates.color !== void 0) {
+      fields.push("color = ?");
+      values.push(updates.color);
+    }
+    if (updates.icon !== void 0) {
+      fields.push("icon = ?");
+      values.push(updates.icon);
+    }
+    if (updates.priority !== void 0) {
+      fields.push("priority = ?");
+      values.push(updates.priority);
+    }
+    if (updates.enabled !== void 0) {
+      fields.push("enabled = ?");
+      values.push(updates.enabled ? 1 : 0);
+    }
+    fields.push("updated_at = ?");
+    values.push(now);
+    values.push(id);
+    const sql = `UPDATE classification_categories SET ${fields.join(", ")} WHERE id = ?`;
+    const result = this.db.prepare(sql).run(...values);
+    return result.changes;
+  }
+  /**
+   * 添加分类规则
+   */
+  addClassificationRule(categoryKey, keyword) {
+    const now = this.getCurrentTimestamp();
+    const result = this.db.prepare(`
+			INSERT INTO classification_rules (category_key, keyword, enabled, created_at, updated_at)
+			VALUES (?, ?, 1, ?, ?)
+		`).run(categoryKey, keyword, now, now);
+    return result.lastInsertRowid;
+  }
+  /**
+   * 更新分类规则
+   */
+  updateClassificationRule(id, keyword, enabled) {
+    const now = this.getCurrentTimestamp();
+    const result = this.db.prepare(`
+			UPDATE classification_rules 
+			SET keyword = ?, enabled = ?, updated_at = ?
+			WHERE id = ?
+		`).run(keyword, enabled ? 1 : 0, now, id);
+    return result.changes;
+  }
+  /**
+   * 删除分类规则
+   */
+  deleteClassificationRule(id) {
+    const result = this.db.prepare("DELETE FROM classification_rules WHERE id = ?").run(id);
+    return result.changes;
+  }
+  /**
+   * 重置为默认规则
+   */
+  resetClassificationRules() {
+    try {
+      this.transaction(() => {
+        this.db.prepare("DELETE FROM classification_rules").run();
+        this.db.prepare("DELETE FROM classification_categories").run();
+        const now = this.getCurrentTimestamp();
+        const insertCategory = this.db.prepare(`
+					INSERT INTO classification_categories (category_key, category_name, color, icon, priority, enabled, created_at, updated_at)
+					VALUES (?, ?, ?, ?, ?, 1, ?, ?)
+				`);
+        const insertRule = this.db.prepare(`
+					INSERT INTO classification_rules (category_key, keyword, enabled, created_at, updated_at)
+					VALUES (?, ?, 1, ?, ?)
+				`);
+        for (const rule of DEFAULT_CLASSIFICATION_RULES) {
+          const categoryKey = rule.category;
+          const categoryName = rule.category;
+          const color = getCategoryColor(rule.category);
+          const icon = getCategoryIcon(rule.category);
+          const priority = rule.priority;
+          insertCategory.run(categoryKey, categoryName, color, icon, priority, now, now);
+          for (const keyword of rule.keywords) {
+            insertRule.run(categoryKey, keyword, now, now);
+          }
+        }
+      });
+      console.log("[DB] 分类规则已重置为默认");
+      return { success: true };
+    } catch (error2) {
+      console.error("[DB Error] 重置分类规则失败:", error2);
+      return { success: false, error: String(error2) };
+    }
+  }
+  /**
+   * 从数据库加载规则并转换为分类引擎可用的格式
+   */
+  loadClassificationRulesFromDb() {
+    const categories = this.getClassificationCategories().filter((c) => c.enabled);
+    const rules = this.getClassificationRules().filter((r) => r.enabled);
+    const rulesByCategory = /* @__PURE__ */ new Map();
+    for (const rule of rules) {
+      if (!rulesByCategory.has(rule.category_key)) {
+        rulesByCategory.set(rule.category_key, []);
+      }
+      rulesByCategory.get(rule.category_key).push(rule.keyword);
+    }
+    return categories.map((cat) => ({
+      category: cat.category_key,
+      keywords: rulesByCategory.get(cat.category_key) || [],
+      priority: cat.priority
+    }));
+  }
+}
+class AnnouncementRepository extends BaseRepository {
+  constructor(db2) {
+    super(db2);
+    this.classificationRepository = new ClassificationRepository(db2);
+  }
+  /**
+   * 批量插入或更新公告数据
+   */
+  upsertAnnouncements(announcements) {
+    const upsert = this.db.prepare(`
+			INSERT INTO announcements (
+				ts_code, ann_date, ann_type, title, content, pub_time, file_path, name, category
+			)
+			VALUES (
+				@ts_code, @ann_date, @ann_type, @title, @content, @pub_time, @file_path, @name, @category
+			)
+			ON CONFLICT(ts_code, ann_date, title) DO UPDATE SET
+				ann_type = excluded.ann_type,
+				content = excluded.content,
+				pub_time = excluded.pub_time,
+				file_path = excluded.file_path,
+				name = excluded.name,
+				category = COALESCE(announcements.category, excluded.category)
+		`);
+    this.transaction(() => {
+      for (const ann of announcements) {
+        const category = ann.category || classifyAnnouncement(ann.title || "");
+        upsert.run({
+          ts_code: ann.ts_code || null,
+          ann_date: ann.ann_date || null,
+          ann_type: ann.ann_type || null,
+          title: ann.title || null,
+          content: ann.content || null,
+          pub_time: ann.pub_time || null,
+          file_path: ann.file_path || null,
+          name: ann.name || null,
+          category
+        });
+      }
+    });
+  }
+  /**
+   * 获取指定股票的公告列表
+   */
+  getAnnouncementsByStock(tsCode, categories, limit = 100) {
+    let query = "SELECT * FROM announcements WHERE ts_code = ?";
+    const params = [tsCode];
+    if (categories && categories.length > 0) {
+      const placeholders = categories.map(() => "?").join(",");
+      query += ` AND category IN (${placeholders})`;
+      params.push(...categories);
+    }
+    query += " ORDER BY ann_date DESC, rec_time DESC LIMIT ?";
+    params.push(limit);
+    return this.db.prepare(query).all(...params);
+  }
+  /**
+   * 根据日期范围获取公告
+   */
+  getAnnouncementsByDateRange(startDate, endDate, tsCode, categories, limit = 200) {
+    let query = "SELECT * FROM announcements WHERE ann_date >= ? AND ann_date <= ?";
+    const params = [startDate, endDate];
+    if (tsCode) {
+      query += " AND ts_code = ?";
+      params.push(tsCode);
+    }
+    if (categories && categories.length > 0) {
+      const placeholders = categories.map(() => "?").join(",");
+      query += ` AND category IN (${placeholders})`;
+      params.push(...categories);
+    }
+    query += " ORDER BY ann_date DESC, rec_time DESC LIMIT ?";
+    params.push(limit);
+    return this.db.prepare(query).all(...params);
+  }
+  /**
+   * 搜索公告标题
+   */
+  searchAnnouncements(keyword, limit = 100) {
+    const likePattern = `%${keyword}%`;
+    return this.db.prepare(
+      `
+				SELECT a.*, s.name as stock_name 
+				FROM announcements a
+				LEFT JOIN stocks s ON a.ts_code = s.ts_code
+				WHERE a.title LIKE ? OR a.ts_code LIKE ? OR s.name LIKE ?
+				ORDER BY a.ann_date DESC, a.rec_time DESC
+				LIMIT ?
+			`
+    ).all(likePattern, likePattern, likePattern, limit);
+  }
+  /**
+   * 检查时间范围是否已同步
+   */
+  isAnnouncementRangeSynced(tsCode, startDate, endDate) {
+    let query;
+    let params;
+    if (tsCode) {
+      query = `
+				SELECT start_date, end_date 
+				FROM announcement_sync_ranges 
+				WHERE ts_code = ?
+					AND start_date <= ?
+					AND end_date >= ?
+				ORDER BY start_date
+			`;
+      params = [tsCode, endDate, startDate];
+    } else {
+      query = `
+				SELECT start_date, end_date 
+				FROM announcement_sync_ranges 
+				WHERE ts_code IS NULL
+					AND start_date <= ?
+					AND end_date >= ?
+				ORDER BY start_date
+			`;
+      params = [endDate, startDate];
+    }
+    const ranges = this.db.prepare(query).all(...params);
+    if (ranges.length === 0) {
+      return false;
+    }
+    for (const range2 of ranges) {
+      if (range2.start_date <= startDate && range2.end_date >= endDate) {
+        return true;
+      }
+    }
+    return false;
+  }
+  /**
+   * 记录已同步的时间范围
+   */
+  recordAnnouncementSyncRange(tsCode, startDate, endDate) {
+    const now = this.getCurrentTimestamp();
+    if (tsCode) {
+      this.db.prepare(`
+				INSERT INTO announcement_sync_ranges (ts_code, start_date, end_date, synced_at)
+				VALUES (?, ?, ?, ?)
+			`).run(tsCode, startDate, endDate, now);
+    } else {
+      this.db.prepare(`
+				INSERT INTO announcement_sync_ranges (ts_code, start_date, end_date, synced_at)
+				VALUES (NULL, ?, ?, ?)
+			`).run(startDate, endDate, now);
+    }
+    this.mergeAnnouncementSyncRanges(tsCode);
+  }
+  /**
+   * 获取需要同步的时间段（排除已同步的部分）
+   */
+  getUnsyncedAnnouncementRanges(tsCode, startDate, endDate) {
+    let query;
+    let params;
+    if (tsCode) {
+      query = `
+				SELECT start_date, end_date 
+				FROM announcement_sync_ranges 
+				WHERE ts_code = ?
+					AND NOT (end_date < ? OR start_date > ?)
+				ORDER BY start_date
+			`;
+      params = [tsCode, startDate, endDate];
+    } else {
+      query = `
+				SELECT start_date, end_date 
+				FROM announcement_sync_ranges 
+				WHERE ts_code IS NULL
+					AND NOT (end_date < ? OR start_date > ?)
+				ORDER BY start_date
+			`;
+      params = [startDate, endDate];
+    }
+    const syncedRanges = this.db.prepare(query).all(...params);
+    if (syncedRanges.length === 0) {
+      return [{ start_date: startDate, end_date: endDate }];
+    }
+    const unsyncedRanges = [];
+    let currentStart = startDate;
+    for (const range2 of syncedRanges) {
+      if (currentStart < range2.start_date) {
+        const gapEnd = this.getPreviousDay(range2.start_date);
+        unsyncedRanges.push({
+          start_date: currentStart,
+          end_date: gapEnd
+        });
+      }
+      currentStart = this.getNextDay(range2.end_date);
+    }
+    if (currentStart <= endDate) {
+      unsyncedRanges.push({
+        start_date: currentStart,
+        end_date: endDate
+      });
+    }
+    return unsyncedRanges;
+  }
+  /**
+   * 统计公告数量
+   */
+  countAnnouncements() {
+    const row = this.db.prepare("SELECT COUNT(*) as count FROM announcements").get();
+    return row.count;
+  }
+  /**
+   * 获取未打标的公告数量
+   */
+  getUntaggedAnnouncementsCount() {
+    const row = this.db.prepare("SELECT COUNT(*) as count FROM announcements WHERE category IS NULL").get();
+    return row.count;
+  }
+  /**
+   * 批量打标公告
+   */
+  tagAnnouncementsBatch(batchSize = 1e3, onProgress, reprocessAll = false, useDbRules = true) {
+    const total = reprocessAll ? this.countAnnouncements() : this.getUntaggedAnnouncementsCount();
+    let processed = 0;
+    if (total === 0) {
+      return { success: true, processed: 0, total: 0 };
+    }
+    console.log(`[Tagging] 开始批量打标，共 ${total} 条公告，重新处理所有: ${reprocessAll}`);
+    let rules;
+    if (useDbRules) {
+      const dbRules = this.classificationRepository.loadClassificationRulesFromDb();
+      rules = dbRules.map((r) => ({
+        category: r.category,
+        keywords: r.keywords,
+        priority: r.priority
+      }));
+      console.log(`[Tagging] 使用数据库规则，共 ${rules.length} 个分类`);
+    } else {
+      console.log(`[Tagging] 使用默认规则`);
+    }
+    const updateStmt = this.db.prepare("UPDATE announcements SET category = ? WHERE id = ?");
+    try {
+      this.transaction(() => {
+        while (processed < total) {
+          const query = reprocessAll ? `SELECT id, title FROM announcements LIMIT ? OFFSET ?` : `SELECT id, title FROM announcements WHERE category IS NULL LIMIT ?`;
+          const announcements = reprocessAll ? this.db.prepare(query).all(batchSize, processed) : this.db.prepare(query).all(batchSize);
+          if (announcements.length === 0) break;
+          for (const ann of announcements) {
+            const category = useDbRules ? classifyAnnouncementWithRules(ann.title || "", rules) : classifyAnnouncement(ann.title || "");
+            updateStmt.run(category, ann.id);
+          }
+          processed += announcements.length;
+          if (onProgress) {
+            onProgress(processed, total);
+          }
+          console.log(`[Tagging] 已处理 ${processed}/${total} (${(processed / total * 100).toFixed(2)}%)`);
+        }
+      });
+      console.log(`[Tagging] 批量打标完成，共处理 ${processed} 条`);
+      return { success: true, processed, total };
+    } catch (error2) {
+      console.error("[Tagging Error]", error2);
+      return { success: false, processed, total };
+    }
+  }
+  /**
+   * 按分类查询公告
+   */
+  getAnnouncementsByCategory(category, limit = 100) {
+    return this.db.prepare(
+      `
+				SELECT * FROM announcements 
+				WHERE category = ? 
+				ORDER BY ann_date DESC, pub_time DESC 
+				LIMIT ?
+			`
+    ).all(category, limit);
+  }
+  /**
+   * 合并连续或重叠的同步范围（私有方法）
+   */
+  mergeAnnouncementSyncRanges(tsCode) {
+    var _a, _b;
+    let query;
+    let params;
+    if (tsCode) {
+      query = "SELECT id, start_date, end_date FROM announcement_sync_ranges WHERE ts_code = ? ORDER BY start_date";
+      params = [tsCode];
+    } else {
+      query = "SELECT id, start_date, end_date FROM announcement_sync_ranges WHERE ts_code IS NULL ORDER BY start_date";
+      params = [];
+    }
+    const ranges = this.db.prepare(query).all(...params);
+    if (ranges.length <= 1) {
+      return;
+    }
+    const toDelete = [];
+    const toUpdate = [];
+    let current = ranges[0];
+    for (let i = 1; i < ranges.length; i++) {
+      const next = ranges[i];
+      if (this.getNextDay(current.end_date) >= next.start_date) {
+        current = {
+          id: current.id,
+          start_date: current.start_date,
+          end_date: next.end_date > current.end_date ? next.end_date : current.end_date
+        };
+        toDelete.push(next.id);
+      } else {
+        if (current.end_date !== ((_a = ranges.find((r) => r.id === current.id)) == null ? void 0 : _a.end_date)) {
+          toUpdate.push(current);
+        }
+        current = next;
+      }
+    }
+    if (current.end_date !== ((_b = ranges.find((r) => r.id === current.id)) == null ? void 0 : _b.end_date)) {
+      toUpdate.push(current);
+    }
+    const updateStmt = this.db.prepare("UPDATE announcement_sync_ranges SET end_date = ? WHERE id = ?");
+    const deleteStmt = this.db.prepare("DELETE FROM announcement_sync_ranges WHERE id = ?");
+    this.transaction(() => {
+      for (const range2 of toUpdate) {
+        updateStmt.run(range2.end_date, range2.id);
+      }
+      for (const id of toDelete) {
+        deleteStmt.run(id);
+      }
+    });
+  }
+}
+const stockRepository$4 = new StockRepository(getDb());
 async function syncStocksIfNeeded() {
   try {
-    const stockCount = countStocks();
+    const stockCount = stockRepository$4.countStocks();
     if (stockCount > 0) {
       console.log(`Stock list already synced: ${stockCount} stocks`);
       return;
@@ -16503,7 +16612,7 @@ async function syncStocksIfNeeded() {
     console.log("Stock list is empty, syncing...");
     const stocks = await TushareClient.getStockList(void 0, void 0, void 0, void 0, void 0, "L", 5e3, 0);
     if (stocks && stocks.length > 0) {
-      upsertStocks(stocks);
+      stockRepository$4.upsertStocks(stocks);
       console.log(`Synced ${stocks.length} stocks to database`);
       if (Notification.isSupported()) {
         new Notification({
@@ -16530,7 +16639,7 @@ async function syncAllStocks(onProgress) {
         message: `正在同步 ${stocks.length} 只股票...`,
         stockCount: stocks.length
       });
-      upsertStocks(stocks);
+      stockRepository$4.upsertStocks(stocks);
       console.log(`Synced ${stocks.length} stocks to database`);
       onProgress == null ? void 0 : onProgress({
         status: "completed",
@@ -16567,11 +16676,15 @@ async function syncAllStocks(onProgress) {
     };
   }
 }
+const stockRepository$3 = new StockRepository(getDb());
+const favoriteRepository$1 = new FavoriteRepository(getDb());
+const holderRepository$2 = new HolderRepository(getDb());
+const announcementRepository$2 = new AnnouncementRepository(getDb());
 function registerStockHandlers(mainWindow2) {
   ipcMain.handle("search-stocks", async (_event, keyword, limit = 50) => {
     try {
       console.log(`[IPC] search-stocks: keyword=${keyword}, limit=${limit}`);
-      return searchStocks(keyword, limit);
+      return stockRepository$3.searchStocks(keyword, limit);
     } catch (error2) {
       console.error("Failed to search stocks:", error2);
       throw error2;
@@ -16580,7 +16693,7 @@ function registerStockHandlers(mainWindow2) {
   ipcMain.handle("get-stock-list-sync-info", async () => {
     try {
       console.log("[IPC] get-stock-list-sync-info");
-      return getStockListSyncInfo();
+      return stockRepository$3.getStockListSyncInfo();
     } catch (error2) {
       console.error("Failed to get stock list sync info:", error2);
       throw error2;
@@ -16601,7 +16714,7 @@ function registerStockHandlers(mainWindow2) {
   ipcMain.handle("check-stock-list-sync-status", async () => {
     try {
       console.log("[IPC] check-stock-list-sync-status");
-      const syncInfo = getStockListSyncInfo();
+      const syncInfo = stockRepository$3.getStockListSyncInfo();
       const isSynced = isSyncedToday("stock_list");
       return {
         ...syncInfo,
@@ -16639,8 +16752,35 @@ function registerStockHandlers(mainWindow2) {
   ipcMain.handle("get-cache-data-stats", async () => {
     try {
       console.log("[IPC] get-cache-data-stats");
-      const stats = getCacheDataStats();
-      return stats;
+      const stockCount = stockRepository$3.countStocks();
+      const favoriteCount = favoriteRepository$1.countFavoriteStocks();
+      const top10HoldersCount = holderRepository$2.countStocksWithTop10Holders();
+      const announcementsCount = announcementRepository$2.countAnnouncements();
+      const stockSyncInfo = stockRepository$3.getStockListSyncInfo();
+      const syncFlags = getDb().prepare("SELECT sync_type, last_sync_date, updated_at FROM sync_flags ORDER BY sync_type").all();
+      const top10HoldersRecordRow = getDb().prepare("SELECT COUNT(*) as count FROM top10_holders").get();
+      const top10HoldersRecordCount = top10HoldersRecordRow.count;
+      return {
+        stocks: {
+          count: stockCount,
+          lastSyncTime: stockSyncInfo.lastSyncTime
+        },
+        favoriteStocks: {
+          count: favoriteCount
+        },
+        top10Holders: {
+          stockCount: top10HoldersCount,
+          recordCount: top10HoldersRecordCount
+        },
+        announcements: {
+          count: announcementsCount
+        },
+        syncFlags: syncFlags.map((flag) => ({
+          type: flag.sync_type,
+          lastSyncDate: flag.last_sync_date,
+          updatedAt: flag.updated_at
+        }))
+      };
     } catch (error2) {
       console.error("Failed to get cache data stats:", error2);
       throw error2;
@@ -16649,7 +16789,7 @@ function registerStockHandlers(mainWindow2) {
   ipcMain.handle("get-untagged-count", async () => {
     try {
       console.log("[IPC] get-untagged-count");
-      const count = getUntaggedAnnouncementsCount();
+      const count = announcementRepository$2.getUntaggedAnnouncementsCount();
       return { count };
     } catch (error2) {
       console.error("Failed to get untagged count:", error2);
@@ -16657,23 +16797,20 @@ function registerStockHandlers(mainWindow2) {
     }
   });
 }
+const stockRepository$2 = new StockRepository(getDb());
+const favoriteRepository = new FavoriteRepository(getDb());
+const announcementRepository$1 = new AnnouncementRepository(getDb());
 async function getAnnouncementsGroupedFromAPI(page, pageSize, startDate, endDate, market, forceRefresh) {
-  const allStocks = getAllStocks();
+  const allStocks = stockRepository$2.getAllStocks();
   let filteredStocks = allStocks;
   if (market && market !== "all") {
     filteredStocks = allStocks.filter((s) => s.market === market);
   }
   let announcements = [];
-  const isSynced = !forceRefresh && startDate && endDate ? isAnnouncementRangeSynced(null, startDate, endDate) : false;
-  if (isSynced) {
+  const isSynced = !forceRefresh && startDate && endDate ? announcementRepository$1.isAnnouncementRangeSynced(null, startDate, endDate) : false;
+  if (isSynced && startDate && endDate) {
     log.debug("Announcement", `从数据库读取公告: ${startDate} - ${endDate}`);
-    announcements = db.prepare(
-      `
-      SELECT * FROM announcements 
-      WHERE ann_date >= ? AND ann_date <= ?
-      ORDER BY ann_date DESC, rec_time DESC
-    `
-    ).all(startDate, endDate);
+    announcements = announcementRepository$1.getAnnouncementsByDateRange(startDate, endDate);
     log.info("Announcement", `从数据库读取到 ${announcements.length} 条公告`);
   } else {
     if (forceRefresh) {
@@ -16697,9 +16834,9 @@ async function getAnnouncementsGroupedFromAPI(page, pageSize, startDate, endDate
     }
     if (announcements.length > 0) {
       log.info("Announcement", `保存 ${announcements.length} 条公告到数据库`);
-      upsertAnnouncements(announcements);
+      announcementRepository$1.upsertAnnouncements(announcements);
       if (startDate && endDate) {
-        recordAnnouncementSyncRange(null, startDate, endDate);
+        announcementRepository$1.recordAnnouncementSyncRange(null, startDate, endDate);
         log.debug("Announcement", `记录同步范围: ${startDate} - ${endDate}`);
       }
     }
@@ -16711,7 +16848,7 @@ async function getAnnouncementsGroupedFromAPI(page, pageSize, startDate, endDate
   return { items, total, page, pageSize };
 }
 async function searchAnnouncementsGroupedFromAPI(keyword, page, pageSize, startDate, endDate, market) {
-  const matchedStocks = searchStocks(keyword, 1e3);
+  const matchedStocks = stockRepository$2.searchStocks(keyword, 1e3);
   let filteredStocks = matchedStocks;
   if (market && market !== "all") {
     filteredStocks = matchedStocks.filter((s) => s.market === market);
@@ -16728,24 +16865,18 @@ async function searchAnnouncementsGroupedFromAPI(keyword, page, pageSize, startD
   return { items, total, page, pageSize };
 }
 async function getFavoriteStocksAnnouncementsGroupedFromAPI(page, pageSize, startDate, endDate) {
-  const favoriteStocks = getAllFavoriteStocks$1();
+  const favoriteStocks = favoriteRepository.getAllFavoriteStocks();
   if (favoriteStocks.length === 0) {
     return { items: [], total: 0, page, pageSize };
   }
-  const allStocks = getAllStocks();
+  const allStocks = stockRepository$2.getAllStocks();
   const favoriteStockInfos = allStocks.filter((s) => favoriteStocks.includes(s.ts_code));
   let announcements = [];
-  const isSynced = startDate && endDate ? isAnnouncementRangeSynced(null, startDate, endDate) : false;
-  if (isSynced) {
+  const isSynced = startDate && endDate ? announcementRepository$1.isAnnouncementRangeSynced(null, startDate, endDate) : false;
+  if (isSynced && startDate && endDate) {
     log.debug("Announcement", `从数据库读取关注股票公告: ${startDate} - ${endDate}`);
-    const placeholders = favoriteStocks.map(() => "?").join(",");
-    const query = `
-			SELECT * FROM announcements 
-			WHERE ts_code IN (${placeholders})
-			AND ann_date >= ? AND ann_date <= ?
-			ORDER BY ann_date DESC, rec_time DESC
-		`;
-    announcements = db.prepare(query).all(...favoriteStocks, startDate, endDate);
+    const allAnnouncements = announcementRepository$1.getAnnouncementsByDateRange(startDate, endDate);
+    announcements = allAnnouncements.filter((ann) => favoriteStocks.includes(ann.ts_code));
     log.info("Announcement", `从数据库读取到 ${announcements.length} 条关注股票公告`);
   } else {
     log.info("Announcement", `从 API 获取关注股票公告: ${startDate || "无"} - ${endDate || "无"}`);
@@ -16762,7 +16893,7 @@ async function getFavoriteStocksAnnouncementsGroupedFromAPI(page, pageSize, star
     }
     if (announcements.length > 0) {
       log.info("Announcement", `保存 ${announcements.length} 条关注股票公告到数据库`);
-      upsertAnnouncements(announcements);
+      announcementRepository$1.upsertAnnouncements(announcements);
     }
   }
   const groupedData = aggregateAnnouncementsByStock(favoriteStockInfos, announcements);
@@ -16839,6 +16970,7 @@ function aggregateAnnouncementsByStock(stocks, announcements) {
 function classifyAnnouncementTitle(title) {
   return classifyAnnouncement(title);
 }
+const announcementRepository = new AnnouncementRepository(getDb());
 function registerAnnouncementHandlers() {
   ipcMain.handle(
     "get-announcements-grouped",
@@ -16947,7 +17079,7 @@ function registerAnnouncementHandlers() {
   ipcMain.handle("get-announcements-from-cache", async (_event, tsCode, startDate, endDate) => {
     try {
       log.debug("IPC", `get-announcements-from-cache: tsCode=${tsCode}, dateRange=${startDate}-${endDate}`);
-      const announcements = getAnnouncementsByDateRange(startDate, endDate, tsCode || void 0);
+      const announcements = announcementRepository.getAnnouncementsByDateRange(startDate, endDate, tsCode || void 0);
       const result = announcements.map((ann) => ({
         ...ann,
         category: classifyAnnouncementTitle(ann.title)
@@ -16962,7 +17094,7 @@ function registerAnnouncementHandlers() {
   ipcMain.handle("check-announcement-range-synced", async (_event, tsCode, startDate, endDate) => {
     try {
       log.debug("IPC", `check-announcement-range-synced: tsCode=${tsCode}, dateRange=${startDate}-${endDate}`);
-      const isSynced = isAnnouncementRangeSynced(tsCode, startDate, endDate);
+      const isSynced = announcementRepository.isAnnouncementRangeSynced(tsCode, startDate, endDate);
       log.debug("IPC", `check-announcement-range-synced: isSynced=${isSynced}`);
       return { isSynced };
     } catch (error2) {
@@ -16973,7 +17105,7 @@ function registerAnnouncementHandlers() {
   ipcMain.handle("search-announcements-from-cache", async (_event, keyword, limit = 100) => {
     try {
       log.debug("IPC", `search-announcements-from-cache: keyword=${keyword}, limit=${limit}`);
-      const announcements = searchAnnouncements(keyword, limit);
+      const announcements = announcementRepository.searchAnnouncements(keyword, limit);
       const result = announcements.map((ann) => ({
         ...ann,
         category: classifyAnnouncementTitle(ann.title)
@@ -16988,7 +17120,7 @@ function registerAnnouncementHandlers() {
   ipcMain.handle("get-announcements-cache-stats", async () => {
     try {
       log.debug("IPC", "get-announcements-cache-stats");
-      const totalCount = countAnnouncements();
+      const totalCount = announcementRepository.countAnnouncements();
       return {
         totalCount
       };
@@ -17000,7 +17132,7 @@ function registerAnnouncementHandlers() {
   ipcMain.handle("tag-all-announcements", async (_event, batchSize = 1e3, reprocessAll = false) => {
     try {
       log.info("IPC", `tag-all-announcements: batchSize=${batchSize}, reprocessAll=${reprocessAll}`);
-      const result = tagAnnouncementsBatch(batchSize, void 0, reprocessAll);
+      const result = announcementRepository.tagAnnouncementsBatch(batchSize, void 0, reprocessAll);
       log.info("IPC", `tag-all-announcements: processed ${result.processed} announcements`);
       return result;
     } catch (error2) {
@@ -17011,7 +17143,7 @@ function registerAnnouncementHandlers() {
   ipcMain.handle("reprocess-all-announcements", async (_event, batchSize = 1e3) => {
     try {
       log.info("IPC", `reprocess-all-announcements: batchSize=${batchSize}`);
-      const result = tagAnnouncementsBatch(batchSize, void 0, true);
+      const result = announcementRepository.tagAnnouncementsBatch(batchSize, void 0, true);
       log.info("IPC", `reprocess-all-announcements: processed ${result.processed} announcements`);
       return result;
     } catch (error2) {
@@ -17026,8 +17158,8 @@ function registerAnnouncementHandlers() {
         log.debug("IPC", message);
       });
       if (announcements.length > 0) {
-        upsertAnnouncements(announcements);
-        recordAnnouncementSyncRange(tsCode, startDate, endDate);
+        announcementRepository.upsertAnnouncements(announcements);
+        announcementRepository.recordAnnouncementSyncRange(tsCode, startDate, endDate);
       }
       log.info("IPC", `sync-announcements-range: synced ${announcements.length} announcements`);
       return {
@@ -17040,6 +17172,8 @@ function registerAnnouncementHandlers() {
     }
   });
 }
+const stockRepository$1 = new StockRepository(getDb());
+const holderRepository$1 = new HolderRepository(getDb());
 let isSyncingHolders = false;
 let isPausedHolders = false;
 async function syncAllTop10Holders(mainWindow2, onProgress) {
@@ -17051,7 +17185,7 @@ async function syncAllTop10Holders(mainWindow2, onProgress) {
   isPausedHolders = false;
   console.log("[Holder Service] Starting sync all top10 holders...");
   try {
-    const stocks = getAllStocks();
+    const stocks = stockRepository$1.getAllStocks();
     const totalStocks = stocks.length;
     if (totalStocks === 0) {
       return { success: false, status: "failed", message: "没有股票数据，请先同步股票列表" };
@@ -17077,7 +17211,7 @@ async function syncAllTop10Holders(mainWindow2, onProgress) {
         };
       }
       const stock = stocks[i];
-      if (hasTop10HoldersData(stock.ts_code)) {
+      if (holderRepository$1.hasTop10HoldersData(stock.ts_code)) {
         skipCount++;
         console.log(`[${i + 1}/${totalStocks}] Skip ${stock.ts_code} ${stock.name} - already synced`);
         const progress = {
@@ -17097,7 +17231,7 @@ async function syncAllTop10Holders(mainWindow2, onProgress) {
       try {
         const holders = await TushareClient.getTop10Holders(stock.ts_code);
         if (holders && holders.length > 0) {
-          upsertTop10Holders(holders);
+          holderRepository$1.upsertTop10Holders(holders);
           successCount++;
           console.log(`[${i + 1}/${totalStocks}] Success ${stock.ts_code} ${stock.name} - ${holders.length} holders`);
         } else {
@@ -17181,7 +17315,7 @@ async function syncStockTop10Holders(tsCode) {
     console.log(`[Holder Service] Syncing top10 holders for ${tsCode}...`);
     const holders = await TushareClient.getTop10Holders(tsCode);
     if (holders && holders.length > 0) {
-      upsertTop10Holders(holders);
+      holderRepository$1.upsertTop10Holders(holders);
       console.log(`[Holder Service] Synced ${holders.length} holders for ${tsCode}`);
       return {
         status: "success",
@@ -17203,6 +17337,8 @@ async function syncStockTop10Holders(tsCode) {
     };
   }
 }
+const stockRepository = new StockRepository(getDb());
+const holderRepository = new HolderRepository(getDb());
 function registerHolderHandlers(mainWindow2) {
   ipcMain.handle("get-top10-holders", async (_event, tsCode, period, annDate, startDate, endDate) => {
     try {
@@ -17249,7 +17385,7 @@ function registerHolderHandlers(mainWindow2) {
   ipcMain.handle("sync-stock-top10-holders", async (_event, tsCode) => {
     try {
       console.log(`[IPC] sync-stock-top10-holders: tsCode=${tsCode}`);
-      deleteTop10HoldersByStock(tsCode);
+      holderRepository.deleteTop10HoldersByStock(tsCode);
       const result = await syncStockTop10Holders(tsCode);
       return result;
     } catch (error2) {
@@ -17263,7 +17399,7 @@ function registerHolderHandlers(mainWindow2) {
   ipcMain.handle("get-top10-holders-from-db", async (_event, tsCode, limit = 100) => {
     try {
       console.log(`[IPC] get-top10-holders-from-db: tsCode=${tsCode}, limit=${limit}`);
-      return getTop10HoldersByStock(tsCode, limit);
+      return holderRepository.getTop10HoldersByStock(tsCode, limit);
     } catch (error2) {
       console.error("Failed to get top10 holders from db:", error2);
       throw error2;
@@ -17271,7 +17407,7 @@ function registerHolderHandlers(mainWindow2) {
   });
   ipcMain.handle("has-top10-holders-data", async (_event, tsCode) => {
     try {
-      return hasTop10HoldersData(tsCode);
+      return holderRepository.hasTop10HoldersData(tsCode);
     } catch (error2) {
       console.error("Failed to check top10 holders data:", error2);
       return false;
@@ -17279,9 +17415,9 @@ function registerHolderHandlers(mainWindow2) {
   });
   ipcMain.handle("get-top10-holders-sync-stats", async () => {
     try {
-      const totalStocks = countStocks();
-      const syncedStocks = countStocksWithTop10Holders();
-      const syncedStockCodes = getStocksWithTop10Holders();
+      const totalStocks = stockRepository.countStocks();
+      const syncedStocks = holderRepository.countStocksWithTop10Holders();
+      const syncedStockCodes = holderRepository.getStocksWithTop10Holders();
       return {
         totalStocks,
         syncedStocks,
@@ -17296,7 +17432,7 @@ function registerHolderHandlers(mainWindow2) {
   ipcMain.handle("get-top10-holders-end-dates", async (_event, tsCode) => {
     try {
       console.log(`[IPC] get-top10-holders-end-dates: tsCode=${tsCode}`);
-      return getTop10HoldersEndDates(tsCode);
+      return holderRepository.getTop10HoldersEndDates(tsCode);
     } catch (error2) {
       console.error("Failed to get top10 holders end dates:", error2);
       return [];
@@ -17305,17 +17441,18 @@ function registerHolderHandlers(mainWindow2) {
   ipcMain.handle("get-top10-holders-by-end-date", async (_event, tsCode, endDate) => {
     try {
       console.log(`[IPC] get-top10-holders-by-end-date: tsCode=${tsCode}, endDate=${endDate}`);
-      return getTop10HoldersByStockAndEndDate(tsCode, endDate);
+      return holderRepository.getTop10HoldersByStockAndEndDate(tsCode, endDate);
     } catch (error2) {
       console.error("Failed to get top10 holders by end date:", error2);
       throw error2;
     }
   });
 }
+const classificationRepository = new ClassificationRepository(getDb());
 function registerClassificationHandlers() {
   ipcMain.handle("get-classification-categories", async () => {
     try {
-      const categories = getClassificationCategories();
+      const categories = classificationRepository.getClassificationCategories();
       return { success: true, categories };
     } catch (error2) {
       console.error("Failed to get classification categories:", error2);
@@ -17324,7 +17461,7 @@ function registerClassificationHandlers() {
   });
   ipcMain.handle("get-classification-rules", async () => {
     try {
-      const rules = getClassificationRules();
+      const rules = classificationRepository.getClassificationRules();
       return { success: true, rules };
     } catch (error2) {
       console.error("Failed to get classification rules:", error2);
@@ -17333,7 +17470,7 @@ function registerClassificationHandlers() {
   });
   ipcMain.handle("get-classification-rules-by-category", async (_event, categoryKey) => {
     try {
-      const rules = getClassificationRulesByCategory(categoryKey);
+      const rules = classificationRepository.getClassificationRulesByCategory(categoryKey);
       return { success: true, rules };
     } catch (error2) {
       console.error("Failed to get classification rules by category:", error2);
@@ -17342,7 +17479,7 @@ function registerClassificationHandlers() {
   });
   ipcMain.handle("update-classification-category", async (_event, id, updates) => {
     try {
-      const changes = updateClassificationCategory(id, updates);
+      const changes = classificationRepository.updateClassificationCategory(id, updates);
       return { success: true, changes };
     } catch (error2) {
       console.error("Failed to update classification category:", error2);
@@ -17351,7 +17488,7 @@ function registerClassificationHandlers() {
   });
   ipcMain.handle("add-classification-rule", async (_event, categoryKey, keyword) => {
     try {
-      const id = addClassificationRule(categoryKey, keyword);
+      const id = classificationRepository.addClassificationRule(categoryKey, keyword);
       return { success: true, id: Number(id) };
     } catch (error2) {
       console.error("Failed to add classification rule:", error2);
@@ -17360,7 +17497,7 @@ function registerClassificationHandlers() {
   });
   ipcMain.handle("update-classification-rule", async (_event, id, keyword, enabled) => {
     try {
-      const changes = updateClassificationRule(id, keyword, enabled);
+      const changes = classificationRepository.updateClassificationRule(id, keyword, enabled);
       return { success: true, changes };
     } catch (error2) {
       console.error("Failed to update classification rule:", error2);
@@ -17369,7 +17506,7 @@ function registerClassificationHandlers() {
   });
   ipcMain.handle("delete-classification-rule", async (_event, id) => {
     try {
-      const changes = deleteClassificationRule(id);
+      const changes = classificationRepository.deleteClassificationRule(id);
       return { success: true, changes };
     } catch (error2) {
       console.error("Failed to delete classification rule:", error2);
@@ -17378,7 +17515,7 @@ function registerClassificationHandlers() {
   });
   ipcMain.handle("reset-classification-rules", async () => {
     try {
-      const result = resetClassificationRules();
+      const result = classificationRepository.resetClassificationRules();
       return result;
     } catch (error2) {
       console.error("Failed to reset classification rules:", error2);

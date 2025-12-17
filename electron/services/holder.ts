@@ -5,8 +5,14 @@
 
 import { BrowserWindow } from "electron";
 import { TushareClient } from "../tushare.js";
-import { getAllStocks, upsertTop10Holders, hasTop10HoldersData } from "../db.js";
+import { getDb } from "../db.js";
+import { StockRepository } from "../repositories/implementations/StockRepository.js";
+import { HolderRepository } from "../repositories/implementations/HolderRepository.js";
 import { SyncResult, SyncProgress } from "../types/index.js";
+
+// 创建仓储实例
+const stockRepository = new StockRepository(getDb());
+const holderRepository = new HolderRepository(getDb());
 
 // 同步状态
 let isSyncingHolders = false;
@@ -29,7 +35,7 @@ export async function syncAllTop10Holders(
 
 	try {
 		// 获取所有股票
-		const stocks = getAllStocks() as Array<{ ts_code: string; name: string; [key: string]: any }>;
+		const stocks = stockRepository.getAllStocks() as Array<{ ts_code: string; name: string; [key: string]: any }>;
 		const totalStocks = stocks.length;
 
 		if (totalStocks === 0) {
@@ -66,7 +72,7 @@ export async function syncAllTop10Holders(
 			const stock = stocks[i];
 
 			// 检查是否已经有数据
-			if (hasTop10HoldersData(stock.ts_code)) {
+			if (holderRepository.hasTop10HoldersData(stock.ts_code)) {
 				skipCount++;
 				console.log(`[${i + 1}/${totalStocks}] Skip ${stock.ts_code} ${stock.name} - already synced`);
 
@@ -92,7 +98,7 @@ export async function syncAllTop10Holders(
 				const holders = await TushareClient.getTop10Holders(stock.ts_code);
 
 				if (holders && holders.length > 0) {
-					upsertTop10Holders(holders);
+					holderRepository.upsertTop10Holders(holders);
 					successCount++;
 					console.log(`[${i + 1}/${totalStocks}] Success ${stock.ts_code} ${stock.name} - ${holders.length} holders`);
 				} else {
@@ -215,7 +221,7 @@ export async function syncStockTop10Holders(tsCode: string): Promise<{ status: s
 		const holders = await TushareClient.getTop10Holders(tsCode);
 
 		if (holders && holders.length > 0) {
-			upsertTop10Holders(holders);
+			holderRepository.upsertTop10Holders(holders);
 			console.log(`[Holder Service] Synced ${holders.length} holders for ${tsCode}`);
 			return {
 				status: "success",

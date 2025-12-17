@@ -4,18 +4,18 @@
  */
 
 import { TushareClient } from "../tushare.js";
-import {
-	getAllStocks,
-	searchStocks,
-	getAllFavoriteStocks,
-	upsertAnnouncements,
-	isAnnouncementRangeSynced,
-	recordAnnouncementSyncRange,
-} from "../db.js";
-import db from "../db.js";
+import { getDb } from "../db.js";
+import { StockRepository } from "../repositories/implementations/StockRepository.js";
+import { FavoriteRepository } from "../repositories/implementations/FavoriteRepository.js";
+import { AnnouncementRepository } from "../repositories/implementations/AnnouncementRepository.js";
 import { classifyAnnouncement } from "../../src/utils/announcementClassifier.js";
 import { AnnouncementListResponse, GroupedAnnouncement } from "../types/index.js";
 import { log } from "../utils/logger.js";
+
+// 创建仓储实例
+const stockRepository = new StockRepository(getDb());
+const favoriteRepository = new FavoriteRepository(getDb());
+const announcementRepository = new AnnouncementRepository(getDb());
 
 /**
  * 从 Tushare API 获取公告数据并按股票聚合
@@ -29,7 +29,7 @@ export async function getAnnouncementsGroupedFromAPI(
 	forceRefresh?: boolean
 ): Promise<AnnouncementListResponse> {
 	// 获取所有股票列表
-	const allStocks = getAllStocks();
+	const allStocks = stockRepository.getAllStocks();
 
 	// 过滤市场
 	let filteredStocks = allStocks;
@@ -41,20 +41,12 @@ export async function getAnnouncementsGroupedFromAPI(
 	let announcements: any[] = [];
 
 	// 检查数据库中是否已有该时间范围的数据（如果强制刷新，则跳过缓存）
-	const isSynced = !forceRefresh && startDate && endDate ? isAnnouncementRangeSynced(null, startDate, endDate) : false;
+	const isSynced = !forceRefresh && startDate && endDate ? announcementRepository.isAnnouncementRangeSynced(null, startDate, endDate) : false;
 
-	if (isSynced) {
+	if (isSynced && startDate && endDate) {
 		// 从数据库读取
 		log.debug("Announcement", `从数据库读取公告: ${startDate} - ${endDate}`);
-		announcements = db
-			.prepare(
-				`
-      SELECT * FROM announcements 
-      WHERE ann_date >= ? AND ann_date <= ?
-      ORDER BY ann_date DESC, rec_time DESC
-    `
-			)
-			.all(startDate, endDate);
+		announcements = announcementRepository.getAnnouncementsByDateRange(startDate, endDate);
 		log.info("Announcement", `从数据库读取到 ${announcements.length} 条公告`);
 	} else {
 		// 从 API 获取
@@ -83,11 +75,11 @@ export async function getAnnouncementsGroupedFromAPI(
 		// 保存到数据库
 		if (announcements.length > 0) {
 			log.info("Announcement", `保存 ${announcements.length} 条公告到数据库`);
-			upsertAnnouncements(announcements);
+			announcementRepository.upsertAnnouncements(announcements);
 
 			// 记录已同步的时间范围
 			if (startDate && endDate) {
-				recordAnnouncementSyncRange(null, startDate, endDate);
+				announcementRepository.recordAnnouncementSyncRange(null, startDate, endDate);
 				log.debug("Announcement", `记录同步范围: ${startDate} - ${endDate}`);
 			}
 		}
@@ -115,7 +107,7 @@ export async function searchAnnouncementsGroupedFromAPI(
 	market?: string
 ): Promise<AnnouncementListResponse> {
 	// 搜索匹配的股票
-	const matchedStocks = searchStocks(keyword, 1000);
+	const matchedStocks = stockRepository.searchStocks(keyword, 1000);
 
 	// 过滤市场
 	let filteredStocks = matchedStocks;
@@ -153,36 +145,30 @@ export async function getFavoriteStocksAnnouncementsGroupedFromAPI(
 	endDate?: string
 ): Promise<AnnouncementListResponse> {
 	// 获取所有关注的股票代码
-	const favoriteStocks = getAllFavoriteStocks();
+	const favoriteStocks = favoriteRepository.getAllFavoriteStocks();
 
 	if (favoriteStocks.length === 0) {
 		return { items: [], total: 0, page, pageSize };
 	}
 
 	// 获取关注的股票信息
-	const allStocks = getAllStocks();
+	const allStocks = stockRepository.getAllStocks();
 	const favoriteStockInfos = allStocks.filter((s: any) => favoriteStocks.includes(s.ts_code));
 
 	// 从数据库查询公告数据
 	let announcements: any[] = [];
 
 	// 检查是否已同步该时间范围
-	const isSynced = startDate && endDate ? isAnnouncementRangeSynced(null, startDate, endDate) : false;
+	const isSynced = startDate && endDate ? announcementRepository.isAnnouncementRangeSynced(null, startDate, endDate) : false;
 
-	if (isSynced) {
+	if (isSynced && startDate && endDate) {
 		// 从数据库读取关注股票的公告
 		log.debug("Announcement", `从数据库读取关注股票公告: ${startDate} - ${endDate}`);
 
-		// 构建 SQL 查询，使用 IN 子句查询多个股票代码
-		const placeholders = favoriteStocks.map(() => "?").join(",");
-		const query = `
-			SELECT * FROM announcements 
-			WHERE ts_code IN (${placeholders})
-			AND ann_date >= ? AND ann_date <= ?
-			ORDER BY ann_date DESC, rec_time DESC
-		`;
-
-		announcements = db.prepare(query).all(...favoriteStocks, startDate, endDate);
+		// 获取所有关注股票的公告
+		const allAnnouncements = announcementRepository.getAnnouncementsByDateRange(startDate, endDate);
+		// 过滤出关注股票的公告
+		announcements = allAnnouncements.filter((ann: any) => favoriteStocks.includes(ann.ts_code));
 		log.info("Announcement", `从数据库读取到 ${announcements.length} 条关注股票公告`);
 	} else {
 		// 从 API 获取（逐个股票查询以避免 API 限制）
@@ -205,7 +191,7 @@ export async function getFavoriteStocksAnnouncementsGroupedFromAPI(
 		// 保存到数据库
 		if (announcements.length > 0) {
 			log.info("Announcement", `保存 ${announcements.length} 条关注股票公告到数据库`);
-			upsertAnnouncements(announcements);
+			announcementRepository.upsertAnnouncements(announcements);
 		}
 	}
 

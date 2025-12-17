@@ -5,15 +5,19 @@
 
 import { Notification } from "electron";
 import { TushareClient } from "../tushare.js";
-import { upsertStocks, countStocks, getAllStocks } from "../db.js";
+import { getDb } from "../db.js";
+import { StockRepository } from "../repositories/implementations/StockRepository.js";
 import { SyncResult } from "../types/index.js";
+
+// 创建仓储实例
+const stockRepository = new StockRepository(getDb());
 
 /**
  * 同步股票列表（首次启动或数据为空时）
  */
 export async function syncStocksIfNeeded(): Promise<void> {
 	try {
-		const stockCount = countStocks();
+		const stockCount = stockRepository.countStocks();
 
 		if (stockCount > 0) {
 			console.log(`Stock list already synced: ${stockCount} stocks`);
@@ -26,7 +30,7 @@ export async function syncStocksIfNeeded(): Promise<void> {
 		const stocks = await TushareClient.getStockList(undefined, undefined, undefined, undefined, undefined, "L", 5000, 0);
 
 		if (stocks && stocks.length > 0) {
-			upsertStocks(stocks);
+			stockRepository.upsertStocks(stocks);
 			console.log(`Synced ${stocks.length} stocks to database`);
 
 			if (Notification.isSupported()) {
@@ -72,7 +76,7 @@ export async function syncAllStocks(
 				stockCount: stocks.length,
 			});
 
-			upsertStocks(stocks);
+			stockRepository.upsertStocks(stocks);
 			console.log(`Synced ${stocks.length} stocks to database`);
 
 			// 发送完成事件
@@ -122,13 +126,13 @@ export async function syncAllStocks(
  * 获取所有股票列表
  */
 export function getStockList(): any[] {
-	return getAllStocks();
+	return stockRepository.getAllStocks();
 }
 
 /**
  * 获取股票数量
  */
 export function getStockCount(): number {
-	return countStocks();
+	return stockRepository.countStocks();
 }
 

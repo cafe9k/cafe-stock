@@ -5,17 +5,13 @@
 import { ipcMain, BrowserWindow } from "electron";
 import { TushareClient } from "../tushare.js";
 import * as holderService from "../services/holder.js";
-import {
-	getTop10HoldersByStock,
-	hasTop10HoldersData,
-	countStocks,
-	countStocksWithTop10Holders,
-	getStocksWithTop10Holders,
-	getTop10HoldersEndDates,
-	getTop10HoldersByStockAndEndDate,
-	deleteTop10HoldersByStock,
-	upsertTop10Holders,
-} from "../db.js";
+import { getDb } from "../db.js";
+import { StockRepository } from "../repositories/implementations/StockRepository.js";
+import { HolderRepository } from "../repositories/implementations/HolderRepository.js";
+
+// 创建仓储实例
+const stockRepository = new StockRepository(getDb());
+const holderRepository = new HolderRepository(getDb());
 
 /**
  * 注册股东相关 IPC 处理器
@@ -77,7 +73,7 @@ export function registerHolderHandlers(mainWindow: BrowserWindow | null): void {
 			console.log(`[IPC] sync-stock-top10-holders: tsCode=${tsCode}`);
 
 			// 删除旧数据
-			deleteTop10HoldersByStock(tsCode);
+			holderRepository.deleteTop10HoldersByStock(tsCode);
 
 			// 使用服务层同步
 			const result = await holderService.syncStockTop10Holders(tsCode);
@@ -95,7 +91,7 @@ export function registerHolderHandlers(mainWindow: BrowserWindow | null): void {
 	ipcMain.handle("get-top10-holders-from-db", async (_event, tsCode: string, limit: number = 100) => {
 		try {
 			console.log(`[IPC] get-top10-holders-from-db: tsCode=${tsCode}, limit=${limit}`);
-			return getTop10HoldersByStock(tsCode, limit);
+			return holderRepository.getTop10HoldersByStock(tsCode, limit);
 		} catch (error: any) {
 			console.error("Failed to get top10 holders from db:", error);
 			throw error;
@@ -105,7 +101,7 @@ export function registerHolderHandlers(mainWindow: BrowserWindow | null): void {
 	// 检查股票是否已有十大股东数据
 	ipcMain.handle("has-top10-holders-data", async (_event, tsCode: string) => {
 		try {
-			return hasTop10HoldersData(tsCode);
+			return holderRepository.hasTop10HoldersData(tsCode);
 		} catch (error: any) {
 			console.error("Failed to check top10 holders data:", error);
 			return false;
@@ -115,9 +111,9 @@ export function registerHolderHandlers(mainWindow: BrowserWindow | null): void {
 	// 获取同步统计信息
 	ipcMain.handle("get-top10-holders-sync-stats", async () => {
 		try {
-			const totalStocks = countStocks();
-			const syncedStocks = countStocksWithTop10Holders();
-			const syncedStockCodes = getStocksWithTop10Holders();
+			const totalStocks = stockRepository.countStocks();
+			const syncedStocks = holderRepository.countStocksWithTop10Holders();
+			const syncedStockCodes = holderRepository.getStocksWithTop10Holders();
 
 			return {
 				totalStocks,
@@ -135,7 +131,7 @@ export function registerHolderHandlers(mainWindow: BrowserWindow | null): void {
 	ipcMain.handle("get-top10-holders-end-dates", async (_event, tsCode: string) => {
 		try {
 			console.log(`[IPC] get-top10-holders-end-dates: tsCode=${tsCode}`);
-			return getTop10HoldersEndDates(tsCode);
+			return holderRepository.getTop10HoldersEndDates(tsCode);
 		} catch (error: any) {
 			console.error("Failed to get top10 holders end dates:", error);
 			return [];
@@ -146,7 +142,7 @@ export function registerHolderHandlers(mainWindow: BrowserWindow | null): void {
 	ipcMain.handle("get-top10-holders-by-end-date", async (_event, tsCode: string, endDate: string) => {
 		try {
 			console.log(`[IPC] get-top10-holders-by-end-date: tsCode=${tsCode}, endDate=${endDate}`);
-			return getTop10HoldersByStockAndEndDate(tsCode, endDate);
+			return holderRepository.getTop10HoldersByStockAndEndDate(tsCode, endDate);
 		} catch (error: any) {
 			console.error("Failed to get top10 holders by end date:", error);
 			throw error;

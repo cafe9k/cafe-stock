@@ -7,15 +7,11 @@ import { log } from "../utils/logger.js";
 import { TushareClient } from "../tushare.js";
 import * as announcementService from "../services/announcement.js";
 import * as classificationService from "../services/classification.js";
-import {
-	getAnnouncementsByDateRange,
-	searchAnnouncements,
-	isAnnouncementRangeSynced,
-	upsertAnnouncements,
-	recordAnnouncementSyncRange,
-	countAnnouncements,
-	tagAnnouncementsBatch,
-} from "../db.js";
+import { getDb } from "../db.js";
+import { AnnouncementRepository } from "../repositories/implementations/AnnouncementRepository.js";
+
+// 创建仓储实例
+const announcementRepository = new AnnouncementRepository(getDb());
 
 /**
  * 注册公告相关 IPC 处理器
@@ -163,7 +159,7 @@ export function registerAnnouncementHandlers(): void {
 		try {
 			log.debug("IPC", `get-announcements-from-cache: tsCode=${tsCode}, dateRange=${startDate}-${endDate}`);
 
-			const announcements = getAnnouncementsByDateRange(startDate, endDate, tsCode || undefined);
+			const announcements = announcementRepository.getAnnouncementsByDateRange(startDate, endDate, tsCode || undefined);
 
 			// 添加分类信息
 			const result = announcements.map((ann: any) => ({
@@ -184,7 +180,7 @@ export function registerAnnouncementHandlers(): void {
 		try {
 			log.debug("IPC", `check-announcement-range-synced: tsCode=${tsCode}, dateRange=${startDate}-${endDate}`);
 
-			const isSynced = isAnnouncementRangeSynced(tsCode, startDate, endDate);
+			const isSynced = announcementRepository.isAnnouncementRangeSynced(tsCode, startDate, endDate);
 
 			log.debug("IPC", `check-announcement-range-synced: isSynced=${isSynced}`);
 			return { isSynced };
@@ -199,7 +195,7 @@ export function registerAnnouncementHandlers(): void {
 		try {
 			log.debug("IPC", `search-announcements-from-cache: keyword=${keyword}, limit=${limit}`);
 
-			const announcements = searchAnnouncements(keyword, limit);
+			const announcements = announcementRepository.searchAnnouncements(keyword, limit);
 
 			// 添加分类信息
 			const result = announcements.map((ann: any) => ({
@@ -220,7 +216,7 @@ export function registerAnnouncementHandlers(): void {
 		try {
 			log.debug("IPC", "get-announcements-cache-stats");
 
-			const totalCount = countAnnouncements();
+			const totalCount = announcementRepository.countAnnouncements();
 
 			return {
 				totalCount,
@@ -236,7 +232,7 @@ export function registerAnnouncementHandlers(): void {
 		try {
 			log.info("IPC", `tag-all-announcements: batchSize=${batchSize}, reprocessAll=${reprocessAll}`);
 
-			const result = tagAnnouncementsBatch(batchSize, undefined, reprocessAll);
+			const result = announcementRepository.tagAnnouncementsBatch(batchSize, undefined, reprocessAll);
 
 			log.info("IPC", `tag-all-announcements: processed ${result.processed} announcements`);
 			return result;
@@ -251,7 +247,7 @@ export function registerAnnouncementHandlers(): void {
 		try {
 			log.info("IPC", `reprocess-all-announcements: batchSize=${batchSize}`);
 
-			const result = tagAnnouncementsBatch(batchSize, undefined, true);
+			const result = announcementRepository.tagAnnouncementsBatch(batchSize, undefined, true);
 
 			log.info("IPC", `reprocess-all-announcements: processed ${result.processed} announcements`);
 			return result;
@@ -273,8 +269,8 @@ export function registerAnnouncementHandlers(): void {
 
 			// 保存到数据库
 			if (announcements.length > 0) {
-				upsertAnnouncements(announcements);
-				recordAnnouncementSyncRange(tsCode, startDate, endDate);
+				announcementRepository.upsertAnnouncements(announcements);
+				announcementRepository.recordAnnouncementSyncRange(tsCode, startDate, endDate);
 			}
 
 			log.info("IPC", `sync-announcements-range: synced ${announcements.length} announcements`);
