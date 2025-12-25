@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { Table, Card, Tag, Typography, Badge, Space, Button, Input, Select, App, InputNumber, Descriptions, Divider } from "antd";
 import {
 	FileTextOutlined,
@@ -38,6 +38,9 @@ export function AnnouncementList() {
 	const { message } = App.useApp();
 	const [loadingHistory, setLoadingHistory] = useState(false);
 	const [searchKeyword, setSearchKeyword] = useState("");
+	// 防抖后的搜索关键词，用于实际触发搜索
+	const [debouncedSearchKeyword, setDebouncedSearchKeyword] = useState("");
+	const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 	const [expandedRowKeys, setExpandedRowKeys] = useState<string[]>([]);
 	const [expandedData, setExpandedData] = useState<Record<string, Announcement[]>>({});
 	const [companyInfoData, setCompanyInfoData] = useState<Record<string, any>>({});
@@ -99,12 +102,12 @@ export function AnnouncementList() {
 		
 		return {
 			...baseFilter,
-			searchKeyword: searchKeyword.trim() || undefined,
+			searchKeyword: debouncedSearchKeyword.trim() || undefined,
 			showFavoriteOnly,
 			marketCapRange,
 			categories: selectedCategories.length > 0 ? selectedCategories : undefined,
 		};
-	}, [filter, searchKeyword, showFavoriteOnly, marketCapFilter, customMarketCapMin, customMarketCapMax, selectedCategories]);
+	}, [filter, debouncedSearchKeyword, showFavoriteOnly, marketCapFilter, customMarketCapMin, customMarketCapMax, selectedCategories]);
 
 	// 当筛选条件变化时，重新从数据库获取数据并重置到第一页
 	useEffect(() => {
@@ -169,10 +172,37 @@ export function AnnouncementList() {
 		}
 	};
 
-	// 搜索功能
+	// 搜索防抖：输入停止 500ms 后执行搜索
+	useEffect(() => {
+		// 清除之前的定时器
+		if (debounceTimerRef.current) {
+			clearTimeout(debounceTimerRef.current);
+		}
+
+		// 设置新的定时器，500ms 后更新防抖搜索关键词
+		debounceTimerRef.current = setTimeout(() => {
+			setDebouncedSearchKeyword(searchKeyword);
+		}, 500);
+
+		// 清理函数：组件卸载时清除定时器
+		return () => {
+			if (debounceTimerRef.current) {
+				clearTimeout(debounceTimerRef.current);
+			}
+		};
+	}, [searchKeyword]);
+
+	// 搜索功能（立即执行，用于回车或点击搜索按钮）
 	const handleSearch = async (value: string) => {
 		const trimmedValue = value.trim();
 		setSearchKeyword(trimmedValue);
+		// 立即更新防抖搜索关键词（跳过防抖）
+		setDebouncedSearchKeyword(trimmedValue);
+		
+		// 清除防抖定时器，避免重复触发
+		if (debounceTimerRef.current) {
+			clearTimeout(debounceTimerRef.current);
+		}
 		
 		// 保存到搜索历史（非空且不重复）
 		if (trimmedValue && !searchHistory.includes(trimmedValue)) {
@@ -187,7 +217,18 @@ export function AnnouncementList() {
 	// 使用搜索历史
 	const handleUseSearchHistory = (keyword: string) => {
 		setSearchKeyword(keyword);
-		handleSearch(keyword);
+		// 立即更新防抖搜索关键词（跳过防抖）
+		setDebouncedSearchKeyword(keyword);
+		// 清除防抖定时器，避免重复触发
+		if (debounceTimerRef.current) {
+			clearTimeout(debounceTimerRef.current);
+		}
+		// 保存到搜索历史（非空且不重复）
+		if (keyword && !searchHistory.includes(keyword)) {
+			const newHistory = [keyword, ...searchHistory].slice(0, MAX_SEARCH_HISTORY);
+			setSearchHistory(newHistory);
+			localStorage.setItem(SEARCH_HISTORY_STORAGE_KEY, JSON.stringify(newHistory));
+		}
 	};
 
 	// 删除搜索历史
@@ -552,8 +593,12 @@ export function AnnouncementList() {
 						onSearch={handleSearch}
 						onChange={(e) => {
 							setSearchKeyword(e.target.value);
+							// 如果清空输入框，立即执行搜索（不使用防抖）
 							if (!e.target.value) {
-								handleSearch("");
+								setDebouncedSearchKeyword("");
+								if (debounceTimerRef.current) {
+									clearTimeout(debounceTimerRef.current);
+								}
 							}
 						}}
 						style={{ width: 340 }}
