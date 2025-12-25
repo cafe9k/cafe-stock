@@ -15,7 +15,7 @@ export type DateRange = [Dayjs, Dayjs] | [Dayjs | null, Dayjs | null] | null;
 /**
  * 快速日期选择选项
  */
-export type QuickDateOption = "today" | "yesterday" | "week" | "month" | "quarter";
+export type QuickDateOption = "today" | "tomorrow" | "yesterday" | "week" | "month" | "quarter";
 
 /**
  * 股票筛选 Hook
@@ -70,6 +70,11 @@ export function useStockFilter(initialFilter?: Partial<StockFilter>) {
 			case "today":
 				newDateRange = [today, today];
 				newDateRangeDisplay = [parseDateString(today), parseDateString(today)];
+				break;
+			case "tomorrow":
+				const tomorrow = dayjs().add(1, "day").format("YYYYMMDD");
+				newDateRange = [tomorrow, tomorrow];
+				newDateRangeDisplay = [parseDateString(tomorrow), parseDateString(tomorrow)];
 				break;
 			case "yesterday":
 				const yesterday = getDaysAgo(1);

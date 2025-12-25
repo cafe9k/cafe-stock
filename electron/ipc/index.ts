@@ -6,7 +6,6 @@ import { BrowserWindow } from "electron";
 import { registerSystemHandlers } from "./system.js";
 import { registerUpdaterHandlers } from "./updater.js";
 import { registerFavoriteHandlers } from "./favorite.js";
-import { registerNewsHandlers } from "./news.js";
 import { registerStockHandlers } from "./stock.js";
 import { registerAnnouncementHandlers } from "./announcement.js";
 import { registerHolderHandlers } from "./holder.js";
@@ -28,9 +27,6 @@ export function setupIPC(mainWindow: BrowserWindow | null): void {
 
 	// 收藏相关（5个）
 	registerFavoriteHandlers();
-
-	// 财经资讯相关（1个）
-	registerNewsHandlers();
 
 	// 股票相关（7个）
 	registerStockHandlers(mainWindow);

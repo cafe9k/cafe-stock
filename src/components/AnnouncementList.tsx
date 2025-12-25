@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
-import { Table, Card, Tag, Typography, Badge, Space, Button, Input, Select, App, InputNumber } from "antd";
+import { Table, Card, Tag, Typography, Badge, Space, Button, Input, Select, App, InputNumber, Descriptions, Divider } from "antd";
 import {
 	FileTextOutlined,
 	ReloadOutlined,
@@ -8,6 +8,7 @@ import {
 	StarOutlined,
 	StarFilled,
 	ClockCircleOutlined,
+	CloseOutlined,
 } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import { StockList } from "./StockList/index";
@@ -18,6 +19,10 @@ import { AnnouncementCategory, getCategoryColor, getCategoryIcon } from "../util
 
 const { Text: AntText } = Typography;
 const { Search } = Input;
+
+// 搜索历史存储键名
+const SEARCH_HISTORY_STORAGE_KEY = "announcement_search_history";
+const MAX_SEARCH_HISTORY = 20;
 
 interface Announcement {
 	ts_code: string;
@@ -36,14 +41,26 @@ export function AnnouncementList() {
 	const [searchKeyword, setSearchKeyword] = useState("");
 	const [expandedRowKeys, setExpandedRowKeys] = useState<string[]>([]);
 	const [expandedData, setExpandedData] = useState<Record<string, Announcement[]>>({});
+	const [companyInfoData, setCompanyInfoData] = useState<Record<string, any>>({});
 	const [loadingExpanded, setLoadingExpanded] = useState<Record<string, boolean>>({});
 	const [showFavoriteOnly, setShowFavoriteOnly] = useState(false);
 	const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
 	
 	// 市值筛选状态
-	const [marketCapFilter, setMarketCapFilter] = useState<string>("all"); // all | < 10 | < 50 | < 100 | custom
+	const [marketCapFilter, setMarketCapFilter] = useState<string>("all"); // all | < 30 | < 50 | < 100 | custom
 	const [customMarketCapMin, setCustomMarketCapMin] = useState<number | null>(null);
 	const [customMarketCapMax, setCustomMarketCapMax] = useState<number | null>(null);
+
+	// 搜索历史状态
+	const [searchHistory, setSearchHistory] = useState<string[]>(() => {
+		// 从 localStorage 加载搜索历史
+		try {
+			const saved = localStorage.getItem(SEARCH_HISTORY_STORAGE_KEY);
+			return saved ? JSON.parse(saved) : [];
+		} catch {
+			return [];
+		}
+	});
 
 	// 使用新的 hooks
 	const filter = useStockFilter();
@@ -68,8 +85,8 @@ export function AnnouncementList() {
 		
 		// 构建市值筛选范围
 		let marketCapRange: { min?: number; max?: number } | undefined;
-		if (marketCapFilter === "< 10") {
-			marketCapRange = { max: 10 };
+		if (marketCapFilter === "< 30") {
+			marketCapRange = { max: 30 };
 		} else if (marketCapFilter === "< 50") {
 			marketCapRange = { max: 50 };
 		} else if (marketCapFilter === "< 100") {
@@ -86,14 +103,16 @@ export function AnnouncementList() {
 			searchKeyword: searchKeyword.trim() || undefined,
 			showFavoriteOnly,
 			marketCapRange,
+			categories: selectedCategories.length > 0 ? selectedCategories : undefined,
 		};
-	}, [filter, searchKeyword, showFavoriteOnly, marketCapFilter, customMarketCapMin, customMarketCapMax]);
+	}, [filter, searchKeyword, showFavoriteOnly, marketCapFilter, customMarketCapMin, customMarketCapMax, selectedCategories]);
 
 	// 当筛选条件变化时，重新从数据库获取数据并重置到第一页
 	useEffect(() => {
 		// 筛选条件变化时，清理展开的数据和状态
 		setExpandedRowKeys([]);
 		setExpandedData({});
+		setCompanyInfoData({});
 		setExpandedPageMap({});
 		
 		// 更新筛选条件并重新加载（会自动重置到第一页）
@@ -107,7 +126,19 @@ export function AnnouncementList() {
 		currentFilter.dateRange?.[1],
 		currentFilter.marketCapRange?.min,
 		currentFilter.marketCapRange?.max,
+		currentFilter.categories?.join(','), // 监听分类数组变化
 	]);
+
+	// 当分类筛选变化时，重置所有展开行的分页到第一页
+	useEffect(() => {
+		const resetPages: Record<string, number> = {};
+		expandedRowKeys.forEach((key) => {
+			resetPages[key] = 1;
+		});
+		if (Object.keys(resetPages).length > 0) {
+			setExpandedPageMap((prev) => ({ ...prev, ...resetPages }));
+		}
+	}, [selectedCategories, expandedRowKeys]);
 
 	// 分页状态（针对每个股票的展开详情）
 	const [expandedPageMap, setExpandedPageMap] = useState<Record<string, number>>({});
@@ -141,8 +172,32 @@ export function AnnouncementList() {
 
 	// 搜索功能
 	const handleSearch = async (value: string) => {
-		setSearchKeyword(value);
+		const trimmedValue = value.trim();
+		setSearchKeyword(trimmedValue);
+		
+		// 保存到搜索历史（非空且不重复）
+		if (trimmedValue && !searchHistory.includes(trimmedValue)) {
+			const newHistory = [trimmedValue, ...searchHistory].slice(0, MAX_SEARCH_HISTORY);
+			setSearchHistory(newHistory);
+			localStorage.setItem(SEARCH_HISTORY_STORAGE_KEY, JSON.stringify(newHistory));
+		}
+		
 		// 筛选条件变化会触发 useEffect 自动更新
+	};
+
+	// 使用搜索历史
+	const handleUseSearchHistory = (keyword: string) => {
+		setSearchKeyword(keyword);
+		handleSearch(keyword);
+	};
+
+	// 删除搜索历史
+	const handleRemoveSearchHistory = (keyword: string, event: React.MouseEvent) => {
+		event.stopPropagation(); // 阻止事件冒泡，避免触发使用历史
+		const newHistory = searchHistory.filter((k) => k !== keyword);
+		setSearchHistory(newHistory);
+		localStorage.setItem(SEARCH_HISTORY_STORAGE_KEY, JSON.stringify(newHistory));
+		message.success("已删除搜索历史");
 	};
 
 	// 刷新当前页（强制从服务端获取）
@@ -259,6 +314,7 @@ export function AnnouncementList() {
 	// 展开行的内容
 	const expandedRowRender = (record: StockGroup) => {
 		const allAnnouncements = expandedData[record.ts_code] || [];
+		const companyInfo = companyInfoData[record.ts_code];
 		const loading = loadingExpanded[record.ts_code] || false;
 		const currentPage = expandedPageMap[record.ts_code] || 1;
 
@@ -269,73 +325,120 @@ export function AnnouncementList() {
 				: allAnnouncements;
 
 		return (
-			<Table
-				columns={nestedColumns}
-				dataSource={filteredAnnouncements}
-				pagination={
-					filteredAnnouncements.length > EXPANDED_PAGE_SIZE
-						? {
-								current: currentPage,
-								pageSize: EXPANDED_PAGE_SIZE,
-								total: filteredAnnouncements.length,
-								size: "small",
-								showSizeChanger: false,
-								showTotal: (total) => `共 ${total} 条公告`,
-								onChange: (page) => {
-									setExpandedPageMap((prev) => ({ ...prev, [record.ts_code]: page }));
-								},
-						  }
-						: false
-				}
-				loading={loading}
-				size="small"
-				showHeader={false}
-				rowKey={(record) => `${record.ts_code}-${record.ann_date}-${record.title}`}
-				locale={{
-					emptyText: loading ? "加载中..." : "暂无公告",
-				}}
-				onRow={(record) => ({
-					onClick: () => handlePdfPreview(record),
-					style: { cursor: "pointer" },
-				})}
-			/>
+			<div style={{ padding: "16px", backgroundColor: "#fafafa" }}>
+				{/* 公司基本信息 */}
+				{companyInfo && (
+					<>
+						<Card size="small" style={{ marginBottom: 16 }}>
+							<Descriptions title="公司基本信息" bordered size="small" column={2}>
+								{companyInfo.chairman && (
+									<Descriptions.Item label="法人代表">{companyInfo.chairman}</Descriptions.Item>
+								)}
+								{companyInfo.manager && (
+									<Descriptions.Item label="总经理">{companyInfo.manager}</Descriptions.Item>
+								)}
+								{companyInfo.secretary && (
+									<Descriptions.Item label="董秘">{companyInfo.secretary}</Descriptions.Item>
+								)}
+								{companyInfo.reg_capital && (
+									<Descriptions.Item label="注册资本">{companyInfo.reg_capital}</Descriptions.Item>
+								)}
+								{companyInfo.setup_date && (
+									<Descriptions.Item label="成立日期">
+										{companyInfo.setup_date.replace(/(\d{4})(\d{2})(\d{2})/, "$1-$2-$3")}
+									</Descriptions.Item>
+								)}
+								{(companyInfo.province || companyInfo.city) && (
+									<Descriptions.Item label="所在地">
+										{companyInfo.province || ""}
+										{companyInfo.province && companyInfo.city ? " " : ""}
+										{companyInfo.city || ""}
+									</Descriptions.Item>
+								)}
+								{companyInfo.employees && (
+									<Descriptions.Item label="员工人数">{companyInfo.employees.toLocaleString()} 人</Descriptions.Item>
+								)}
+								{companyInfo.website && (
+									<Descriptions.Item label="公司网站" span={2}>
+										<a href={companyInfo.website} target="_blank" rel="noopener noreferrer">
+											{companyInfo.website}
+										</a>
+									</Descriptions.Item>
+								)}
+								{companyInfo.main_business && (
+									<Descriptions.Item label="主营业务" span={2}>
+										<AntText style={{ fontSize: 12 }}>{companyInfo.main_business}</AntText>
+									</Descriptions.Item>
+								)}
+								{companyInfo.introduction && (
+									<Descriptions.Item label="公司介绍" span={2}>
+										<AntText style={{ fontSize: 12 }} ellipsis={{ tooltip: companyInfo.introduction }}>
+											{companyInfo.introduction}
+										</AntText>
+									</Descriptions.Item>
+								)}
+							</Descriptions>
+						</Card>
+						<Divider style={{ margin: "12px 0" }} />
+					</>
+				)}
+
+				{/* 公告列表 */}
+				<div>
+					<AntText strong style={{ fontSize: 14, marginBottom: 8, display: "block" }}>
+						最新公告
+					</AntText>
+					<Table
+						columns={nestedColumns}
+						dataSource={filteredAnnouncements}
+						pagination={
+							filteredAnnouncements.length > EXPANDED_PAGE_SIZE
+								? {
+										current: currentPage,
+										pageSize: EXPANDED_PAGE_SIZE,
+										total: filteredAnnouncements.length,
+										size: "small",
+										showSizeChanger: false,
+										showTotal: (total) => `共 ${total} 条公告`,
+										onChange: (page) => {
+											setExpandedPageMap((prev) => ({ ...prev, [record.ts_code]: page }));
+										},
+										style: {
+											marginTop: 12,
+											marginBottom: 0,
+											paddingBottom: 8,
+										},
+										showQuickJumper: true,
+										position: ["bottomCenter"] as any,
+								  }
+								: false
+						}
+						loading={loading}
+						size="small"
+						showHeader={false}
+						rowKey={(record) => `${record.ts_code}-${record.ann_date}-${record.title}`}
+						locale={{
+							emptyText: loading
+								? "加载中..."
+								: selectedCategories.length > 0
+								? "没有符合所选分类的公告"
+								: "暂无公告",
+						}}
+						onRow={(record) => ({
+							onClick: () => handlePdfPreview(record),
+							style: { cursor: "pointer" },
+						})}
+					/>
+				</div>
+			</div>
 		);
 	};
 
-	// 根据分类筛选和市值筛选过滤股票列表
+	// 根据分类筛选和市值筛选过滤股票列表（已在后端处理，这里直接使用）
 	const filteredStockGroups = useMemo(() => {
-		let filtered = stockGroups;
-		
-		// 分类筛选
-		if (selectedCategories.length > 0) {
-			filtered = filtered.filter((stock) => {
-				// 检查该股票是否有选中分类的公告
-				if (!stock.category_stats) return false;
-				return selectedCategories.some((category) => {
-					const count = stock.category_stats?.[category];
-					return count && count > 0;
-				});
-			});
-		}
-		
-		// 市值筛选（如果有市值数据）
-		if (currentFilter.marketCapRange) {
-			const { min, max } = currentFilter.marketCapRange;
-			filtered = filtered.filter((stock) => {
-				// 如果股票没有市值数据，默认不过滤
-				if (stock.total_mv === undefined || stock.total_mv === null) {
-					return true; // 暂时保留没有市值数据的股票
-				}
-				
-				// 应用市值范围筛选
-				if (min !== undefined && stock.total_mv < min) return false;
-				if (max !== undefined && stock.total_mv > max) return false;
-				return true;
-			});
-		}
-		
-		return filtered;
-	}, [stockGroups, selectedCategories, currentFilter.marketCapRange]);
+		// 后端已经应用了所有筛选条件（搜索、分类、市值），前端直接使用返回的数据
+		return stockGroups;
+	}, [stockGroups]);
 
 	return (
 		<div style={{ padding: "24px" }}>
@@ -388,7 +491,7 @@ export function AnnouncementList() {
 					style={{ width: 120 }}
 					options={[
 						{ value: "all", label: "全部市值" },
-						{ value: "< 10", label: "< 10亿" },
+						{ value: "< 30", label: "< 30亿" },
 						{ value: "< 50", label: "< 50亿" },
 						{ value: "< 100", label: "< 100亿" },
 						{ value: "custom", label: "自定义" },
@@ -424,27 +527,12 @@ export function AnnouncementList() {
 					suffixIcon={<ClockCircleOutlined />}
 					options={[
 						{ value: "today", label: "今天" },
+						{ value: "tomorrow", label: "明天" },
 						{ value: "yesterday", label: "昨天" },
 						{ value: "week", label: "最近一周" },
 						{ value: "month", label: "最近一个月" },
 						{ value: "quarter", label: "最近三个月" },
 					]}
-				/>
-
-				{/* 搜索框 - 关键词搜索 */}
-				<Search
-					placeholder="搜索股票名称或代码"
-					allowClear
-					enterButton={<SearchOutlined />}
-					onSearch={handleSearch}
-					onChange={(e) => {
-						setSearchKeyword(e.target.value);
-						if (!e.target.value) {
-							handleSearch("");
-						}
-					}}
-					style={{ width: 240, minWidth: 200 }}
-					value={searchKeyword}
 				/>
 
 				{/* 刷新按钮 - 操作按钮放在最右边 */}
@@ -454,33 +542,107 @@ export function AnnouncementList() {
 			</Space>
 		</div>
 
-			{/* 分类筛选器（独立一行） */}
+			{/* 搜索（独立一行） */}
 			<div style={{ marginBottom: 16 }}>
-				<Space wrap size={[8, 8]}>
-					<AntText strong>分类筛选：</AntText>
-					<Button
-						size="small"
-						type={selectedCategories.length === 0 ? "primary" : "default"}
-						onClick={() => setSelectedCategories([])}
-					>
-						全部
-					</Button>
-					{Object.values(AnnouncementCategory).map((category) => (
-						<Button
-							key={category}
-							size="small"
-							type={selectedCategories.includes(category) ? "primary" : "default"}
-							icon={<span>{getCategoryIcon(category)}</span>}
-							onClick={() => {
-								setSelectedCategories((prev) =>
-									prev.includes(category) ? prev.filter((c) => c !== category) : [...prev, category]
-								);
-							}}
-						>
-							{category}
-						</Button>
-					))}
+				<Space wrap size={[8, 8]} style={{ width: "100%" }} align="center">
+					<AntText strong>快速搜索：</AntText>
+					<Search
+						placeholder="根据关键字搜索股票或公告"
+						allowClear
+						enterButton={<SearchOutlined />}
+						onSearch={handleSearch}
+						onChange={(e) => {
+							setSearchKeyword(e.target.value);
+							if (!e.target.value) {
+								handleSearch("");
+							}
+						}}
+						style={{ width: 340 }}
+						value={searchKeyword}
+					/>
+					{/* 搜索历史列表 */}
+					{searchHistory.length > 0 && (
+						<>
+							<AntText type="secondary" style={{ marginLeft: 8 }}>最近搜索：</AntText>
+							<div
+								style={{
+									display: "flex",
+									gap: 8,
+									overflowX: "auto",
+									overflowY: "hidden",
+									maxWidth: "calc(100vw - 700px)",
+									scrollbarWidth: "thin",
+									WebkitOverflowScrolling: "touch",
+								}}
+							>
+								{searchHistory.map((keyword) => (
+									<Tag
+										key={keyword}
+										closable
+										onClose={(e) => handleRemoveSearchHistory(keyword, e)}
+										onClick={() => handleUseSearchHistory(keyword)}
+										style={{ cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0 }}
+										color={searchKeyword === keyword ? "blue" : "default"}
+									>
+										{keyword}
+									</Tag>
+								))}
+							</div>
+						</>
+					)}
 				</Space>
+			</div>
+
+			{/* 分类筛选器（独立一行，横向滚动） */}
+			<div style={{ marginBottom: 16 }}>
+				<div
+					style={{
+						display: "flex",
+						alignItems: "center",
+						gap: 8,
+						overflowX: "auto",
+						overflowY: "hidden",
+						scrollbarWidth: "none", // Firefox 隐藏滚动条
+						msOverflowStyle: "none", // IE/Edge 隐藏滚动条
+						WebkitOverflowScrolling: "touch",
+					}}
+				>
+					<style>
+						{`
+							/* WebKit 浏览器（Chrome、Safari）隐藏滚动条 */
+							div::-webkit-scrollbar {
+								display: none;
+							}
+						`}
+					</style>
+					<AntText strong style={{ flexShrink: 0, whiteSpace: "nowrap" }}>分类筛选：</AntText>
+					<div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+						<Button
+							size="small"
+							type={selectedCategories.length === 0 ? "primary" : "default"}
+							onClick={() => setSelectedCategories([])}
+							style={{ whiteSpace: "nowrap" }}
+						>
+							全部
+						</Button>
+						{Object.values(AnnouncementCategory).map((category) => (
+							<Button
+								key={category}
+								size="small"
+								type={selectedCategories.includes(category) ? "primary" : "default"}
+								icon={<span>{getCategoryIcon(category)}</span>}
+								onClick={() => {
+									setSelectedCategories((prev) =>
+										prev.includes(category) ? prev.filter((c) => c !== category) : [...prev, category]
+									);
+								}}
+								style={{ whiteSpace: "nowrap" }}
+							>
+								{category}
+							</Button>
+						))}
+					</div>
+				</div>
 			</div>
 
 			{/* 加载历史状态提示 */}
@@ -514,6 +676,7 @@ export function AnnouncementList() {
 						showName: true,
 						showMarket: true,
 						showIndustry: true,
+						showMarketCap: true,
 						showAnnouncementCount: false,
 						showAnnouncementCategories: true,
 						showLatestAnnTitle: true,
@@ -554,23 +717,12 @@ export function AnnouncementList() {
 							borderTop: "1px solid #f0f0f0",
 						}}
 					>
-						<AntText type="secondary">
-							显示第 <AntText strong>{page}</AntText> 页
-							{selectedCategories.length > 0 && (
-								<>
-									{" "}
-									(筛选后 <AntText strong>{filteredStockGroups.length}</AntText> 只股票，
-									共 <AntText strong>{total.toLocaleString()}</AntText> 只)
-								</>
-							)}
-							{selectedCategories.length === 0 && total > 0 && (
-								<>
-									{" "}
-									共 <AntText strong>{Math.ceil(total / PAGE_SIZE)}</AntText> 页 (总计{" "}
-									<AntText strong>{total.toLocaleString()}</AntText> 只股票)
-								</>
-							)}
-						</AntText>
+					<AntText type="secondary">
+						显示第 <AntText strong>{page}</AntText> 页
+						{" "}
+						共 <AntText strong>{Math.ceil(total / PAGE_SIZE)}</AntText> 页 (总计{" "}
+						<AntText strong>{total.toLocaleString()}</AntText> 只股票)
+					</AntText>
 						<div style={{ display: "flex", gap: 8 }}>
 							<Button onClick={prevPage} disabled={page === 1}>
 								上一页

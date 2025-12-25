@@ -228,19 +228,6 @@ export interface Top10HoldersSyncStats {
 	unsyncedStocks: number;
 }
 
-// ==================== 新闻相关类型 ====================
-
-/**
- * 财经新闻
- */
-export interface News {
-	datetime: string;
-	content: string;
-	title: string;
-	channels?: string;
-	score?: number;
-}
-
 // ==================== 分类相关类型 ====================
 
 /**
@@ -309,7 +296,7 @@ export enum IpcChannel {
 	SYNC_ANNOUNCEMENTS_RANGE = "sync-announcements-range",
 	
 	// 股票相关
-	SEARCH_STOCKS = "search-stocks",
+	GET_ALL_STOCKS = "get-all-stocks",
 	GET_STOCK_LIST_SYNC_INFO = "get-stock-list-sync-info",
 	SYNC_ALL_STOCKS = "sync-all-stocks",
 	CHECK_STOCK_LIST_SYNC_STATUS = "check-stock-list-sync-status",

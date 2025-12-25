@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { Card, Typography, Space, Tag, Tooltip, Button, App } from "antd";
-import { StockOutlined, StarOutlined, TeamOutlined, SyncOutlined, NotificationOutlined } from "@ant-design/icons";
+import { Card, Typography, Space, Tag, Tooltip } from "antd";
+import { StockOutlined, StarOutlined, TeamOutlined, NotificationOutlined } from "@ant-design/icons";
 
 const { Text } = Typography;
 
@@ -22,10 +22,8 @@ interface CacheDataStats {
 }
 
 export function CacheDataIndicator() {
-	const { message } = App.useApp();
 	const [stats, setStats] = useState<CacheDataStats | null>(null);
 	const [loading, setLoading] = useState(true);
-	const [syncingStocks, setSyncingStocks] = useState(false);
 
 	const loadStats = async () => {
 		try {
@@ -64,27 +62,6 @@ export function CacheDataIndicator() {
 		}
 	};
 
-	// 直接同步股票列表（无需弹窗）
-	const handleSyncAllStocks = async () => {
-		try {
-			setSyncingStocks(true);
-			message.info("开始同步股票列表...");
-			const result = await window.electronAPI.syncAllStocks();
-			if (result.success) {
-				message.success(result.message || `成功同步 ${result.stockCount} 只股票`);
-				// 重新加载缓存统计
-				await loadStats();
-			} else {
-				message.error(result.message || "同步失败");
-			}
-		} catch (error: any) {
-			console.error("同步股票列表失败:", error);
-			message.error(`同步失败: ${error.message || "未知错误"}`);
-		} finally {
-			setSyncingStocks(false);
-		}
-	};
-
 	if (loading && !stats) {
 		return null;
 	}
@@ -112,25 +89,20 @@ export function CacheDataIndicator() {
 		>
 			<div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
 				<Space size="large" wrap>
-					{/* 同步按钮 + 股票列表 */}
-					<Space size="small">
-						<Button size="small" type="primary" icon={<SyncOutlined />} onClick={handleSyncAllStocks} loading={syncingStocks}>
-							同步
-						</Button>
-						<Tooltip title={`股票列表：${stats.stocks.count.toLocaleString()} 只股票`}>
-							<Space size="small">
-								<StockOutlined style={{ color: "#52c41a" }} />
-								<Text style={{ fontSize: 12 }}>
-									股票列表 <Tag color="green">{stats.stocks.count.toLocaleString()}</Tag>
-									{stats.stocks.lastSyncTime && (
-										<Text type="secondary" style={{ fontSize: 11 }}>
-											({formatTime(stats.stocks.lastSyncTime)})
-										</Text>
-									)}
-								</Text>
-							</Space>
-						</Tooltip>
-					</Space>
+					{/* 股票列表 */}
+					<Tooltip title={`股票列表：${stats.stocks.count.toLocaleString()} 只股票`}>
+						<Space size="small">
+							<StockOutlined style={{ color: "#52c41a" }} />
+							<Text style={{ fontSize: 12 }}>
+								股票列表 <Tag color="green">{stats.stocks.count.toLocaleString()}</Tag>
+								{stats.stocks.lastSyncTime && (
+									<Text type="secondary" style={{ fontSize: 11 }}>
+										({formatTime(stats.stocks.lastSyncTime)})
+									</Text>
+								)}
+							</Text>
+						</Space>
+					</Tooltip>
 
 					<Tooltip title={`关注股票：${stats.favoriteStocks.count} 只`}>
 						<Space size="small">
@@ -141,14 +113,11 @@ export function CacheDataIndicator() {
 						</Space>
 					</Tooltip>
 
-					<Tooltip title={`十大股东：${stats.top10Holders.stockCount} 只股票，${stats.top10Holders.recordCount.toLocaleString()} 条记录`}>
+					<Tooltip title={`十大股东：${stats.top10Holders.recordCount.toLocaleString()} 条记录`}>
 						<Space size="small">
 							<TeamOutlined style={{ color: "#722ed1" }} />
 							<Text style={{ fontSize: 12 }}>
-								十大股东 <Tag color="purple">{stats.top10Holders.stockCount}</Tag>
-								<Text type="secondary" style={{ fontSize: 11 }}>
-									({stats.top10Holders.recordCount.toLocaleString()} 条)
-								</Text>
+								十大股东 <Tag color="purple">{stats.top10Holders.recordCount.toLocaleString()}</Tag>
 							</Text>
 						</Space>
 					</Tooltip>

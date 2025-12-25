@@ -130,8 +130,21 @@ export class AnnouncementRepository extends BaseRepository implements IAnnouncem
 
 	/**
 	 * 检查时间范围是否已同步
+	 * 如果结束日期是今天或未来，自动扩展为今天+2天，避免提前发布的公告遗漏
 	 */
 	isAnnouncementRangeSynced(tsCode: string | null, startDate: string, endDate: string): boolean {
+		// 获取今天的日期（YYYYMMDD格式）
+		const today = this.formatDateToYYYYMMDD(new Date());
+		
+		// 如果结束日期是今天或未来，扩展为今天+2天
+		let adjustedEndDate = endDate;
+		if (endDate >= today) {
+			// 计算今天+2天的日期
+			const todayDate = new Date();
+			todayDate.setDate(todayDate.getDate() + 2);
+			adjustedEndDate = this.formatDateToYYYYMMDD(todayDate);
+		}
+
 		let query: string;
 		let params: any[];
 
@@ -144,7 +157,7 @@ export class AnnouncementRepository extends BaseRepository implements IAnnouncem
 					AND end_date >= ?
 				ORDER BY start_date
 			`;
-			params = [tsCode, endDate, startDate];
+			params = [tsCode, adjustedEndDate, startDate];
 		} else {
 			query = `
 				SELECT start_date, end_date 
@@ -154,7 +167,7 @@ export class AnnouncementRepository extends BaseRepository implements IAnnouncem
 					AND end_date >= ?
 				ORDER BY start_date
 			`;
-			params = [endDate, startDate];
+			params = [adjustedEndDate, startDate];
 		}
 
 		const ranges = this.db.prepare(query).all(...params) as Array<{ start_date: string; end_date: string }>;
@@ -163,9 +176,9 @@ export class AnnouncementRepository extends BaseRepository implements IAnnouncem
 			return false;
 		}
 
-		// 检查是否有完全覆盖的范围
+		// 检查是否有完全覆盖的范围（使用调整后的结束日期）
 		for (const range of ranges) {
-			if (range.start_date <= startDate && range.end_date >= endDate) {
+			if (range.start_date <= startDate && range.end_date >= adjustedEndDate) {
 				return true;
 			}
 		}
@@ -175,9 +188,22 @@ export class AnnouncementRepository extends BaseRepository implements IAnnouncem
 
 	/**
 	 * 记录已同步的时间范围
+	 * 如果结束日期是今天或未来，自动扩展为今天+2天，避免提前发布的公告遗漏
 	 */
 	recordAnnouncementSyncRange(tsCode: string | null, startDate: string, endDate: string): void {
 		const now = this.getCurrentTimestamp();
+		
+		// 获取今天的日期（YYYYMMDD格式）
+		const today = this.formatDateToYYYYMMDD(new Date());
+		
+		// 如果结束日期是今天或未来，扩展为今天+2天
+		let adjustedEndDate = endDate;
+		if (endDate >= today) {
+			// 计算今天+2天的日期
+			const todayDate = new Date();
+			todayDate.setDate(todayDate.getDate() + 2);
+			adjustedEndDate = this.formatDateToYYYYMMDD(todayDate);
+		}
 
 		// 插入新范围
 		if (tsCode) {
@@ -186,14 +212,14 @@ export class AnnouncementRepository extends BaseRepository implements IAnnouncem
 				INSERT INTO announcement_sync_ranges (ts_code, start_date, end_date, synced_at)
 				VALUES (?, ?, ?, ?)
 			`)
-				.run(tsCode, startDate, endDate, now);
+				.run(tsCode, startDate, adjustedEndDate, now);
 		} else {
 			this.db
 				.prepare(`
 				INSERT INTO announcement_sync_ranges (ts_code, start_date, end_date, synced_at)
 				VALUES (NULL, ?, ?, ?)
 			`)
-				.run(startDate, endDate, now);
+				.run(startDate, adjustedEndDate, now);
 		}
 
 		// 合并连续或重叠的范围

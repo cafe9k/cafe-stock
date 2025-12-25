@@ -3,7 +3,6 @@ import { App as AntApp } from "antd";
 import { useState, useEffect } from "react";
 import { Layout } from "./components/Layout";
 import { Announcements } from "./pages/Announcements";
-import { News } from "./pages/News";
 import DataInsights from "./pages/DataInsights";
 import { Settings } from "./pages/Settings";
 import { StockListSyncIndicator } from "./components/StockListSyncIndicator";
@@ -52,7 +51,6 @@ function App() {
 				<Route path="/" element={<Layout />}>
 					<Route index element={<Navigate to="/announcements" replace />} />
 					<Route path="announcements" element={<Announcements />} />
-					<Route path="news" element={<News />} />
 					<Route path="data-insights" element={<DataInsights />} />
 					<Route path="settings" element={<Settings />} />
 					<Route path="*" element={<Navigate to="/announcements" replace />} />

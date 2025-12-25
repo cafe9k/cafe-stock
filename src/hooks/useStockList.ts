@@ -44,12 +44,23 @@ function isFilterEqual(filter1?: StockFilter, filter2?: StockFilter): boolean {
 			marketCapRange1.min === marketCapRange2.min &&
 			marketCapRange1.max === marketCapRange2.max);
 
+	// 比较 categories
+	const categories1 = filter1.categories;
+	const categories2 = filter2.categories;
+	const categoriesEqual =
+		(!categories1 && !categories2) ||
+		(categories1 &&
+			categories2 &&
+			categories1.length === categories2.length &&
+			categories1.every((cat, idx) => cat === categories2[idx]));
+
 	return (
 		filter1.market === filter2.market &&
 		filter1.searchKeyword === filter2.searchKeyword &&
 		filter1.showFavoriteOnly === filter2.showFavoriteOnly &&
 		dateRangeEqual &&
-		marketCapRangeEqual
+		marketCapRangeEqual &&
+		categoriesEqual
 	);
 }
 
@@ -107,7 +118,9 @@ export function useStockList<T extends StockGroup = StockGroup>(options: UseStoc
 						effectiveFilter?.dateRange?.[0],
 						effectiveFilter?.dateRange?.[1],
 						effectiveFilter?.market,
-						forceRefresh
+						forceRefresh,
+						effectiveFilter?.searchKeyword,
+						effectiveFilter?.categories
 					)) as StockListQueryResult<T>;
 				}
 

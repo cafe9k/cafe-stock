@@ -71,6 +71,100 @@ export class SyncFlagManager {
 	}
 
 	/**
+	 * 检查本月是否已同步
+	 */
+	isSyncedThisMonth(syncType: string): boolean {
+		const lastSync = this.getLastSyncDate(syncType);
+		if (!lastSync) return false;
+
+		// 获取当前年月 (YYYYMM)
+		const now = new Date();
+		const currentMonth = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}`;
+		
+		// 获取上次同步的年月
+		const lastSyncMonth = lastSync.slice(0, 6);
+		
+		return lastSyncMonth === currentMonth;
+	}
+
+	/**
+	 * 保存断点续传进度
+	 * @param syncType 同步类型
+	 * @param progress 进度信息 (JSON格式)
+	 */
+	saveResumeProgress(syncType: string, progress: any): boolean {
+		try {
+			const now = new Date().toISOString();
+			const progressJson = JSON.stringify(progress);
+			
+			this.db
+				.prepare(
+					`
+				INSERT INTO sync_flags (sync_type, last_sync_date, resume_progress, updated_at)
+				VALUES (?, ?, ?, ?)
+				ON CONFLICT(sync_type) DO UPDATE SET
+					resume_progress = excluded.resume_progress,
+					updated_at = excluded.updated_at
+			`
+				)
+				.run(syncType, this.getLastSyncDate(syncType) || "", progressJson, now);
+
+			log.debug("SyncFlag", `保存断点进度成功: ${syncType}`);
+			return true;
+		} catch (error) {
+			log.error("SyncFlag", `保存断点进度失败 (${syncType}):`, error);
+			return false;
+		}
+	}
+
+	/**
+	 * 获取断点续传进度
+	 */
+	getResumeProgress(syncType: string): any | null {
+		try {
+			const row = this.db.prepare("SELECT resume_progress FROM sync_flags WHERE sync_type = ?").get(syncType) as
+				| {
+						resume_progress: string | null;
+				  }
+				| undefined;
+			
+			if (!row?.resume_progress) return null;
+			
+			try {
+				return JSON.parse(row.resume_progress);
+			} catch {
+				return null;
+			}
+		} catch (error) {
+			log.error("SyncFlag", `获取断点进度失败 (${syncType}):`, error);
+			return null;
+		}
+	}
+
+	/**
+	 * 清除断点续传进度
+	 */
+	clearResumeProgress(syncType: string): boolean {
+		try {
+			this.db
+				.prepare(
+					`
+				UPDATE sync_flags 
+				SET resume_progress = NULL, updated_at = ?
+				WHERE sync_type = ?
+			`
+				)
+				.run(new Date().toISOString(), syncType);
+
+			log.debug("SyncFlag", `清除断点进度成功: ${syncType}`);
+			return true;
+		} catch (error) {
+			log.error("SyncFlag", `清除断点进度失败 (${syncType}):`, error);
+			return false;
+		}
+	}
+
+	/**
 	 * 获取所有同步标志位
 	 */
 	getAllSyncFlags(): Array<{ sync_type: string; last_sync_date: string; updated_at: string }> {

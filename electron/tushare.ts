@@ -482,33 +482,6 @@ export class TushareClient {
 	}
 
 	/**
-	 * 获取财经新闻
-	 * 文档: https://tushare.pro/document/2?doc_id=143
-	 * 接口：news
-	 * 描述：获取主要新闻网站的财经新闻数据
-	 * 限量：单次最大2000条
-	 * 权限：用户需要至少120积分才可以调取
-	 *
-	 * 输入参数：
-	 * src: str, 新闻来源 sina(新浪财经), wallstreetcn(华尔街见闻), 10jqka(同花顺), eastmoney(东方财富), yuncaijing(云财经)
-	 * start_date: str, 开始日期 (YYYYMMDD格式)
-	 * end_date: str, 结束日期 (YYYYMMDD格式)
-	 *
-	 * 输出参数：
-	 * datetime: str, 发布时间
-	 * content: str, 新闻内容
-	 * title: str, 新闻标题
-	 * channels: str, 频道
-	 */
-	static async getNews(src?: string, startDate?: string, endDate?: string) {
-		return this.request("news", {
-			src,
-			start_date: startDate,
-			end_date: endDate,
-		});
-	}
-
-	/**
 	 * 获取十大股东数据
 	 * 文档: https://tushare.pro/document/2?doc_id=61
 	 * 接口：top10_holders
@@ -538,6 +511,89 @@ export class TushareClient {
 			ann_date: annDate,
 			start_date: startDate,
 			end_date: endDate,
+		});
+	}
+
+	/**
+	 * 获取每日指标数据（包含市值信息）
+	 * 文档: https://tushare.pro/document/2?doc_id=32
+	 * 接口：daily_basic
+	 * 描述：获取全部股票每日重要的基本面指标，可用于选股分析、报表展示等
+	 * 限量：单次最大5000条，总量不限制
+	 * 权限：用户需要至少120积分才可以调取
+	 *
+	 * 输入参数：
+	 * ts_code: str, 股票代码（支持多个股票同时提取，逗号分隔）
+	 * trade_date: str, 交易日期 (YYYYMMDD格式)
+	 * start_date: str, 开始日期 (YYYYMMDD格式)
+	 * end_date: str, 结束日期 (YYYYMMDD格式)
+	 * limit: int, 单次返回数据长度，默认5000
+	 * offset: int, 开始行数，默认0
+	 *
+	 * 输出参数：
+	 * ts_code: str, TS股票代码
+	 * trade_date: str, 交易日期
+	 * total_mv: float, 总市值（万元）
+	 * circ_mv: float, 流通市值（万元）
+	 * total_share: float, 总股本（万股）
+	 * float_share: float, 流通股本（万股）
+	 * free_share: float, 自由流通股本（万股）
+	 * pe: float, 市盈率（总市值/净利润）
+	 * pb: float, 市净率（总市值/净资产）
+	 */
+	static async getDailyBasic(
+		tsCode?: string,
+		tradeDate?: string,
+		startDate?: string,
+		endDate?: string,
+		limit: number = 5000,
+		offset: number = 0
+	) {
+		return this.request("daily_basic", {
+			ts_code: tsCode,
+			trade_date: tradeDate,
+			start_date: startDate,
+			end_date: endDate,
+			limit,
+			offset,
+		});
+	}
+
+	/**
+	 * 获取上市公司基本信息
+	 * 文档: https://tushare.pro/document/2?doc_id=112
+	 * 接口：stock_company
+	 * 描述：获取上市公司基本信息，包括公司名称、办公地址、网站、主营业务等
+	 * 限量：单次最大5000条
+	 * 权限：用户需要至少120积分才可以调取
+	 *
+	 * 输入参数：
+	 * ts_code: str, 股票代码（支持多个股票同时提取，逗号分隔）
+	 * exchange: str, 交易所代码 SSE上交所 SZSE深交所
+	 * limit: int, 单次返回数据长度，默认5000
+	 * offset: int, 开始行数，默认0
+	 *
+	 * 输出参数：
+	 * ts_code: str, TS代码
+	 * chairman: str, 法人代表
+	 * manager: str, 总经理
+	 * secretary: str, 董秘
+	 * reg_capital: str, 注册资本
+	 * setup_date: str, 成立日期
+	 * province: str, 省份
+	 * city: str, 城市
+	 * introduction: str, 公司介绍
+	 * website: str, 公司主页
+	 * employees: int, 员工人数
+	 * main_business: str, 主营业务
+	 * business_scope: str, 经营范围
+	 */
+	static async getStockCompany(tsCode?: string, exchange?: string, limit: number = 5000, offset: number = 0) {
+		return this.request("stock_company", {
+			ts_code: tsCode,
+			exchange,
+			limit,
+			offset,
 		});
 	}
 }

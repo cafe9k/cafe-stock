@@ -54,7 +54,9 @@ export interface ElectronAPI {
 		startDate?: string,
 		endDate?: string,
 		market?: string,
-		forceRefresh?: boolean
+		forceRefresh?: boolean,
+		searchKeyword?: string,
+		categories?: string[]
 	) => Promise<{
 		items: Array<{
 			ts_code: string;
@@ -150,20 +152,6 @@ export interface ElectronAPI {
 		pageSize: number;
 	}>;
 
-	// 资讯相关
-	getNews: (
-		src?: string,
-		startDate?: string,
-		endDate?: string
-	) => Promise<
-		Array<{
-			datetime: string;
-			content: string;
-			title: string;
-			channels: string;
-		}>
-	>;
-
 	// 自动更新相关
 	checkForUpdates: () => Promise<{ available: boolean; updateInfo?: any; error?: string; message?: string }>;
 	downloadUpdate: () => Promise<{ success: boolean; error?: string }>;
@@ -193,11 +181,8 @@ export interface ElectronAPI {
 		}>
 	>;
 
-	// 搜索股票
-	searchStocks: (
-		keyword: string,
-		limit?: number
-	) => Promise<
+	// 获取所有股票列表
+	getAllStocks: () => Promise<
 		Array<{
 			ts_code: string;
 			symbol: string;
@@ -218,6 +203,65 @@ export interface ElectronAPI {
 		failCount?: number;
 		totalStocks?: number;
 	}>;
+
+	// 同步股票详情信息
+	syncStockDetails: () => Promise<{
+		success: boolean;
+		stockCount: number;
+		message: string;
+	}>;
+
+	// 获取股票详情统计
+	getStockDetailsStats: () => Promise<{
+		dailyBasicCount: number;
+		companyInfoCount: number;
+	}>;
+
+	// 获取股票详情同步进度（断点续传）
+	getStockDetailsSyncProgress: () => Promise<{
+		hasProgress: boolean;
+		progress: {
+			dailyBasicCompleted: boolean;
+			syncedCompanies: string[];
+			lastProcessedIndex: number;
+		} | null;
+		isSyncedThisMonth: boolean;
+		lastSyncDate: string | null;
+	}>;
+
+	// 获取股票公司信息
+	getStockCompanyInfo: (tsCode: string) => Promise<{
+		ts_code: string;
+		chairman?: string;
+		manager?: string;
+		secretary?: string;
+		reg_capital?: string;
+		setup_date?: string;
+		province?: string;
+		city?: string;
+		introduction?: string;
+		website?: string;
+		employees?: number;
+		main_business?: string;
+		business_scope?: string;
+	} | null>;
+
+	// 删除股票详情同步状态
+	deleteStockDetailsSyncFlag: () => Promise<{
+		success: boolean;
+		message: string;
+	}>;
+
+	// 监听股票详情同步进度
+	onStockDetailsSyncProgress: (
+		callback: (progress: {
+			status: "started" | "syncing" | "completed" | "failed";
+			message?: string;
+			current?: number;
+			total?: number;
+			error?: string;
+		}) => void
+	) => () => void;
 
 	// 暂停/恢复同步
 	togglePauseTop10HoldersSync: () => Promise<{
@@ -609,6 +653,45 @@ export interface ElectronAPI {
 		success: boolean;
 		message: string;
 		backupPath?: string | null;
+	}>;
+
+	// ============= 数据库 Schema 和样本数据相关 =============
+
+	// 获取数据库所有表列表
+	getDatabaseTables: () => Promise<{
+		success: boolean;
+		tables: string[];
+		error?: string;
+	}>;
+
+	// 获取表的 schema 信息
+	getTableSchema: (tableName: string) => Promise<{
+		success: boolean;
+		tableName?: string;
+		columns?: Array<{
+			cid: number;
+			name: string;
+			type: string;
+			notNull: boolean;
+			defaultValue: any;
+			primaryKey: boolean;
+		}>;
+		indexes?: Array<{
+			name: string;
+			sql: string | null;
+		}>;
+		createSql?: string | null;
+		error?: string;
+	}>;
+
+	// 获取表的样本数据
+	getTableSampleData: (tableName: string, limit?: number) => Promise<{
+		success: boolean;
+		tableName?: string;
+		totalCount?: number;
+		sampleData?: any[];
+		limit?: number;
+		error?: string;
 	}>;
 }
 

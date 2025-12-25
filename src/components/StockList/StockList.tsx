@@ -67,6 +67,7 @@ export interface StockListColumnConfig {
 	showMarket?: boolean; // 显示市场
 	showIndustry?: boolean; // 显示行业
 	showArea?: boolean; // 显示地区
+	showMarketCap?: boolean; // 显示市值（仅 StockGroup）
 	showAnnouncementCount?: boolean; // 显示公告数量（仅 StockGroup）
 	showAnnouncementCategories?: boolean; // 显示公告分类（仅 StockGroup）
 	showLatestAnnDate?: boolean; // 显示最新公告日期（仅 StockGroup）
@@ -130,6 +131,7 @@ function StockListComponent<T extends Stock | StockGroup = Stock | StockGroup>({
 		showMarket = true,
 		showIndustry = true,
 		showArea = false,
+		showMarketCap = false,
 		showAnnouncementCount = false,
 		showAnnouncementCategories = false,
 		showLatestAnnDate = false,
@@ -183,6 +185,7 @@ function StockListComponent<T extends Stock | StockGroup = Stock | StockGroup>({
 	// 检测数据类型（Stock 还是 StockGroup）
 	const hasNameField = data.length > 0 && "name" in data[0];
 	const hasAreaField = data.length > 0 && "area" in data[0];
+	const hasTotalMvField = data.length > 0 && "total_mv" in data[0];
 	const hasAnnouncementCountField = data.length > 0 && "announcement_count" in data[0];
 	const hasCategoryStatsField = data.length > 0 && "category_stats" in data[0];
 	const hasLatestAnnTitleField = data.length > 0 && "latest_ann_title" in data[0];
@@ -230,6 +233,35 @@ function StockListComponent<T extends Stock | StockGroup = Stock | StockGroup>({
 						</AntText>
 					</Tooltip>
 				),
+			});
+		}
+
+		// 市值列（仅 StockGroup）- 紧跟股票名称
+		if (showMarketCap && hasTotalMvField) {
+			const colWidth = columnWidths["total_mv"] || 120;
+			cols.push({
+				title: "市值",
+				key: "total_mv",
+				width: colWidth,
+				onHeaderCell: () => ({
+					width: colWidth,
+					onResize: handleResize("total_mv"),
+				}),
+				sorter: (a: any, b: any) => {
+					const aMv = a.total_mv ?? 0;
+					const bMv = b.total_mv ?? 0;
+					return aMv - bMv;
+				},
+				render: (_: any, record: T) => {
+					const stockGroup = record as any;
+					const totalMv = stockGroup.total_mv;
+					if (totalMv === undefined || totalMv === null) {
+						return <AntText type="secondary">-</AntText>;
+					}
+					// 格式化市值：保留2位小数，单位：亿元
+					const formattedMv = totalMv.toFixed(2);
+					return <AntText style={{ fontFamily: "monospace" }}>{formattedMv} 亿</AntText>;
+				},
 			});
 		}
 
@@ -465,6 +497,7 @@ function StockListComponent<T extends Stock | StockGroup = Stock | StockGroup>({
 		showMarket,
 		showIndustry,
 		showArea,
+		showMarketCap,
 		showAnnouncementCount,
 		showAnnouncementCategories,
 		showLatestAnnDate,
@@ -474,6 +507,7 @@ function StockListComponent<T extends Stock | StockGroup = Stock | StockGroup>({
 		onFavoriteChange,
 		hasNameField,
 		hasAreaField,
+		hasTotalMvField,
 		hasAnnouncementCountField,
 		hasCategoryStatsField,
 		hasLatestAnnTitleField,
@@ -500,8 +534,18 @@ function StockListComponent<T extends Stock | StockGroup = Stock | StockGroup>({
 							pageSize,
 							onChange: onPageChange,
 							showSizeChanger: true,
-							showTotal: (total) => `共 ${total} 条记录`,
+							showTotal: (total, range) => {
+								const totalPages = Math.ceil(total / pageSize);
+								return `显示第 ${page} 页 共 ${totalPages} 页 (总计 ${total} 条记录)`;
+							},
 							pageSizeOptions: ["10", "20", "50", "100"],
+							style: { 
+								marginTop: 16,
+								marginBottom: 8,
+								textAlign: "center",
+							},
+							showQuickJumper: true,
+							position: ["bottomCenter"] as any,
 					  }
 					: false
 			}

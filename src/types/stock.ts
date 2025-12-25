@@ -46,6 +46,7 @@ export interface StockFilter {
 	dateRange?: [string, string]; // 日期范围 [startDate, endDate] YYYYMMDD格式
 	showFavoriteOnly?: boolean; // 是否仅显示关注的股票
 	marketCapRange?: MarketCapRange; // 市值范围筛选
+	categories?: string[]; // 公告分类筛选
 }
 
 /**

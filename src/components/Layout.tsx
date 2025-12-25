@@ -2,7 +2,6 @@ import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { Layout as AntLayout, Menu } from "antd";
 import {
 	NotificationOutlined,
-	ReadOutlined,
 	FundOutlined,
 	SettingOutlined,
 } from "@ant-design/icons";
@@ -23,11 +22,6 @@ const leftItems: MenuItem[] = [
 		key: "/data-insights",
 		icon: <FundOutlined />,
 		label: "数据洞察",
-	},
-	{
-		key: "/news",
-		icon: <ReadOutlined />,
-		label: "资讯",
 	},
 ];
 

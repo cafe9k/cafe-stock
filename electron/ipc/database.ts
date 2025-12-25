@@ -367,6 +367,145 @@ export function registerDatabaseHandlers(mainWindow: BrowserWindow | null): void
 		}
 	});
 
+	// 获取数据库所有表列表
+	ipcMain.handle("get-database-tables", async () => {
+		try {
+			const dbModule = await import("../db.js");
+			const db = dbModule.default;
+			const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").all() as Array<{ name: string }>;
+			return {
+				success: true,
+				tables: tables.map((t) => t.name),
+			};
+		} catch (error: any) {
+			console.error("Failed to get database tables:", error);
+			return {
+				success: false,
+				error: error.message || "获取表列表失败",
+				tables: [],
+			};
+		}
+	});
+
+	// 验证表名安全性（防止 SQL 注入）
+	function validateTableName(tableName: string): boolean {
+		// 只允许字母、数字、下划线
+		return /^[a-zA-Z0-9_]+$/.test(tableName);
+	}
+
+	// 获取表的 schema 信息
+	ipcMain.handle("get-table-schema", async (_event, tableName: string) => {
+		try {
+			if (!tableName) {
+				return {
+					success: false,
+					error: "表名不能为空",
+				};
+			}
+
+			if (!validateTableName(tableName)) {
+				return {
+					success: false,
+					error: "无效的表名",
+				};
+			}
+
+			const dbModule = await import("../db.js");
+			const db = dbModule.default;
+
+			// 获取表结构信息
+			const columns = db.prepare(`PRAGMA table_info(${tableName})`).all() as Array<{
+				cid: number;
+				name: string;
+				type: string;
+				notnull: number;
+				dflt_value: any;
+				pk: number;
+			}>;
+
+			// 获取索引信息
+			const indexes = db.prepare(`SELECT name, sql FROM sqlite_master WHERE type='index' AND tbl_name=?`).all(tableName) as Array<{
+				name: string;
+				sql: string | null;
+			}>;
+
+			// 获取表的创建 SQL
+			const createSql = db.prepare(`SELECT sql FROM sqlite_master WHERE type='table' AND name=?`).get(tableName) as {
+				sql: string | null;
+			} | undefined;
+
+			return {
+				success: true,
+				tableName,
+				columns: columns.map((col) => ({
+					cid: col.cid,
+					name: col.name,
+					type: col.type,
+					notNull: col.notnull === 1,
+					defaultValue: col.dflt_value,
+					primaryKey: col.pk === 1,
+				})),
+				indexes: indexes.map((idx) => ({
+					name: idx.name,
+					sql: idx.sql,
+				})),
+				createSql: createSql?.sql || null,
+			};
+		} catch (error: any) {
+			console.error(`Failed to get table schema for ${tableName}:`, error);
+			return {
+				success: false,
+				error: error.message || "获取表结构失败",
+			};
+		}
+	});
+
+	// 获取表的样本数据
+	ipcMain.handle("get-table-sample-data", async (_event, tableName: string, limit: number = 10) => {
+		try {
+			if (!tableName) {
+				return {
+					success: false,
+					error: "表名不能为空",
+				};
+			}
+
+			if (!validateTableName(tableName)) {
+				return {
+					success: false,
+					error: "无效的表名",
+				};
+			}
+
+			// 限制 limit 范围
+			const safeLimit = Math.min(Math.max(1, limit || 10), 1000);
+
+			const dbModule = await import("../db.js");
+			const db = dbModule.default;
+
+			// 获取总记录数
+			const countResult = db.prepare(`SELECT COUNT(*) as count FROM ${tableName}`).get() as { count: number };
+			const totalCount = countResult.count;
+
+			// 获取样本数据
+			const sampleData = db.prepare(`SELECT * FROM ${tableName} LIMIT ?`).all(safeLimit) as any[];
+
+			return {
+				success: true,
+				tableName,
+				totalCount,
+				sampleData,
+				limit,
+			};
+		} catch (error: any) {
+			console.error(`Failed to get sample data for ${tableName}:`, error);
+			return {
+				success: false,
+				error: error.message || "获取样本数据失败",
+			};
+		}
+	});
+
 	// 重置数据库
 	ipcMain.handle("reset-database", async (_event, options: { backup: boolean }) => {
 		try {

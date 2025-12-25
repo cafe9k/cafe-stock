@@ -17,11 +17,16 @@ import {
 	Checkbox,
 	Tabs,
 	Divider,
-	Alert
+	Alert,
+	Select,
+	Table,
+	Tag,
+	Spin,
+	Empty
 } from "antd";
 import { 
 	TagsOutlined, 
-	SyncOutlined, 
+	SyncOutlined,
 	CopyOutlined, 
 	PlayCircleOutlined, 
 	StopOutlined, 
@@ -33,19 +38,16 @@ import {
 	SettingOutlined,
 	CloudServerOutlined,
 	AppstoreOutlined,
-	InfoCircleOutlined
+	InfoCircleOutlined,
+	TableOutlined,
+	EyeOutlined
 } from "@ant-design/icons";
 import { ClassificationRuleEditor } from "../components/ClassificationRuleEditor";
 import { UpdateChecker } from "../components/UpdateChecker";
 
-const { Title, Text, Paragraph } = Typography;
+const { Title, Text } = Typography;
 
 export function Settings() {
-	const [untaggedCount, setUntaggedCount] = useState(0);
-	const [loading, setLoading] = useState(false);
-	const [tagging, setTagging] = useState(false);
-	const [progress, setProgress] = useState({ processed: 0, total: 0, percentage: "0" });
-	
 	// SQLite HTTP 服务器状态
 	const [isServerRunning, setIsServerRunning] = useState(false);
 	const [serverPort, setServerPort] = useState(8080);
@@ -61,17 +63,191 @@ export function Settings() {
 	const [resetting, setResetting] = useState(false);
 	const [backupBeforeReset, setBackupBeforeReset] = useState(true);
 
-	useEffect(() => {
-		loadUntaggedCount();
-		loadServerStatus();
+	// 数据库 Schema 和样本数据相关状态
+	const [tables, setTables] = useState<string[]>([]);
+	const [selectedTable, setSelectedTable] = useState<string | null>(null);
+	const [tableSchema, setTableSchema] = useState<any>(null);
+	const [sampleData, setSampleData] = useState<any[]>([]);
+	const [totalCount, setTotalCount] = useState(0);
+	const [loadingSchema, setLoadingSchema] = useState(false);
+	const [loadingSampleData, setLoadingSampleData] = useState(false);
+	const [sampleLimit, setSampleLimit] = useState(10);
 
-		// 监听打标进度
-		const unsubscribe = window.electronAPI.onTaggingProgress((data) => {
-			setProgress(data);
+	// 股票详情同步相关状态
+	const [stockDetailsStats, setStockDetailsStats] = useState<{
+		dailyBasicCount: number;
+		companyInfoCount: number;
+	} | null>(null);
+	const [syncingStockDetails, setSyncingStockDetails] = useState(false);
+	const [stockDetailsSyncProgress, setStockDetailsSyncProgress] = useState<{
+		status: string;
+		message?: string;
+		current?: number;
+		total?: number;
+		phase?: string;
+	} | null>(null);
+	
+	// 断点续传状态
+	const [stockDetailsSyncInfo, setStockDetailsSyncInfo] = useState<{
+		hasProgress: boolean;
+		progress: any;
+		isSyncedThisMonth: boolean;
+		lastSyncDate: string | null;
+	} | null>(null);
+
+	useEffect(() => {
+		loadServerStatus();
+		loadDatabaseTables();
+		loadStockDetailsStats();
+		loadStockDetailsSyncInfo(); // 加载断点续传进度
+
+		// 监听股票详情同步进度
+		const unsubscribeStockDetails = window.electronAPI.onStockDetailsSyncProgress((progress) => {
+			setStockDetailsSyncProgress(progress);
+			if (progress.status === "completed" || progress.status === "failed") {
+				setSyncingStockDetails(false);
+				loadStockDetailsStats();
+				loadStockDetailsSyncInfo(); // 刷新断点续传状态
+			}
 		});
 
-		return () => unsubscribe();
+		return () => {
+			unsubscribeStockDetails();
+		};
 	}, []);
+
+	// 加载数据库表列表
+	const loadDatabaseTables = async () => {
+		try {
+			const result = await window.electronAPI.getDatabaseTables();
+			if (result.success) {
+				setTables(result.tables);
+			} else {
+				message.error(`加载表列表失败: ${result.error}`);
+			}
+		} catch (error: any) {
+			console.error("Failed to load database tables:", error);
+			message.error(`加载表列表失败: ${error.message}`);
+		}
+	};
+
+	// 加载股票详情统计
+	const loadStockDetailsStats = async () => {
+		try {
+			const stats = await window.electronAPI.getStockDetailsStats();
+			setStockDetailsStats(stats);
+		} catch (error: any) {
+			console.error("Failed to load stock details stats:", error);
+		}
+	};
+
+	// 加载股票详情同步信息（断点续传）
+	const loadStockDetailsSyncInfo = async () => {
+		try {
+			const info = await window.electronAPI.getStockDetailsSyncProgress();
+			setStockDetailsSyncInfo(info);
+		} catch (error: any) {
+			console.error("Failed to load stock details sync info:", error);
+		}
+	};
+
+	// 同步股票详情
+	const handleSyncStockDetails = async () => {
+		try {
+			setSyncingStockDetails(true);
+			setStockDetailsSyncProgress({ status: "started", message: "开始同步..." });
+			await window.electronAPI.syncStockDetails();
+		} catch (error: any) {
+			message.error(`同步失败: ${error.message}`);
+			setSyncingStockDetails(false);
+		}
+	};
+
+	// 删除股票详情同步状态
+	const handleDeleteStockDetailsSyncFlag = async () => {
+		Modal.confirm({
+			title: "确认删除同步状态？",
+			content: "删除后将清除所有同步记录（包括断点进度），下次同步将重新开始。建议仅在需要重新同步时使用。",
+			icon: <ExclamationCircleOutlined />,
+			okText: "确认删除",
+			okType: "danger",
+			cancelText: "取消",
+			onOk: async () => {
+				try {
+					const result = await window.electronAPI.deleteStockDetailsSyncFlag();
+					if (result.success) {
+						message.success("同步状态已删除");
+						// 重新加载同步信息
+						loadStockDetailsSyncInfo();
+						loadStockDetailsStats();
+					} else {
+						message.error(`删除失败: ${result.message}`);
+					}
+				} catch (error: any) {
+					message.error(`删除失败: ${error.message}`);
+				}
+			},
+		});
+	};
+
+	// 加载表的 Schema 信息
+	const loadTableSchema = async (tableName: string) => {
+		setLoadingSchema(true);
+		try {
+			const result = await window.electronAPI.getTableSchema(tableName);
+			if (result.success) {
+				setTableSchema(result);
+			} else {
+				message.error(`加载表结构失败: ${result.error}`);
+			}
+		} catch (error: any) {
+			console.error(`Failed to load table schema for ${tableName}:`, error);
+			message.error(`加载表结构失败: ${error.message}`);
+		} finally {
+			setLoadingSchema(false);
+		}
+	};
+
+	// 加载表的样本数据
+	const loadSampleData = async (tableName: string, limit: number = 10) => {
+		setLoadingSampleData(true);
+		try {
+			const result = await window.electronAPI.getTableSampleData(tableName, limit);
+			if (result.success) {
+				setSampleData(result.sampleData || []);
+				setTotalCount(result.totalCount || 0);
+			} else {
+				message.error(`加载样本数据失败: ${result.error}`);
+			}
+		} catch (error: any) {
+			console.error(`Failed to load sample data for ${tableName}:`, error);
+			message.error(`加载样本数据失败: ${error.message}`);
+		} finally {
+			setLoadingSampleData(false);
+		}
+	};
+
+	// 处理表选择变化
+	const handleTableChange = async (tableName: string) => {
+		setSelectedTable(tableName);
+		setTableSchema(null);
+		setSampleData([]);
+		setTotalCount(0);
+		
+		if (tableName) {
+			await Promise.all([
+				loadTableSchema(tableName),
+				loadSampleData(tableName, sampleLimit)
+			]);
+		}
+	};
+
+	// 刷新样本数据
+	const handleRefreshSampleData = async () => {
+		if (selectedTable) {
+			await loadSampleData(selectedTable, sampleLimit);
+		}
+	};
 
 	// 加载服务器状态
 	const loadServerStatus = async () => {
@@ -92,46 +268,6 @@ export function Settings() {
 			}
 		} catch (error) {
 			console.error("Failed to load server status:", error);
-		}
-	};
-
-	const loadUntaggedCount = async () => {
-		setLoading(true);
-		try {
-			const result = await window.electronAPI.getUntaggedCount();
-			if (result.success) {
-				setUntaggedCount(result.count);
-			}
-		} catch (error) {
-			console.error("Failed to load untagged count:", error);
-		} finally {
-			setLoading(false);
-		}
-	};
-
-	const handleTagAll = async () => {
-		if (untaggedCount === 0) {
-			message.info("所有公告已完成分类");
-			return;
-		}
-
-		setTagging(true);
-		setProgress({ processed: 0, total: untaggedCount, percentage: "0" });
-
-		try {
-			const result = await window.electronAPI.tagAllAnnouncements(1000);
-
-			if (result.success) {
-				message.success(`批量打标完成！共处理 ${result.processed} 条公告`);
-				setUntaggedCount(0);
-			} else {
-				message.error(`打标失败: ${result.error}`);
-			}
-		} catch (error: any) {
-			message.error(`打标失败: ${error.message}`);
-		} finally {
-			setTagging(false);
-			loadUntaggedCount();
 		}
 	};
 
@@ -268,7 +404,6 @@ export function Settings() {
 				
 				// 刷新页面数据
 				setTimeout(() => {
-					loadUntaggedCount();
 					loadServerStatus();
 				}, 500);
 			} else {
@@ -293,74 +428,6 @@ export function Settings() {
 			),
 			children: (
 				<Space orientation="vertical" size="large" style={{ width: "100%" }}>
-					{/* 批量打标卡片 */}
-					<Card>
-						<Space orientation="vertical" size="middle" style={{ width: "100%" }}>
-							<div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-								<Statistic
-									title="未分类公告数量"
-									value={untaggedCount}
-									suffix="条"
-									loading={loading}
-									prefix={<TagsOutlined style={{ color: '#1890ff' }} />}
-								/>
-								<Space>
-									<Button 
-										icon={<SyncOutlined />} 
-										onClick={loadUntaggedCount} 
-										loading={loading}
-									>
-										刷新
-									</Button>
-									<Button
-										type="primary"
-										icon={<SyncOutlined />}
-										onClick={handleTagAll}
-										loading={tagging}
-										disabled={untaggedCount === 0}
-										size="large"
-									>
-										批量打标所有公告
-									</Button>
-								</Space>
-							</div>
-
-							{tagging && (
-								<>
-									<Divider style={{ margin: 0 }} />
-									<div>
-										<div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-											<Text>正在批量打标...</Text>
-											<Text strong>{progress.percentage}%</Text>
-										</div>
-										<Progress
-											percent={parseFloat(progress.percentage)}
-											status="active"
-											format={() => `${progress.processed} / ${progress.total}`}
-										/>
-									</div>
-								</>
-							)}
-
-							<Alert
-								message="功能说明"
-								description={
-									<>
-										<Paragraph style={{ marginBottom: 8 }}>
-											批量打标会对所有未分类的公告进行自动分类，根据公告标题智能识别分类标签。
-										</Paragraph>
-										<Text type="secondary">
-											预计处理时间：约 {Math.ceil(untaggedCount / 10000)} 分钟
-										</Text>
-									</>
-								}
-								type="info"
-								showIcon
-								icon={<InfoCircleOutlined />}
-							/>
-						</Space>
-					</Card>
-
 					{/* 分类规则配置 */}
 					<Card 
 						title={
@@ -370,7 +437,7 @@ export function Settings() {
 							</Space>
 						}
 					>
-						<ClassificationRuleEditor onSave={loadUntaggedCount} />
+						<ClassificationRuleEditor />
 					</Card>
 				</Space>
 			)
@@ -384,151 +451,472 @@ export function Settings() {
 				</span>
 			),
 			children: (
-				<Row gutter={[16, 16]}>
-					{/* 数据库信息 */}
-					<Col xs={24} lg={12}>
-						<Card 
-							title={
-								<Space>
-									<DatabaseOutlined />
-									<span>数据库信息</span>
+				<Space orientation="vertical" size="large" style={{ width: "100%" }}>
+					<Row gutter={[16, 16]}>
+						{/* 数据库信息 */}
+						<Col xs={24} lg={12}>
+							<Card 
+								title={
+									<Space>
+										<DatabaseOutlined />
+										<span>数据库信息</span>
+									</Space>
+								}
+								style={{ height: '100%' }}
+							>
+								<Space orientation="vertical" size="large" style={{ width: "100%" }}>
+									<Descriptions column={1} size="middle" bordered>
+										<Descriptions.Item label="数据库文件">
+											<Text copyable ellipsis style={{ maxWidth: 400 }}>
+												{dbPath || "加载中..."}
+											</Text>
+										</Descriptions.Item>
+										<Descriptions.Item label="运行状态">
+											<Badge status="success" text="正常运行" />
+										</Descriptions.Item>
+									</Descriptions>
+
+									<Alert
+										message="功能说明"
+										description="数据库存储了所有股票数据、公告、十大股东等信息。当数据库损坏或出现异常时，可以使用重置功能。"
+										type="info"
+										showIcon
+										icon={<InfoCircleOutlined />}
+									/>
+
+									<Space orientation="vertical" style={{ width: "100%" }}>
+										<Button
+											danger
+											icon={<ReloadOutlined />}
+											onClick={() => setShowResetModal(true)}
+											block
+											size="large"
+										>
+											重置数据库
+										</Button>
+										
+										<Alert
+											message="警告：重置数据库将删除所有本地数据，包括股票列表、公告、十大股东等信息。"
+											type="warning"
+											showIcon
+										/>
+									</Space>
 								</Space>
-							}
-							style={{ height: '100%' }}
-						>
-							<Space orientation="vertical" size="large" style={{ width: "100%" }}>
-								<Descriptions column={1} size="middle" bordered>
-									<Descriptions.Item label="数据库文件">
-										<Text copyable ellipsis style={{ maxWidth: 400 }}>
-											{dbPath || "加载中..."}
-										</Text>
-									</Descriptions.Item>
-									<Descriptions.Item label="运行状态">
-										<Badge status="success" text="正常运行" />
-									</Descriptions.Item>
-								</Descriptions>
+							</Card>
+						</Col>
 
-								<Alert
-									message="功能说明"
-									description="数据库存储了所有股票数据、公告、十大股东等信息。当数据库损坏或出现异常时，可以使用重置功能。"
-									type="info"
-									showIcon
-									icon={<InfoCircleOutlined />}
-								/>
+						{/* 股票详情同步 */}
+						<Col xs={24} lg={12}>
+							<Card 
+								title={
+									<Space>
+										<SyncOutlined />
+										<span>股票详情同步</span>
+									</Space>
+								}
+								style={{ height: '100%' }}
+							>
+								<Space orientation="vertical" size="large" style={{ width: "100%" }}>
+									<Descriptions column={1} size="middle" bordered>
+										<Descriptions.Item label="市值数据">
+											{stockDetailsStats ? (
+												<Text>{stockDetailsStats.dailyBasicCount.toLocaleString()} 条记录</Text>
+											) : (
+												<Text type="secondary">加载中...</Text>
+											)}
+										</Descriptions.Item>
+										<Descriptions.Item label="公司信息">
+											{stockDetailsStats ? (
+												<Text>{stockDetailsStats.companyInfoCount.toLocaleString()} 条记录</Text>
+											) : (
+												<Text type="secondary">加载中...</Text>
+											)}
+										</Descriptions.Item>
+										<Descriptions.Item label="同步状态">
+											{syncingStockDetails ? (
+												<Badge status="processing" text="同步中..." />
+											) : stockDetailsSyncInfo?.isSyncedThisMonth ? (
+												<Badge status="success" text={`本月已同步 (${stockDetailsSyncInfo.lastSyncDate})`} />
+											) : stockDetailsSyncInfo?.hasProgress ? (
+												<Badge status="warning" text="待续传" />
+											) : (
+												<Badge status="default" text="未同步" />
+											)}
+										</Descriptions.Item>
+										{stockDetailsSyncInfo?.hasProgress && !syncingStockDetails && (
+											<Descriptions.Item label="断点进度">
+												<Text type="secondary">
+													{stockDetailsSyncInfo.progress.dailyBasicCompleted ? "✓ 市值数据已完成" : "市值数据未完成"}
+													{" | "}
+													已同步 {stockDetailsSyncInfo.progress.syncedCompanies.length} 家公司信息
+												</Text>
+											</Descriptions.Item>
+										)}
+									</Descriptions>
 
-								<Space orientation="vertical" style={{ width: "100%" }}>
+									<Alert
+										message="同步策略"
+										description={
+											<>
+												<div>• 每月自动同步一次（随股票列表同步触发）</div>
+												<div>• 支持断点续传，中断后可继续上次进度</div>
+												<div>• 同步后可在公告列表中使用市值筛选功能</div>
+												{stockDetailsSyncInfo?.hasProgress && (
+													<div style={{ marginTop: 8 }}>
+														<Text type="warning">
+															⚠️ 检测到未完成的同步任务，点击同步按钮继续
+														</Text>
+													</div>
+												)}
+											</>
+										}
+										type="info"
+										showIcon
+										icon={<InfoCircleOutlined />}
+									/>
+
+									{stockDetailsSyncProgress && stockDetailsSyncProgress.status === "syncing" && (
+										<div>
+											<Space direction="vertical" style={{ width: "100%" }}>
+												<Text type="secondary">
+													{stockDetailsSyncProgress.message}
+													{stockDetailsSyncProgress.phase && (
+														<> ({stockDetailsSyncProgress.phase === "daily_basic" ? "获取市值数据" : "获取公司信息"})</>
+													)}
+												</Text>
+												{stockDetailsSyncProgress.current !== undefined && stockDetailsSyncProgress.total !== undefined && (
+													<Progress 
+														percent={Math.round((stockDetailsSyncProgress.current / stockDetailsSyncProgress.total) * 100)}
+														status="active"
+													/>
+												)}
+											</Space>
+										</div>
+									)}
+
 									<Button
-										danger
-										icon={<ReloadOutlined />}
-										onClick={() => setShowResetModal(true)}
+										type="primary"
+										icon={<SyncOutlined spin={syncingStockDetails} />}
+										onClick={handleSyncStockDetails}
+										disabled={syncingStockDetails}
 										block
 										size="large"
 									>
-										重置数据库
+										{syncingStockDetails ? "同步中..." : stockDetailsSyncInfo?.hasProgress ? "继续同步" : "同步股票详情"}
 									</Button>
-									
-									<Alert
-										message="警告：重置数据库将删除所有本地数据，包括股票列表、公告、十大股东等信息。"
-										type="warning"
-										showIcon
-									/>
-								</Space>
-							</Space>
-						</Card>
-					</Col>
 
-					{/* 远程访问 */}
-					<Col xs={24} lg={12}>
-						<Card 
-							title={
-								<Space>
-									<CloudServerOutlined />
-									<span>远程访问服务</span>
-								</Space>
-							}
-							style={{ height: '100%' }}
-						>
-							<Space orientation="vertical" size="large" style={{ width: "100%" }}>
-								<Descriptions column={1} size="middle" bordered>
-									<Descriptions.Item label="HTTP 服务器">
-										<Badge 
-											status={isServerRunning ? "processing" : "default"} 
-											text={isServerRunning ? `运行中 (端口 ${serverPort})` : "未启动"} 
-										/>
-									</Descriptions.Item>
-									{isServerRunning && serverUrl && (
-										<Descriptions.Item label="服务器地址">
-											<Text copyable>{serverUrl}</Text>
-										</Descriptions.Item>
-									)}
-									<Descriptions.Item label="认证状态">
-										<Badge 
-											status={hasAuth ? "success" : "default"} 
-											text={hasAuth ? `已设置 (${username})` : "未设置"} 
-										/>
-									</Descriptions.Item>
-								</Descriptions>
-
-								<Alert
-									message="功能说明"
-									description="启动 HTTP 服务器后，可以通过 HTTP API 远程访问数据库。建议设置用户名和密码以保护数据安全。"
-									type="info"
-									showIcon
-									icon={<InfoCircleOutlined />}
-								/>
-
-								<Space orientation="vertical" style={{ width: "100%" }} size="middle">
-									<Space wrap style={{ width: "100%" }}>
-										<Button
-											type="primary"
-											icon={<PlayCircleOutlined />}
-											onClick={handleStartServer}
-											disabled={isServerRunning}
-											size="large"
-										>
-											启动服务器
-										</Button>
-
+									{/* 删除同步状态按钮 */}
+									{(stockDetailsSyncInfo?.isSyncedThisMonth || stockDetailsSyncInfo?.hasProgress) && !syncingStockDetails && (
 										<Button
 											danger
-											icon={<StopOutlined />}
-											onClick={handleStopServer}
-											disabled={!isServerRunning}
-											size="large"
+											icon={<ExclamationCircleOutlined />}
+											onClick={handleDeleteStockDetailsSyncFlag}
+											block
 										>
-											停止服务器
+											删除同步状态（重新同步）
 										</Button>
+									)}
+								</Space>
+							</Card>
+						</Col>
+
+						{/* 远程访问 */}
+						<Col xs={24} lg={12}>
+							<Card 
+								title={
+									<Space>
+										<CloudServerOutlined />
+										<span>远程访问服务</span>
 									</Space>
-
-									<Space wrap style={{ width: "100%" }}>
-										<Button
-											icon={<LockOutlined />}
-											onClick={() => setShowAuthModal(true)}
-										>
-											{hasAuth ? "修改认证" : "设置认证"}
-										</Button>
-
-										{hasAuth && (
-											<Button
-												icon={<UserOutlined />}
-												onClick={handleClearAuth}
-											>
-												清除认证
-											</Button>
+								}
+								style={{ height: '100%' }}
+							>
+								<Space orientation="vertical" size="large" style={{ width: "100%" }}>
+									<Descriptions column={1} size="middle" bordered>
+										<Descriptions.Item label="HTTP 服务器">
+											<Badge 
+												status={isServerRunning ? "processing" : "default"} 
+												text={isServerRunning ? `运行中 (端口 ${serverPort})` : "未启动"} 
+											/>
+										</Descriptions.Item>
+										{isServerRunning && serverUrl && (
+											<Descriptions.Item label="服务器地址">
+												<Text copyable>{serverUrl}</Text>
+											</Descriptions.Item>
 										)}
+										<Descriptions.Item label="认证状态">
+											<Badge 
+												status={hasAuth ? "success" : "default"} 
+												text={hasAuth ? `已设置 (${username})` : "未设置"} 
+											/>
+										</Descriptions.Item>
+									</Descriptions>
 
-										<Button
-											icon={<CopyOutlined />}
-											onClick={handleCopyDbConnection}
-										>
-											复制连接信息
-										</Button>
+									<Alert
+										message="功能说明"
+										description="启动 HTTP 服务器后，可以通过 HTTP API 远程访问数据库。建议设置用户名和密码以保护数据安全。"
+										type="info"
+										showIcon
+										icon={<InfoCircleOutlined />}
+									/>
+
+									<Space orientation="vertical" style={{ width: "100%" }} size="middle">
+										<Space wrap style={{ width: "100%" }}>
+											<Button
+												type="primary"
+												icon={<PlayCircleOutlined />}
+												onClick={handleStartServer}
+												disabled={isServerRunning}
+												size="large"
+											>
+												启动服务器
+											</Button>
+
+											<Button
+												danger
+												icon={<StopOutlined />}
+												onClick={handleStopServer}
+												disabled={!isServerRunning}
+												size="large"
+											>
+												停止服务器
+											</Button>
+										</Space>
+
+										<Space wrap style={{ width: "100%" }}>
+											<Button
+												icon={<LockOutlined />}
+												onClick={() => setShowAuthModal(true)}
+											>
+												{hasAuth ? "修改认证" : "设置认证"}
+											</Button>
+
+											{hasAuth && (
+												<Button
+													icon={<UserOutlined />}
+													onClick={handleClearAuth}
+												>
+													清除认证
+												</Button>
+											)}
+
+											<Button
+												icon={<CopyOutlined />}
+												onClick={handleCopyDbConnection}
+											>
+												复制连接信息
+											</Button>
+										</Space>
 									</Space>
 								</Space>
+							</Card>
+						</Col>
+					</Row>
+
+					{/* 数据库 Schema 和样本数据 */}
+					<Card 
+						title={
+							<Space>
+								<TableOutlined />
+								<span>数据库 Schema 和样本数据</span>
 							</Space>
-						</Card>
-					</Col>
-				</Row>
+						}
+					>
+						<Space orientation="vertical" size="large" style={{ width: "100%" }}>
+							<Space wrap style={{ width: "100%" }}>
+								<Select
+									placeholder="选择数据表"
+									style={{ width: 300 }}
+									value={selectedTable}
+									onChange={handleTableChange}
+									showSearch
+									filterOption={(input, option) =>
+										(option?.label ?? "").toLowerCase().includes(input.toLowerCase())
+									}
+									options={tables.map(table => ({ label: table, value: table }))}
+								/>
+								<Button
+									icon={<ReloadOutlined />}
+									onClick={loadDatabaseTables}
+								>
+									刷新表列表
+								</Button>
+							</Space>
+
+						{selectedTable && (
+							<>
+								<Divider />
+
+								{/* 样本数据 */}
+								<div>
+									<Space style={{ marginBottom: 16, width: "100%", justifyContent: "space-between" }}>
+										<Space>
+											<Text strong>样本数据：</Text>
+											{totalCount > 0 && (
+												<Text type="secondary">共 {totalCount} 条记录</Text>
+											)}
+										</Space>
+										<Space>
+											<Select
+												value={sampleLimit}
+												onChange={(value) => {
+													setSampleLimit(value);
+													loadSampleData(selectedTable, value);
+												}}
+												style={{ width: 100 }}
+												options={[
+													{ label: "10 条", value: 10 },
+													{ label: "20 条", value: 20 },
+													{ label: "50 条", value: 50 },
+													{ label: "100 条", value: 100 },
+												]}
+											/>
+											<Button
+												icon={<EyeOutlined />}
+												onClick={handleRefreshSampleData}
+												loading={loadingSampleData}
+											>
+												刷新
+											</Button>
+										</Space>
+									</Space>
+									<Spin spinning={loadingSampleData}>
+										{sampleData.length > 0 ? (
+											<Table
+												dataSource={sampleData}
+												rowKey={(record, index) => `row-${index}`}
+												pagination={false}
+												size="small"
+												bordered
+												scroll={{ x: "max-content" }}
+												columns={Object.keys(sampleData[0] || {}).map(key => ({
+													title: key,
+													dataIndex: key,
+													key: key,
+													width: 150,
+													ellipsis: true,
+													render: (value: any) => {
+														if (value === null || value === undefined) {
+															return <Text type="secondary">NULL</Text>;
+														}
+														if (typeof value === "string" && value.length > 50) {
+															return <Text title={value}>{value.substring(0, 50)}...</Text>;
+														}
+														return String(value);
+													},
+												}))}
+											/>
+										) : (
+											<Empty description="暂无样本数据" />
+										)}
+									</Spin>
+								</div>
+
+								<Divider />
+								
+								{/* Schema 信息 */}
+								<div>
+									<Space style={{ marginBottom: 16 }}>
+										<Text strong>表结构信息：</Text>
+										<Text code>{selectedTable}</Text>
+									</Space>
+									<Spin spinning={loadingSchema}>
+										{tableSchema ? (
+											<Space orientation="vertical" size="middle" style={{ width: "100%" }}>
+												{/* 列信息 */}
+												<Table
+													dataSource={tableSchema.columns}
+													rowKey="cid"
+													pagination={false}
+													size="small"
+													bordered
+													columns={[
+														{
+															title: "列名",
+															dataIndex: "name",
+															key: "name",
+															width: 150,
+														},
+														{
+															title: "类型",
+															dataIndex: "type",
+															key: "type",
+															width: 100,
+														},
+														{
+															title: "非空",
+															dataIndex: "notNull",
+															key: "notNull",
+															width: 80,
+															render: (notNull: boolean) => (
+																notNull ? <Tag color="red">是</Tag> : <Tag>否</Tag>
+															),
+														},
+														{
+															title: "主键",
+															dataIndex: "primaryKey",
+															key: "primaryKey",
+															width: 80,
+															render: (primaryKey: boolean) => (
+																primaryKey ? <Tag color="blue">是</Tag> : null
+															),
+														},
+														{
+															title: "默认值",
+															dataIndex: "defaultValue",
+															key: "defaultValue",
+															render: (value: any) => value ?? <Text type="secondary">NULL</Text>,
+														},
+													]}
+												/>
+
+												{/* 索引信息 */}
+												{tableSchema.indexes && tableSchema.indexes.length > 0 && (
+													<div>
+														<Text strong style={{ display: "block", marginBottom: 8 }}>索引信息：</Text>
+														{tableSchema.indexes.map((idx: any, index: number) => (
+															<div key={index} style={{ marginBottom: 8 }}>
+																<Text code>{idx.name}</Text>
+																{idx.sql && (
+																	<Text type="secondary" style={{ marginLeft: 8, fontSize: 12 }}>
+																		{idx.sql}
+																	</Text>
+																)}
+															</div>
+														))}
+													</div>
+												)}
+
+												{/* 创建 SQL */}
+												{tableSchema.createSql && (
+													<div>
+														<Text strong style={{ display: "block", marginBottom: 8 }}>创建 SQL：</Text>
+														<pre style={{ 
+															background: "#f5f5f5", 
+															padding: 12, 
+															borderRadius: 4,
+															overflow: "auto",
+															fontSize: 12
+														}}>
+															<code>{tableSchema.createSql}</code>
+														</pre>
+													</div>
+												)}
+											</Space>
+										) : (
+											<Empty description="暂无表结构信息" />
+										)}
+									</Spin>
+								</div>
+							</>
+						)}
+
+							{!selectedTable && (
+								<Empty description="请选择一个数据表查看 Schema 和样本数据" />
+							)}
+						</Space>
+					</Card>
+				</Space>
 			)
 		},
 		{

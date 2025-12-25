@@ -118,6 +118,44 @@ export function createTables(db: Database.Database): void {
 
 			CREATE INDEX IF NOT EXISTS idx_rules_category ON classification_rules(category_key);
 			CREATE INDEX IF NOT EXISTS idx_rules_enabled ON classification_rules(enabled);
+
+			CREATE TABLE IF NOT EXISTS stock_daily_basic (
+				id INTEGER PRIMARY KEY AUTOINCREMENT,
+				ts_code TEXT NOT NULL,
+				trade_date TEXT NOT NULL,
+				total_mv REAL,
+				circ_mv REAL,
+				total_share REAL,
+				float_share REAL,
+				free_share REAL,
+				pe REAL,
+				pb REAL,
+				updated_at TEXT NOT NULL,
+				UNIQUE(ts_code, trade_date)
+			);
+
+			CREATE INDEX IF NOT EXISTS idx_daily_basic_ts_code ON stock_daily_basic (ts_code);
+			CREATE INDEX IF NOT EXISTS idx_daily_basic_date ON stock_daily_basic (trade_date DESC);
+
+			CREATE TABLE IF NOT EXISTS stock_company (
+				id INTEGER PRIMARY KEY AUTOINCREMENT,
+				ts_code TEXT NOT NULL UNIQUE,
+				chairman TEXT,
+				manager TEXT,
+				secretary TEXT,
+				reg_capital TEXT,
+				setup_date TEXT,
+				province TEXT,
+				city TEXT,
+				introduction TEXT,
+				website TEXT,
+				employees INTEGER,
+				main_business TEXT,
+				business_scope TEXT,
+				updated_at TEXT NOT NULL
+			);
+
+			CREATE INDEX IF NOT EXISTS idx_company_ts_code ON stock_company (ts_code);
 		`);
 
 		log.info("DB", "数据库表创建完成");
@@ -139,6 +177,9 @@ export function migrateDatabase(db: Database.Database): void {
 
 		// 迁移 stocks 表
 		migrateStocksTable(db);
+
+		// 迁移 sync_flags 表
+		migrateSyncFlagsTable(db);
 
 		// 删除未使用的 favorite_stocks 表
 		dropFavoriteStocksTable(db);
@@ -204,6 +245,24 @@ function migrateStocksTable(db: Database.Database): void {
 			log.info("DB", "stocks.is_favorite 索引创建成功");
 		} catch (error) {
 			log.error("DB", "添加 stocks.is_favorite 列失败:", error);
+		}
+	}
+}
+
+/**
+ * 迁移 sync_flags 表
+ */
+function migrateSyncFlagsTable(db: Database.Database): void {
+	const tableInfo = db.prepare("PRAGMA table_info(sync_flags)").all() as Array<{ name: string }>;
+	const columns = new Set(tableInfo.map((col) => col.name));
+
+	if (!columns.has("resume_progress")) {
+		log.info("DB", "添加 sync_flags.resume_progress 列");
+		try {
+			db.exec("ALTER TABLE sync_flags ADD COLUMN resume_progress TEXT DEFAULT NULL");
+			log.info("DB", "sync_flags.resume_progress 列添加成功");
+		} catch (error) {
+			log.error("DB", "添加 sync_flags.resume_progress 列失败:", error);
 		}
 	}
 }

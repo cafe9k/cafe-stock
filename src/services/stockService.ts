@@ -7,17 +7,6 @@ import type { Stock, StockGroup, StockListQueryResult } from "../types/stock";
 import { markFavoriteStatus } from "./favoriteStockService";
 
 /**
- * 搜索股票
- */
-export async function searchStocks(keyword: string, limit: number = 20): Promise<Stock[]> {
-	if (!window.electronAPI) {
-		throw new Error("Electron API not available");
-	}
-	const results = await window.electronAPI.searchStocks(keyword, limit);
-	return await markFavoriteStatus(results);
-}
-
-/**
  * 获取股票聚合列表（用于公告列表等场景）
  */
 export async function getAnnouncementsGrouped(
@@ -26,12 +15,14 @@ export async function getAnnouncementsGrouped(
 	startDate?: string,
 	endDate?: string,
 	market?: string,
-	forceRefresh?: boolean
+	forceRefresh?: boolean,
+	searchKeyword?: string,
+	categories?: string[]
 ): Promise<StockListQueryResult<StockGroup>> {
 	if (!window.electronAPI) {
 		throw new Error("Electron API not available");
 	}
-	const result = await window.electronAPI.getAnnouncementsGrouped(page, pageSize, startDate, endDate, market, forceRefresh);
+	const result = await window.electronAPI.getAnnouncementsGrouped(page, pageSize, startDate, endDate, market, forceRefresh, searchKeyword, categories);
 	// 后端已经在分页前对所有数据进行了排序，这里不需要再次排序
 	const items = await markFavoriteStatus(result.items);
 	return {
@@ -96,14 +87,11 @@ export async function getFavoriteStocksDetail(): Promise<Stock[]> {
 		return [];
 	}
 
-	// 获取股票详细信息
-	const stocksData: Stock[] = [];
-	for (const code of favoriteCodes) {
-		const results = await window.electronAPI.searchStocks(code, 1);
-		if (results.length > 0) {
-			stocksData.push(results[0]);
-		}
-	}
+	// 获取所有股票列表
+	const allStocks = await window.electronAPI.getAllStocks();
+	
+	// 根据收藏的股票代码过滤
+	const stocksData = allStocks.filter((stock) => favoriteCodes.includes(stock.ts_code));
 
 	return await markFavoriteStatus(stocksData);
 }

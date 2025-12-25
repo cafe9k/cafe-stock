@@ -7,10 +7,14 @@ import { Notification } from "electron";
 import { TushareClient } from "../tushare.js";
 import { getDb, syncFlagManager } from "../db.js";
 import { StockRepository } from "../repositories/implementations/StockRepository.js";
+import { StockDetailRepository } from "../repositories/implementations/StockDetailRepository.js";
 import { SyncResult } from "../types/index.js";
+import { log } from "../utils/logger.js";
+import { syncStockDetailsWithResume, getStockDetailsSyncProgress } from "./stock-detail-sync.js";
 
 // 创建仓储实例
 const stockRepository = new StockRepository(getDb());
+const stockDetailRepository = new StockDetailRepository(getDb());
 
 /**
  * 同步股票列表（首次启动或数据为空时）
@@ -53,12 +57,7 @@ export async function syncStocksIfNeeded(): Promise<void> {
  * 重新同步全部股票列表数据
  */
 export async function syncAllStocks(
-	onProgress?: (progress: {
-		status: "started" | "syncing" | "completed" | "failed";
-		message?: string;
-		stockCount?: number;
-		error?: string;
-	}) => void
+	onProgress?: (progress: { status: "started" | "syncing" | "completed" | "failed"; message?: string; stockCount?: number; error?: string }) => void
 ): Promise<SyncResult> {
 	try {
 		console.log("Starting to sync all stocks...");
@@ -144,3 +143,40 @@ export function getStockCount(): number {
 	return stockRepository.countStocks();
 }
 
+/**
+ * 同步股票详情信息（市值 + 公司信息）
+ * 支持断点续传和每月同步一次策略
+ *
+ * @param autoTrigger 是否自动触发（true: 列表同步后自动触发，false: 手动触发）
+ * @param onProgress 进度回调
+ * @returns 同步结果
+ */
+export async function syncStockDetails(
+	autoTrigger: boolean = false,
+	onProgress?: (progress: {
+		status: "started" | "syncing" | "completed" | "failed";
+		message?: string;
+		current?: number;
+		total?: number;
+		error?: string;
+	}) => void
+): Promise<SyncResult> {
+	// 调用新的实现（支持断点续传）
+	// 手动触发时强制同步（forceSync=true），忽略月度检查
+	return syncStockDetailsWithResume(!autoTrigger, autoTrigger, onProgress);
+}
+
+/**
+ * 获取股票详情统计
+ */
+export function getStockDetailsStats() {
+	return {
+		dailyBasicCount: stockDetailRepository.countDailyBasic(),
+		companyInfoCount: stockDetailRepository.countCompanyInfo(),
+	};
+}
+
+/**
+ * 获取股票详情同步进度（断点续传）
+ */
+export { getStockDetailsSyncProgress } from "./stock-detail-sync.js";

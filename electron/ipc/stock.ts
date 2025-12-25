@@ -9,6 +9,7 @@ import { StockRepository } from "../repositories/implementations/StockRepository
 import { FavoriteRepository } from "../repositories/implementations/FavoriteRepository.js";
 import { HolderRepository } from "../repositories/implementations/HolderRepository.js";
 import { AnnouncementRepository } from "../repositories/implementations/AnnouncementRepository.js";
+import { StockDetailRepository } from "../repositories/implementations/StockDetailRepository.js";
 import * as stockService from "../services/stock.js";
 
 // 创建仓储实例
@@ -16,18 +17,19 @@ const stockRepository = new StockRepository(getDb());
 const favoriteRepository = new FavoriteRepository(getDb());
 const holderRepository = new HolderRepository(getDb());
 const announcementRepository = new AnnouncementRepository(getDb());
+const stockDetailRepository = new StockDetailRepository(getDb());
 
 /**
  * 注册股票相关 IPC 处理器
  */
 export function registerStockHandlers(mainWindow: BrowserWindow | null): void {
-	// 搜索股票
-	ipcMain.handle("search-stocks", async (_event, keyword: string, limit: number = 50) => {
+	// 获取所有股票列表
+	ipcMain.handle("get-all-stocks", async () => {
 		try {
-			console.log(`[IPC] search-stocks: keyword=${keyword}, limit=${limit}`);
-			return stockRepository.searchStocks(keyword, limit);
+			console.log("[IPC] get-all-stocks");
+			return stockRepository.getAllStocks();
 		} catch (error: any) {
-			console.error("Failed to search stocks:", error);
+			console.error("Failed to get all stocks:", error);
 			throw error;
 		}
 	});
@@ -50,9 +52,55 @@ export function registerStockHandlers(mainWindow: BrowserWindow | null): void {
 			const result = await stockService.syncAllStocks((progress) => {
 				mainWindow?.webContents.send("stock-list-sync-progress", progress);
 			});
+			
+			// 自动触发详情同步
+			if (result.success) {
+				stockService.syncStockDetails(true, (progress) => {
+					mainWindow?.webContents.send("stock-details-sync-progress", progress);
+				}).catch((err) => {
+					console.error("Auto sync stock details failed:", err);
+				});
+			}
+			
 			return result;
 		} catch (error: any) {
 			console.error("Failed to sync all stocks:", error);
+			throw error;
+		}
+	});
+
+	// 手动同步股票详情
+	ipcMain.handle("sync-stock-details", async () => {
+		try {
+			console.log("[IPC] sync-stock-details");
+			const result = await stockService.syncStockDetails(false, (progress) => {
+				mainWindow?.webContents.send("stock-details-sync-progress", progress);
+			});
+			return result;
+		} catch (error: any) {
+			console.error("Failed to sync stock details:", error);
+			throw error;
+		}
+	});
+
+	// 获取股票详情统计
+	ipcMain.handle("get-stock-details-stats", async () => {
+		try {
+			console.log("[IPC] get-stock-details-stats");
+			return stockService.getStockDetailsStats();
+		} catch (error: any) {
+			console.error("Failed to get stock details stats:", error);
+			throw error;
+		}
+	});
+
+	// 获取股票详情同步进度（断点续传）
+	ipcMain.handle("get-stock-details-sync-progress", async () => {
+		try {
+			console.log("[IPC] get-stock-details-sync-progress");
+			return stockService.getStockDetailsSyncProgress();
+		} catch (error: any) {
+			console.error("Failed to get stock details sync progress:", error);
 			throw error;
 		}
 	});
@@ -173,6 +221,36 @@ export function registerStockHandlers(mainWindow: BrowserWindow | null): void {
 		} catch (error: any) {
 			console.error("Failed to get untagged count:", error);
 			throw error;
+		}
+	});
+
+	// 获取股票公司信息
+	ipcMain.handle("get-stock-company-info", async (_event, tsCode: string) => {
+		try {
+			console.log(`[IPC] get-stock-company-info: tsCode=${tsCode}`);
+			const companyInfo = stockDetailRepository.getCompanyInfoByCode(tsCode);
+			return companyInfo || null;
+		} catch (error: any) {
+			console.error("Failed to get stock company info:", error);
+			throw error;
+		}
+	});
+
+	// 删除股票详情同步状态
+	ipcMain.handle("delete-stock-details-sync-flag", async () => {
+		try {
+			console.log("[IPC] delete-stock-details-sync-flag");
+			const { syncFlagManager } = await import("../db.js");
+			const result = syncFlagManager.deleteSyncFlag("stock_details");
+			if (result) {
+				console.log("[IPC] 股票详情同步状态已删除");
+				return { success: true, message: "同步状态已删除" };
+			} else {
+				return { success: false, message: "删除失败" };
+			}
+		} catch (error: any) {
+			console.error("Failed to delete stock details sync flag:", error);
+			return { success: false, message: error.message || "删除失败" };
 		}
 	});
 }

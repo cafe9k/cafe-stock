@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
-import { Button, Select, Table, Card, Space, Spin, Typography, Tag, Progress, Statistic, Row, Col, Divider, App } from "antd";
-import { SearchOutlined, SyncOutlined } from "@ant-design/icons";
+import { Button, Select, Table, Card, Space, Typography, Tag, Progress, Statistic, Row, Col, Divider, App } from "antd";
+import { SyncOutlined } from "@ant-design/icons";
 import type { TableColumnsType } from "antd";
-import { useStockSearch } from "../hooks/useStockSearch";
+import type { Stock } from "../types/stock";
 
 const { Text } = Typography;
 
@@ -46,9 +46,7 @@ export function DataInsights() {
 	const [endDates, setEndDates] = useState<string[]>([]);
 	const [selectedEndDate, setSelectedEndDate] = useState<string | null>(null);
 	const [isPaused, setIsPaused] = useState(false);
-
-	// 使用新的 hooks
-	const { searchResults, searching, search } = useStockSearch();
+	const [allStocks, setAllStocks] = useState<Stock[]>([]);
 
 	// 加载同步统计信息
 	const loadSyncStats = async () => {
@@ -71,10 +69,21 @@ export function DataInsights() {
 		}
 	};
 
-	// 组件加载时获取统计信息
+	// 组件加载时获取统计信息和股票列表
 	useEffect(() => {
 		loadSyncStats();
+		loadAllStocks();
 	}, []);
+
+	// 加载所有股票列表
+	const loadAllStocks = async () => {
+		try {
+			const stocks = await window.electronAPI.getAllStocks();
+			setAllStocks(stocks);
+		} catch (error: any) {
+			console.error("获取股票列表失败:", error);
+		}
+	};
 
 	// 监听同步进度
 	useEffect(() => {
@@ -88,11 +97,6 @@ export function DataInsights() {
 			unsubscribe();
 		};
 	}, []);
-
-	// 搜索股票（使用 hook）
-	const handleSearch = async (value: string) => {
-		await search(value, 20);
-	};
 
 	// 选择股票后获取十大股东（优先从数据库）
 	const handleStockSelect = async (value: string) => {
@@ -321,7 +325,7 @@ export function DataInsights() {
 	];
 
 	// 获取选中股票的信息
-	const selectedStockInfo = searchResults.find((stock) => stock.ts_code === selectedStock);
+	const selectedStockInfo = allStocks.find((stock) => stock.ts_code === selectedStock);
 
 	return (
 		<div style={{ padding: 24 }}>
@@ -408,20 +412,19 @@ export function DataInsights() {
 
 						<Divider style={{ margin: "8px 0" }} />
 
-						{/* 搜索股票 */}
+						{/* 选择股票 */}
 						<Space size="middle" style={{ width: "100%" }} wrap>
 							<Select
 								showSearch
 								value={selectedStock}
-								placeholder="请输入股票代码或名称"
+								placeholder="请选择股票"
 								style={{ width: 400 }}
-								defaultActiveFirstOption={false}
-								suffixIcon={<SearchOutlined />}
-								filterOption={false}
-								onSearch={handleSearch}
+								filterOption={(input, option) => {
+									const label = option?.label as string || "";
+									return label.toLowerCase().includes(input.toLowerCase());
+								}}
 								onChange={handleStockSelect}
-								notFoundContent={searching ? <Spin size="small" /> : null}
-								options={searchResults.map((stock) => ({
+								options={allStocks.map((stock) => ({
 									value: stock.ts_code,
 									label: `${stock.name} (${stock.ts_code})`,
 								}))}

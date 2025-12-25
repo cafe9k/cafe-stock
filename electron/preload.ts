@@ -38,8 +38,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
 	},
 
 	// 聚合公告相关
-	getAnnouncementsGrouped: (page: number, pageSize: number, startDate?: string, endDate?: string, market?: string, forceRefresh?: boolean) => {
-		return ipcRenderer.invoke("get-announcements-grouped", page, pageSize, startDate, endDate, market, forceRefresh);
+	getAnnouncementsGrouped: (page: number, pageSize: number, startDate?: string, endDate?: string, market?: string, forceRefresh?: boolean, searchKeyword?: string, categories?: string[]) => {
+		return ipcRenderer.invoke("get-announcements-grouped", page, pageSize, startDate, endDate, market, forceRefresh, searchKeyword, categories);
 	},
 
 	getStockAnnouncements: (tsCode: string, limit?: number, startDate?: string, endDate?: string) => {
@@ -90,24 +90,41 @@ contextBridge.exposeInMainWorld("electronAPI", {
 		return ipcRenderer.invoke("get-favorite-stocks-announcements-grouped", page, pageSize, startDate, endDate);
 	},
 
-	// 资讯相关
-	getNews: (src?: string, startDate?: string, endDate?: string) => {
-		return ipcRenderer.invoke("get-news", src, startDate, endDate);
-	},
-
 	// 十大股东相关
 	getTop10Holders: (tsCode: string, period?: string, annDate?: string, startDate?: string, endDate?: string) => {
 		return ipcRenderer.invoke("get-top10-holders", tsCode, period, annDate, startDate, endDate);
 	},
 
-	// 搜索股票
-	searchStocks: (keyword: string, limit?: number) => {
-		return ipcRenderer.invoke("search-stocks", keyword, limit);
+	// 获取所有股票列表
+	getAllStocks: () => {
+		return ipcRenderer.invoke("get-all-stocks");
 	},
 
 	// 同步所有股票的十大股东
 	syncAllTop10Holders: () => {
 		return ipcRenderer.invoke("sync-all-top10-holders");
+	},
+
+	// 同步股票详情信息
+	syncStockDetails: () => {
+		return ipcRenderer.invoke("sync-stock-details");
+	},
+
+	// 获取股票详情统计
+	getStockDetailsStats: () => {
+		return ipcRenderer.invoke("get-stock-details-stats");
+	},
+
+	// 获取股票详情同步进度（断点续传）
+	getStockDetailsSyncProgress: () => {
+		return ipcRenderer.invoke("get-stock-details-sync-progress");
+	},
+
+	// 监听股票详情同步进度
+	onStockDetailsSyncProgress: (callback: (progress: any) => void) => {
+		const subscription = (_event: any, progress: any) => callback(progress);
+		ipcRenderer.on("stock-details-sync-progress", subscription);
+		return () => ipcRenderer.removeListener("stock-details-sync-progress", subscription);
 	},
 
 	// 暂停/恢复同步
@@ -383,5 +400,22 @@ contextBridge.exposeInMainWorld("electronAPI", {
 	// 重置数据库
 	resetDatabase: (options: { backup: boolean }) => {
 		return ipcRenderer.invoke("reset-database", options);
+	},
+
+	// ============= 数据库 Schema 和样本数据相关 =============
+
+	// 获取数据库所有表列表
+	getDatabaseTables: () => {
+		return ipcRenderer.invoke("get-database-tables");
+	},
+
+	// 获取表的 schema 信息
+	getTableSchema: (tableName: string) => {
+		return ipcRenderer.invoke("get-table-schema", tableName);
+	},
+
+	// 获取表的样本数据
+	getTableSampleData: (tableName: string, limit?: number) => {
+		return ipcRenderer.invoke("get-table-sample-data", tableName, limit);
 	},
 });

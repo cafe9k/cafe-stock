@@ -1,1433 +1,708 @@
-# CafeStock 系统架构文档
+# CafeStock (酷咖啡股票助手) 技术架构文档
 
-**创建日期**: 2025-12-16  
-**最后更新**: 2025-12-17  
-**文档版本**: v2.0.0  
-**项目名称**: CafeStock (酷咖啡股票助手)
+## 1. 项目概述
 
-## 目录
+CafeStock 是一个基于 Electron + React + TypeScript 的桌面应用程序，用于浏览和管理 A 股市场公告。采用**主进程同步 + 本地数据库 + 渲染进程展示**的架构模式，实现离线快速浏览和智能数据同步。
 
--   [1. 系统概述](#1-系统概述)
--   [2. 技术栈](#2-技术栈)
--   [3. 架构设计](#3-架构设计)
--   [4. 目录结构](#4-目录结构)
--   [5. 核心模块](#5-核心模块)
--   [6. 数据流](#6-数据流)
--   [7. IPC 通信架构](#7-ipc-通信架构)
--   [8. 数据库设计](#8-数据库设计)
--   [9. 依赖注入](#9-依赖注入)
--   [10. 错误处理](#10-错误处理)
--   [11. 构建与部署](#11-构建与部署)
--   [12. 开发规范](#12-开发规范)
+## 2. 整体架构
 
----
-
-## 1. 系统概述
-
-### 1.1 项目简介
-
-CafeStock（酷咖啡股票助手）是一款基于 Electron + React 的桌面应用程序，专注于 A 股市场公告浏览和财经资讯获取。通过本地数据库设计，提供极速、无延迟的数据浏览体验。
-
-### 1.2 核心特性
-
--   **智能数据同步**: 自动同步股票列表、公告、十大股东等数据
--   **本地数据库**: 使用 SQLite 存储所有数据，支持离线浏览
--   **公告分类**: 基于关键词规则的智能公告分类系统
--   **财经资讯**: 实时获取多源财经新闻
--   **自动更新**: 基于 electron-updater 的自动更新机制
--   **数据洞察**: 提供数据统计和可视化功能
-
-### 1.3 设计原则
-
-1. **主进程负责数据**: 所有数据同步、数据库操作都在主进程完成
-2. **渲染进程纯展示**: 前端只负责展示，不直接请求外部 API
-3. **本地优先**: 优先使用本地缓存，减少网络请求
-4. **增量同步**: 智能检测已同步数据，避免重复请求
-5. **分层架构**: 清晰的分层设计，职责明确
-6. **依赖注入**: 使用 DI 容器管理依赖关系
-
-### 1.4 架构特点 (v2.0)
-
--   ✅ **模块化设计**: 数据库、服务、仓储层清晰分离
--   ✅ **依赖注入**: 使用 DI 容器管理依赖，便于测试和扩展
--   ✅ **接口抽象**: 服务层和仓储层都有接口定义
--   ✅ **统一错误处理**: IPC 层使用中间件统一处理错误
--   ✅ **主进程独立**: 主进程完全独立于渲染进程代码
-
----
-
-## 2. 技术栈
-
-### 2.1 核心技术
-
-| 技术       | 版本    | 用途                  |
-| ---------- | ------- | --------------------- |
-| Electron   | ^28.0.0 | 跨平台桌面应用框架    |
-| React      | ^18.2.0 | UI 框架               |
-| TypeScript | ^5.2.2  | 类型安全的 JavaScript |
-| Vite       | ^5.0.8  | 现代化构建工具        |
-
-### 2.2 UI 框架
-
-| 技术         | 版本    | 用途      |
-| ------------ | ------- | --------- |
-| Ant Design   | ^6.1.0  | UI 组件库 |
-| TailwindCSS  | ^4.1.18 | CSS 框架  |
-| React Router | ^7.10.1 | 路由管理  |
-
-### 2.3 数据层
-
-| 技术           | 版本    | 用途              |
-| -------------- | ------- | ----------------- |
-| better-sqlite3 | ^12.5.0 | SQLite 数据库驱动 |
-| Tushare Pro    | -       | A 股数据 API 服务 |
-
-### 2.4 工程化工具
-
-| 技术              | 版本    | 用途                |
-| ----------------- | ------- | ------------------- |
-| electron-builder  | ^24.0.0 | 应用打包工具        |
-| electron-updater  | ^6.6.2  | 自动更新解决方案    |
-| ESLint            | ^8.55.0 | 代码质量检查        |
-| TypeScript ESLint | ^6.14.0 | TypeScript 代码检查 |
-
----
-
-## 3. 架构设计
-
-### 3.1 整体架构
+### 2.1 架构分层
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                    Electron 主进程 (Main Process)                │
-│                                                                   │
-│  ┌────────────────────────────────────────────────────────────┐ │
-│  │                    应用层 (Application)                     │ │
-│  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐    │ │
-│  │  │  窗口管理     │  │  系统托盘     │  │  自动更新     │    │ │
-│  │  │  Window      │  │  Tray        │  │  Updater     │    │ │
-│  │  └──────────────┘  └──────────────┘  └──────────────┘    │ │
-│  └────────────────────────────────────────────────────────────┘ │
-│                                                                   │
-│  ┌────────────────────────────────────────────────────────────┐ │
-│  │                  IPC 层 (IPC Handlers)                      │ │
-│  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐    │ │
-│  │  │  公告 IPC     │  │  股票 IPC     │  │  系统 IPC     │    │ │
-│  │  └──────────────┘  └──────────────┘  └──────────────┘    │ │
-│  │  ┌────────────────────────────────────────────────────┐   │ │
-│  │  │        错误处理中间件 (Error Handler)               │   │ │
-│  │  └────────────────────────────────────────────────────┘   │ │
-│  └────────────────────────────────────────────────────────────┘ │
-│                                                                   │
-│  ┌────────────────────────────────────────────────────────────┐ │
-│  │                  服务层 (Services)                          │ │
-│  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐    │ │
-│  │  │  公告服务     │  │  股票服务     │  │  分类服务     │    │ │
-│  │  └──────────────┘  └──────────────┘  └──────────────┘    │ │
-│  │  业务逻辑编排 + 数据聚合 + 业务规则验证                     │ │
-│  └────────────────────────────────────────────────────────────┘ │
-│                                                                   │
-│  ┌────────────────────────────────────────────────────────────┐ │
-│  │              仓储层 (Repositories)                          │ │
-│  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐    │ │
-│  │  │  Stock Repo  │  │  Ann Repo    │  │  Holder Repo │    │ │
-│  │  └──────────────┘  └──────────────┘  └──────────────┘    │ │
-│  │  数据访问抽象 + CRUD 操作 + 查询优化                        │ │
-│  └────────────────────────────────────────────────────────────┘ │
-│                                                                   │
-│  ┌────────────────────────────────────────────────────────────┐ │
-│  │                数据库层 (Database)                          │ │
-│  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐    │ │
-│  │  │  连接管理     │  │  迁移管理     │  │  同步标志     │    │ │
-│  │  └──────────────┘  └──────────────┘  └──────────────┘    │ │
-│  │  SQLite 数据库 + WAL 模式 + 索引优化                        │ │
-│  └────────────────────────────────────────────────────────────┘ │
-│                                                                   │
-│  ┌────────────────────────────────────────────────────────────┐ │
-│  │              依赖注入容器 (DI Container)                    │ │
-│  │  管理服务生命周期 + 依赖解析 + 单例管理                     │ │
-│  └────────────────────────────────────────────────────────────┘ │
-│                                                                   │
-│  ┌────────────────────────────────────────────────────────────┐ │
-│  │              外部 API 层 (Tushare Client)                   │ │
-│  │  API 请求封装 + 限流处理 + 错误重试                         │ │
-│  └────────────────────────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────────────────────┘
-                          ↕ IPC 通信 (统一响应格式)
-┌─────────────────────────────────────────────────────────────────┐
-│              Electron 渲染进程 (Renderer Process)                │
-│  ┌──────────────────────────────────────────────────────────┐   │
-│  │           React + TypeScript 应用                        │   │
-│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐              │   │
-│  │  │ 公告页面  │  │ 资讯页面  │  │ 数据洞察 │              │   │
-│  │  └──────────┘  └──────────┘  └──────────┘              │   │
-│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐              │   │
-│  │  │ 设置页面  │  │ 股票列表  │  │ 收藏管理 │              │   │
-│  │  └──────────┘  └──────────┘  └──────────┘              │   │
-│  └──────────────────────────────────────────────────────────┘   │
-│                                                                   │
-│  ┌──────────────────────────────────────────────────────────┐   │
-│  │              Preload Script (桥接层)                      │   │
-│  │         contextBridge.exposeInMainWorld                   │   │
-│  └──────────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────┐
+│                    渲染进程 (Renderer)                   │
+│  React + TypeScript + Ant Design + TailwindCSS          │
+│  - 纯展示层，不直接请求外部 API                          │
+│  - 通过 IPC 与主进程通信                                 │
+└────────────────────┬────────────────────────────────────┘
+                     │ IPC (Inter-Process Communication)
+┌────────────────────┴────────────────────────────────────┐
+│                    主进程 (Main Process)                  │
+│  Electron + Node.js + TypeScript                         │
+│  - 数据同步逻辑                                          │
+│  - 数据库操作                                            │
+│  - Tushare API 调用                                      │
+│  - IPC 处理器                                            │
+└────────────────────┬────────────────────────────────────┘
+                     │
+┌────────────────────┴────────────────────────────────────┐
+│                    数据层 (Data Layer)                    │
+│  SQLite (better-sqlite3)                                 │
+│  - 本地数据存储                                          │
+│  - 数据持久化                                            │
+└──────────────────────────────────────────────────────────┘
 ```
 
-### 3.2 分层架构详解
+### 2.2 核心设计模式
 
-#### 3.2.1 数据库层 (Database Layer)
+-   **依赖注入 (DI)**: 使用自定义 DI 容器管理服务和仓储
+-   **仓储模式 (Repository Pattern)**: 数据访问层抽象
+-   **服务层 (Service Layer)**: 业务逻辑封装
+-   **IPC 通信**: 主进程与渲染进程安全通信
 
-**职责**: 数据库连接管理、表结构创建、迁移、同步标志位管理
+## 3. 核心模块说明
 
-**模块**:
+### 3.1 主进程入口 (`electron/main.ts`)
 
--   `database/connection.ts`: 数据库连接和配置
--   `database/migrations.ts`: 数据库表创建和迁移
--   `database/syncFlags.ts`: 同步标志位管理
+**功能**: 应用生命周期管理和模块初始化
 
-**特点**:
+**核心职责**:
 
--   单例模式管理数据库连接
--   WAL 模式提高并发性能
--   自动执行数据库迁移
+-   应用启动和关闭管理
+-   单实例锁定（确保只运行一个实例）
+-   模块初始化协调
+-   全局异常处理
 
-#### 3.2.2 仓储层 (Repository Layer)
+**关键流程**:
 
-**职责**: 数据访问抽象，提供 CRUD 操作
+1. 检查单实例锁定
+2. 注册依赖注入服务
+3. 创建主窗口
+4. 创建系统托盘
+5. 注册全局快捷键
+6. 注册 IPC 处理器
+7. 设置自动更新
+8. 启动时同步股票列表（如需要）
 
-**模块**:
+### 3.2 窗口管理 (`electron/core/window.ts`)
 
--   `repositories/interfaces/`: 仓储接口定义
--   `repositories/implementations/`: 仓储实现
--   `repositories/base/`: 基础仓储类
+**功能**: 主窗口创建和状态管理
 
-**特点**:
+**核心类**: `createWindow()`, `getMainWindow()`, `setMainWindow()`
 
--   实现接口抽象
--   封装数据库操作
--   提供查询优化
--   支持事务操作
+**特性**:
 
-#### 3.2.3 服务层 (Service Layer)
+-   窗口状态持久化（使用 `electron-window-state`）
+-   内容安全策略 (CSP) 配置
+-   开发工具自动打开（开发环境）
+-   窗口关闭行为（隐藏而非退出）
 
-**职责**: 业务逻辑编排，数据聚合和转换
+### 3.3 系统托盘 (`electron/core/tray.ts`)
 
-**模块**:
+**功能**: 系统托盘图标和菜单管理
 
--   `services/interfaces/`: 服务接口定义
--   `services/*.ts`: 服务实现
+**特性**:
 
-**特点**:
+-   托盘图标显示
+-   右键菜单（显示/退出）
+-   点击图标显示/隐藏窗口
 
--   业务逻辑集中
--   调用仓储层和 API 层
--   数据聚合和转换
--   业务规则验证
+### 3.4 数据库连接 (`electron/database/connection.ts`)
 
-#### 3.2.4 IPC 层 (IPC Layer)
+**功能**: SQLite 数据库连接管理
 
-**职责**: 进程间通信处理，参数验证，错误处理
+**核心类**: `initializeDatabase()`, `getDatabase()`, `closeDatabase()`
 
-**模块**:
+**特性**:
 
--   `ipc/*.ts`: IPC 处理器
--   `ipc/middleware/`: IPC 中间件
+-   单例模式（全局唯一数据库实例）
+-   WAL 模式（提高并发性能）
+-   性能优化配置（缓存大小、同步模式等）
+-   数据库路径管理（用户数据目录）
 
-**特点**:
+**性能配置**:
 
--   统一错误处理
--   参数验证
--   响应格式标准化
--   日志记录
+-   `journal_mode = WAL`: 写前日志模式
+-   `synchronous = NORMAL`: 正常同步模式
+-   `cache_size = -64000`: 64MB 缓存
+-   `temp_store = MEMORY`: 临时表存储在内存
 
-#### 3.2.5 依赖注入层 (DI Layer)
+### 3.5 数据库迁移 (`electron/database/migrations.ts`)
 
-**职责**: 管理服务依赖关系，提供依赖解析
-
-**模块**:
-
--   `di/container.ts`: DI 容器实现
--   `di/serviceRegistry.ts`: 服务注册
-
-**特点**:
-
--   单例管理
--   依赖解析
--   便于测试
--   易于扩展
-
-### 3.3 进程间通信 (IPC)
-
-**通信模式**: 基于 Electron IPC 的双向通信
-
--   **渲染进程 → 主进程**: 通过 `ipcRenderer.invoke()` 调用主进程方法
--   **主进程 → 渲染进程**: 通过 `webContents.send()` 发送事件
--   **安全桥接**: 通过 `preload.ts` 使用 `contextBridge` 暴露安全的 API
--   **统一响应**: 使用 `IPCResponse<T>` 统一响应格式
-
-### 3.4 数据同步策略
-
-```
-┌─────────────┐
-│  用户请求    │
-└──────┬──────┘
-       │
-       ▼
-┌─────────────────┐
-│ 检查本地缓存     │
-│ (时间范围检查)   │
-└──────┬──────────┘
-       │
-       ├─── 已缓存 ──► 从数据库读取 ──► 返回数据
-       │
-       └─── 未缓存 ──► 调用 Tushare API ──► 保存到数据库 ──► 返回数据
-```
-
----
-
-## 4. 目录结构
-
-```
-cafe-stock/
-├── electron/                    # 主进程代码
-│   ├── main.ts                  # 应用入口
-│   ├── preload.ts               # 预加载脚本（IPC 桥接）
-│   ├── db.ts                    # 数据库操作封装（向后兼容）
-│   ├── tushare.ts               # Tushare API 客户端
-│   │
-│   ├── core/                    # 核心功能模块
-│   │   ├── window.ts            # 窗口管理
-│   │   ├── tray.ts              # 系统托盘
-│   │   └── shortcuts.ts         # 全局快捷键
-│   │
-│   ├── database/                # 数据库模块 ⭐ 新增
-│   │   ├── connection.ts        # 连接管理
-│   │   ├── migrations.ts        # 数据库迁移
-│   │   ├── syncFlags.ts         # 同步标志位管理
-│   │   └── index.ts             # 统一导出
-│   │
-│   ├── di/                      # 依赖注入 ⭐ 新增
-│   │   ├── container.ts         # DI 容器
-│   │   ├── serviceRegistry.ts   # 服务注册
-│   │   └── index.ts             # 统一导出
-│   │
-│   ├── ipc/                     # IPC 处理器
-│   │   ├── index.ts             # IPC 注册入口
-│   │   ├── announcement.ts      # 公告相关 IPC
-│   │   ├── stock.ts             # 股票相关 IPC
-│   │   ├── news.ts              # 资讯相关 IPC
-│   │   ├── favorite.ts          # 收藏相关 IPC
-│   │   ├── holder.ts            # 股东相关 IPC
-│   │   ├── classification.ts    # 分类相关 IPC
-│   │   ├── database.ts          # 数据库相关 IPC
-│   │   ├── system.ts            # 系统相关 IPC
-│   │   ├── updater.ts           # 更新相关 IPC
-│   │   └── middleware/          # IPC 中间件 ⭐ 新增
-│   │       ├── errorHandler.ts  # 错误处理中间件
-│   │       └── index.ts         # 统一导出
-│   │
-│   ├── repositories/            # 仓储层
-│   │   ├── base/                # 基础仓储
-│   │   │   └── BaseRepository.ts
-│   │   ├── interfaces/          # 仓储接口
-│   │   │   ├── IRepository.ts
-│   │   │   ├── IStockRepository.ts
-│   │   │   ├── IAnnouncementRepository.ts
-│   │   │   ├── IFavoriteRepository.ts
-│   │   │   ├── IHolderRepository.ts
-│   │   │   ├── IClassificationRepository.ts
-│   │   │   └── index.ts
-│   │   └── implementations/     # 仓储实现
-│   │       ├── StockRepository.ts
-│   │       ├── AnnouncementRepository.ts
-│   │       ├── FavoriteRepository.ts
-│   │       ├── HolderRepository.ts
-│   │       ├── ClassificationRepository.ts
-│   │       └── index.ts
-│   │
-│   ├── services/                # 业务服务层
-│   │   ├── interfaces/          # 服务接口 ⭐ 新增
-│   │   │   ├── IAnnouncementService.ts
-│   │   │   ├── IStockService.ts
-│   │   │   ├── IFavoriteService.ts
-│   │   │   ├── IHolderService.ts
-│   │   │   ├── IClassificationService.ts
-│   │   │   ├── INewsService.ts
-│   │   │   └── index.ts
-│   │   ├── announcement.ts      # 公告服务
-│   │   ├── stock.ts             # 股票服务
-│   │   ├── news.ts              # 资讯服务
-│   │   ├── favorite.ts          # 收藏服务
-│   │   ├── holder.ts            # 股东服务
-│   │   └── classification.ts    # 分类服务
-│   │
-│   ├── types/                   # TypeScript 类型定义
-│   │   ├── index.ts             # 通用类型
-│   │   └── errors.ts            # 错误类型 ⭐ 新增
-│   │
-│   ├── utils/                   # 工具函数
-│   │   ├── logger.ts            # 日志工具
-│   │   └── announcementClassifier.ts  # 分类器 ⭐ 主进程版本
-│   │
-│   └── updater/                 # 自动更新模块
-│       └── index.ts
-│
-├── src/                         # 渲染进程代码（React）
-│   ├── main.tsx                 # React 应用入口
-│   ├── App.tsx                  # 根组件
-│   ├── components/              # React 组件
-│   │   ├── Layout.tsx           # 布局组件
-│   │   ├── AnnouncementList.tsx # 公告列表组件
-│   │   ├── NewsList.tsx         # 资讯列表组件
-│   │   ├── PDFViewer.tsx        # PDF 查看器
-│   │   ├── FavoriteButton.tsx   # 收藏按钮
-│   │   ├── StockList/           # 股票列表组件
-│   │   └── ...
-│   ├── pages/                   # 页面组件
-│   │   ├── Announcements.tsx    # 公告页面
-│   │   ├── News.tsx             # 资讯页面
-│   │   ├── DataInsights.tsx     # 数据洞察页面
-│   │   └── Settings.tsx         # 设置页面
-│   ├── services/                # 前端服务层
-│   │   ├── stockService.ts      # 股票服务
-│   │   ├── favoriteStockService.ts # 收藏服务
-│   │   └── stockListSync.ts     # 股票列表同步服务
-│   ├── hooks/                   # React Hooks
-│   │   ├── useStockList.ts      # 股票列表 Hook
-│   │   ├── useStockSearch.ts    # 股票搜索 Hook
-│   │   ├── useStockFilter.ts    # 股票筛选 Hook
-│   │   └── useFavoriteStocks.ts # 收藏股票 Hook
-│   ├── utils/                   # 工具函数
-│   │   └── announcementClassifier.ts # 公告分类器（渲染进程版本）
-│   └── types/                   # TypeScript 类型定义
-│       └── stock.ts
-│
-├── docs/                        # 项目文档
-│   ├── architecture.md          # 架构文档（本文档）
-│   ├── refactoring-plan.md      # 重构计划
-│   ├── refactoring-phase2-summary.md  # 重构总结
-│   └── ...
-│
-├── build/                       # 构建资源
-│   ├── icon.icns                # 应用图标
-│   └── entitlements.mac.plist   # macOS 权限配置
-│
-├── dist/                        # Vite 构建输出（渲染进程）
-├── dist-electron/               # Electron 构建输出（主进程）
-├── release/                     # 打包输出目录
-│
-├── package.json                 # 项目配置
-├── vite.config.ts               # Vite 配置
-├── tsconfig.json                # TypeScript 配置
-└── tailwind.config.js           # TailwindCSS 配置
-```
-
-**⭐ v2.0 新增模块**:
-
--   `electron/database/`: 数据库模块化
--   `electron/di/`: 依赖注入容器
--   `electron/services/interfaces/`: 服务接口定义
--   `electron/ipc/middleware/`: IPC 中间件
--   `electron/types/errors.ts`: 错误类型定义
--   `electron/utils/announcementClassifier.ts`: 主进程版分类器
-
----
-
-## 5. 核心模块
-
-### 5.1 主进程模块
-
-#### 5.1.1 应用入口 (`electron/main.ts`)
-
-**职责**:
-
--   应用生命周期管理
--   窗口创建和管理
--   模块初始化
--   单实例锁定
--   **依赖注入容器初始化** ⭐
-
-**关键功能**:
-
-```typescript
-- initialize(): 应用初始化
-- registerServices(): 注册 DI 服务 ⭐
-- createWindow(): 创建主窗口
-- createTray(): 创建系统托盘
-- registerShortcuts(): 注册全局快捷键
-- setupIPC(): 注册 IPC 处理器
-- setupAutoUpdater(): 设置自动更新
-```
-
-**初始化流程**:
-
-1. 注册依赖注入服务
-2. 创建主窗口
-3. 创建系统托盘
-4. 注册全局快捷键
-5. 注册 IPC 处理器
-6. 设置自动更新
-7. 同步股票列表（如果需要）
-
-#### 5.1.2 数据库层 (`electron/database/`)
-
-**模块结构**:
-
-1. **connection.ts** - 数据库连接管理
-
-    - `initializeDatabase()`: 初始化数据库连接
-    - `getDatabase()`: 获取数据库实例（单例）
-    - `getDatabasePath()`: 获取数据库路径
-    - `closeDatabase()`: 关闭数据库连接
-    - `configureDatabasePerformance()`: 配置性能参数
-
-2. **migrations.ts** - 数据库迁移
-
-    - `createTables()`: 创建所有数据库表
-    - `migrateDatabase()`: 执行数据库迁移
-    - `migrateAnnouncementsTable()`: 迁移公告表
-    - `migrateStocksTable()`: 迁移股票表
-    - `initializeDefaultClassificationRules()`: 初始化分类规则
-
-3. **syncFlags.ts** - 同步标志位管理
-    - `SyncFlagManager` 类：
-        - `getLastSyncDate()`: 获取上次同步日期
-        - `updateSyncFlag()`: 更新同步标志位
-        - `isSyncedToday()`: 检查今天是否已同步
-        - `getAllSyncFlags()`: 获取所有同步标志位
-        - `deleteSyncFlag()`: 删除同步标志位
-        - `clearAllSyncFlags()`: 清空所有同步标志位
+**功能**: 数据库表结构创建和迁移
 
 **核心表结构**:
 
--   `stocks`: 股票基本信息（包含 `is_favorite` 字段用于关注功能）
+-   `stocks`: 股票基本信息
 -   `announcements`: 公告数据
 -   `top10_holders`: 十大股东数据
+-   `stock_daily_basic`: 股票日线基础数据
+-   `stock_company`: 公司信息
 -   `sync_flags`: 同步标志位
 -   `announcement_sync_ranges`: 公告同步范围记录
--   `classification_categories`: 分类定义
+-   `classification_categories`: 分类类别
 -   `classification_rules`: 分类规则
 
-**性能优化**:
+### 3.6 依赖注入容器 (`electron/di/container.ts`)
 
--   WAL 模式提高并发性能
--   批量插入使用事务
--   索引优化查询性能
--   64MB 缓存大小
+**功能**: 服务依赖管理
 
-#### 5.1.3 仓储层 (`electron/repositories/`)
+**核心类**: `DIContainer`
 
-**职责**: 数据访问抽象，提供 CRUD 操作
+**特性**:
 
-**接口定义** (`interfaces/`):
+-   服务注册（工厂函数或实例）
+-   单例模式支持
+-   服务解析和缓存
+-   服务查询和清空
 
--   `IRepository<T>`: 基础仓储接口
--   `IStockRepository`: 股票仓储接口
--   `IAnnouncementRepository`: 公告仓储接口
--   `IFavoriteRepository`: 收藏仓储接口
--   `IHolderRepository`: 股东仓储接口
--   `IClassificationRepository`: 分类仓储接口
+**使用方式**:
 
-**实现类** (`implementations/`):
+```typescript
+// 注册服务
+container.register<IStockRepository>(
+	SERVICE_KEYS.STOCK_REPOSITORY,
+	() => new StockRepository(db),
+	true // 单例
+);
 
--   `BaseRepository`: 基础仓储类（提供通用方法）
--   `StockRepository`: 股票仓储实现
--   `AnnouncementRepository`: 公告仓储实现
--   `FavoriteRepository`: 收藏仓储实现
--   `HolderRepository`: 股东仓储实现
--   `ClassificationRepository`: 分类仓储实现
+// 解析服务
+const repo = container.resolve<IStockRepository>(SERVICE_KEYS.STOCK_REPOSITORY);
+```
 
-**特点**:
+### 3.7 服务注册 (`electron/di/serviceRegistry.ts`)
 
--   实现接口抽象
--   继承基础仓储类
--   封装数据库操作
--   提供查询优化
--   支持事务操作
+**功能**: 统一注册所有服务和仓储
 
-#### 5.1.4 服务层 (`electron/services/`)
+**已注册服务**:
 
-**职责**: 业务逻辑封装，连接 API 和数据库
+-   `StockRepository`: 股票仓储
+-   `FavoriteRepository`: 收藏仓储
+-   `AnnouncementRepository`: 公告仓储
+-   `HolderRepository`: 股东仓储
+-   `ClassificationRepository`: 分类仓储
 
-**接口定义** (`interfaces/`):
+### 3.8 Tushare API 客户端 (`electron/tushare.ts`)
 
--   `IAnnouncementService`: 公告服务接口
--   `IStockService`: 股票服务接口
--   `IFavoriteService`: 收藏服务接口
--   `IHolderService`: 股东服务接口
--   `IClassificationService`: 分类服务接口
--   `INewsService`: 资讯服务接口
+**功能**: Tushare Pro API 调用封装
 
-**服务实现**:
+**核心类**: `TushareClient`
 
--   `announcement.ts`: 公告服务（同步、查询、聚合）
--   `stock.ts`: 股票服务（列表同步、搜索）
--   `news.ts`: 资讯服务（实时获取）
--   `holder.ts`: 股东服务（十大股东同步）
--   `classification.ts`: 分类服务（规则管理、批量打标）
--   `favorite.ts`: 收藏服务（收藏管理）
-
-**特点**:
-
--   业务逻辑集中
--   调用仓储层和 API 层
--   数据聚合和转换
--   业务规则验证
-
-#### 5.1.5 依赖注入容器 (`electron/di/`)
-
-**模块结构**:
-
-1. **container.ts** - DI 容器实现
-
-    - `DIContainer` 类：
-        - `register()`: 注册服务工厂
-        - `registerInstance()`: 注册服务实例
-        - `resolve()`: 解析服务
-        - `has()`: 检查服务是否注册
-        - `clear()`: 清空容器
-        - `getRegisteredKeys()`: 获取所有已注册的服务
-
-2. **serviceRegistry.ts** - 服务注册
-    - `registerServices()`: 注册所有服务和仓储
-    - `getStockRepository()`: 获取股票仓储
-    - `getFavoriteRepository()`: 获取收藏仓储
-    - `getAnnouncementRepository()`: 获取公告仓储
-    - `getHolderRepository()`: 获取股东仓储
-    - `getClassificationRepository()`: 获取分类仓储
-
-**特点**:
-
--   单例模式管理服务
--   依赖解析
--   便于测试
--   易于扩展
-
-#### 5.1.6 IPC 层 (`electron/ipc/`)
-
-**职责**: 进程间通信处理，参数验证，错误处理
-
-**IPC 处理器**:
-
--   `system.ts`: 系统相关（3 个）
--   `updater.ts`: 自动更新（3 个）
--   `favorite.ts`: 收藏相关（5 个）
--   `news.ts`: 资讯相关（1 个）
--   `stock.ts`: 股票相关（7 个）
--   `announcement.ts`: 公告相关（12 个）
--   `holder.ts`: 股东相关（10 个）
--   `classification.ts`: 分类相关（8 个）
--   `database.ts`: 数据库相关（9 个）
-
-**总计**: 58 个 IPC 处理器
-
-**中间件** (`middleware/`):
-
--   `errorHandler.ts`: 错误处理中间件
-    -   `withErrorHandler()`: 包装 IPC 处理器
-    -   `wrapHandlers()`: 批量包装处理器
-
-**特点**:
-
--   统一错误处理
--   参数验证
--   响应格式标准化
--   日志记录
-
-#### 5.1.7 Tushare API 客户端 (`electron/tushare.ts`)
-
-**职责**:
-
--   封装 Tushare API 请求
--   处理 API 限流和错误重试
--   数据格式转换
-
-**主要 API**:
+**主要方法**:
 
 -   `getStockList()`: 获取股票列表
--   `getAnnouncements()`: 获取公告列表
--   `getAnnouncementsComplete()`: 完整获取公告（支持大范围）
+-   `getAnnouncements()`: 获取公告数据
+-   `getAnnouncementsComplete()`: 完整获取公告（支持大范围日期）
+-   `getDailyBasic()`: 获取日线基础数据
+-   `getStockCompany()`: 获取公司信息
+-   `getTop10Holders()`: 获取十大股东
 -   `getNews()`: 获取财经资讯
--   `getTop10Holders()`: 获取十大股东数据
 
-### 5.2 渲染进程模块
+**特性**:
 
-#### 5.2.1 路由和布局 (`src/App.tsx`, `src/components/Layout.tsx`)
+-   统一的请求/响应处理
+-   详细的日志记录
+-   错误处理和重试机制
+-   数据格式转换（数组转对象）
 
-**路由结构**:
+### 3.9 仓储层 (Repository Layer)
 
-```
-/ (根路径)
-├── /announcements (公告页面)
-├── /news (资讯页面)
-├── /data-insights (数据洞察)
-└── /settings (设置页面)
-```
+#### 3.9.1 基础仓储 (`electron/repositories/base/BaseRepository.ts`)
 
-#### 5.2.2 页面组件 (`src/pages/`)
+**功能**: 提供通用数据库操作方法
 
--   **Announcements.tsx**: 公告列表展示，支持筛选、搜索、分页
--   **News.tsx**: 财经资讯展示，支持多源、时间筛选
--   **DataInsights.tsx**: 数据统计和可视化
--   **Settings.tsx**: 应用设置（分类规则、数据库管理等）
+**核心方法**:
 
-#### 5.2.3 服务层 (`src/services/`)
+-   `transaction()`: 事务处理
+-   `getCurrentTimestamp()`: 获取当前时间戳
+-   `execute()`: 执行 SQL
 
-**职责**: 封装 IPC 调用，提供前端可用的服务接口
+#### 3.9.2 股票仓储 (`electron/repositories/implementations/StockRepository.ts`)
 
--   `stockService.ts`: 股票相关服务
--   `favoriteStockService.ts`: 收藏股票服务
--   `stockListSync.ts`: 股票列表同步服务
+**接口**: `IStockRepository`
 
-#### 5.2.4 Hooks (`src/hooks/`)
+**核心方法**:
 
-**职责**: 封装 React 状态逻辑和副作用
+-   `upsertStocks()`: 批量插入或更新股票
+-   `getAllStocks()`: 获取所有股票
+-   `countStocks()`: 统计股票数量
+-   `searchStocks()`: 搜索股票（名称、代码、拼音）
+
+#### 3.9.3 公告仓储 (`electron/repositories/implementations/AnnouncementRepository.ts`)
+
+**接口**: `IAnnouncementRepository`
+
+**核心方法**:
+
+-   `upsertAnnouncements()`: 批量插入或更新公告
+-   `getAnnouncementsByDateRange()`: 按日期范围查询公告
+-   `isAnnouncementRangeSynced()`: 检查时间范围是否已同步
+-   `recordAnnouncementSyncRange()`: 记录同步范围
+-   `searchAnnouncements()`: 搜索公告
+
+#### 3.9.4 收藏仓储 (`electron/repositories/implementations/FavoriteRepository.ts`)
+
+**接口**: `IFavoriteRepository`
+
+**核心方法**:
+
+-   `addFavorite()`: 添加收藏
+-   `removeFavorite()`: 移除收藏
+-   `isFavorite()`: 检查是否收藏
+-   `getAllFavoriteStocks()`: 获取所有收藏股票
+
+#### 3.9.5 股东仓储 (`electron/repositories/implementations/HolderRepository.ts`)
+
+**接口**: `IHolderRepository`
+
+**核心方法**:
+
+-   `upsertHolders()`: 批量插入或更新股东数据
+-   `getHoldersByStock()`: 获取股票的股东数据
+-   `getHoldersByEndDate()`: 按报告期获取股东数据
+
+#### 3.9.6 分类仓储 (`electron/repositories/implementations/ClassificationRepository.ts`)
+
+**接口**: `IClassificationRepository`
+
+**核心方法**:
+
+-   `getCategories()`: 获取所有分类
+-   `getRules()`: 获取分类规则
+-   `addRule()`: 添加规则
+-   `updateRule()`: 更新规则
+-   `deleteRule()`: 删除规则
+
+### 3.10 服务层 (Service Layer)
+
+#### 3.10.1 股票服务 (`electron/services/stock.ts`)
+
+**功能**: 股票列表同步和管理
+
+**核心方法**:
+
+-   `syncStocksIfNeeded()`: 按需同步股票列表（首次启动）
+-   `syncAllStocks()`: 同步所有股票列表
+-   `syncStockDetails()`: 同步股票详情（市值+公司信息）
+-   `getStockList()`: 获取股票列表
+-   `getStockCount()`: 获取股票数量
+
+**同步策略**:
+
+-   启动时检查，如数据库为空则自动同步
+-   支持进度回调
+-   批量处理（100 只/批）
+-   API 限流控制（批次间延迟）
+
+#### 3.10.2 公告服务 (`electron/services/announcement.ts`)
+
+**功能**: 公告数据获取、聚合和搜索
+
+**核心方法**:
+
+-   `getAnnouncementsGroupedFromAPI()`: 获取聚合公告（按股票分组）
+-   `searchAnnouncementsGroupedFromAPI()`: 搜索聚合公告
+-   `getFavoriteStocksAnnouncementsGroupedFromAPI()`: 获取关注股票公告
+
+**聚合逻辑**:
+
+-   按股票代码分组
+-   计算分类统计
+-   按最新公告日期排序
+-   支持分页
+
+**缓存策略**:
+
+-   检查时间范围是否已同步
+-   已同步则从数据库读取
+-   未同步则从 API 获取并保存
+
+#### 3.10.3 收藏服务 (`electron/services/favorite.ts`)
+
+**功能**: 股票收藏管理
+
+**核心方法**:
+
+-   `addFavoriteStock()`: 添加收藏
+-   `removeFavoriteStock()`: 移除收藏
+-   `isFavoriteStock()`: 检查是否收藏
+-   `getAllFavoriteStocks()`: 获取所有收藏
+
+#### 3.10.4 股东服务 (`electron/services/holder.ts`)
+
+**功能**: 十大股东数据同步和管理
+
+**核心方法**:
+
+-   `syncAllTop10Holders()`: 同步所有股票的十大股东
+-   `syncStockTop10Holders()`: 同步单个股票的十大股东
+-   `getTop10Holders()`: 获取股东数据
+
+**同步特性**:
+
+-   支持暂停/恢复
+-   支持停止
+-   进度回调
+-   批量处理
+
+#### 3.10.5 分类服务 (`electron/services/classification.ts`)
+
+**功能**: 公告分类和规则管理
+
+**核心方法**:
+
+-   `classifyAnnouncementTitle()`: 分类公告标题
+-   `getCategories()`: 获取分类列表
+-   `getRules()`: 获取规则列表
+-   `tagAllAnnouncements()`: 批量打标所有公告
+
+**分类规则**:
+
+-   基于关键词匹配
+-   支持优先级
+-   支持启用/禁用
+
+#### 3.10.6 资讯服务 (`electron/services/news.ts`)
+
+**功能**: 财经资讯获取
+
+**核心方法**:
+
+-   `getNews()`: 获取资讯列表
+
+**特性**:
+
+-   支持多新闻源（新浪、华尔街见闻等）
+-   支持日期范围筛选
+-   实时获取（不缓存）
+
+### 3.11 IPC 通信层 (`electron/ipc/`)
+
+**功能**: 主进程与渲染进程通信桥接
+
+**IPC 处理器模块**:
+
+-   `system.ts`: 系统相关（通知、版本等）
+-   `updater.ts`: 自动更新相关
+-   `stock.ts`: 股票相关
+-   `announcement.ts`: 公告相关
+-   `favorite.ts`: 收藏相关
+-   `holder.ts`: 股东相关
+-   `classification.ts`: 分类相关
+-   `news.ts`: 资讯相关
+-   `database.ts`: 数据库相关
+
+**通信方式**:
+
+-   `ipcMain.handle()`: 处理渲染进程请求
+-   `ipcMain.on()`: 监听渲染进程事件
+-   `webContents.send()`: 向渲染进程发送事件
+
+### 3.12 Preload 脚本 (`electron/preload.ts`)
+
+**功能**: 安全暴露 Electron API 到渲染进程
+
+**特性**:
+
+-   使用 `contextBridge` 安全暴露 API
+-   类型安全的 IPC 调用封装
+-   事件监听器管理
+
+**暴露的 API**:
+
+-   `electronAPI.getAnnouncements()`: 获取公告
+-   `electronAPI.addFavoriteStock()`: 添加收藏
+-   `electronAPI.searchStocks()`: 搜索股票
+-   `electronAPI.checkForUpdates()`: 检查更新
+-   等等...
+
+### 3.13 自动更新 (`electron/updater/index.ts`)
+
+**功能**: 应用自动更新管理
+
+**特性**:
+
+-   启动时自动检查更新
+-   手动检查更新
+-   后台下载
+-   下载进度显示
+-   一键安装
+
+**更新源**: GitHub Releases
+
+### 3.14 公告分类器 (`electron/utils/announcementClassifier.ts`)
+
+**功能**: 公告标题智能分类
+
+**分类类别**:
+
+-   财务报告
+-   重大事项
+-   股权变动
+-   业绩预告
+-   风险提示
+-   其他
+
+**分类方式**:
+
+-   基于关键词匹配
+-   支持规则优先级
+-   支持自定义规则
+
+### 3.15 日志工具 (`electron/utils/logger.ts`)
+
+**功能**: 统一日志管理
+
+**日志级别**:
+
+-   `debug`: 调试信息
+-   `info`: 一般信息
+-   `warn`: 警告信息
+-   `error`: 错误信息
+
+**特性**:
+
+-   统一格式
+-   模块标识
+-   时间戳
+
+## 4. 渲染进程架构
+
+### 4.1 应用入口 (`src/App.tsx`)
+
+**功能**: React 应用根组件
+
+**特性**:
+
+-   React Router 路由配置
+-   Ant Design App 组件包装
+-   股票列表同步状态管理
+
+### 4.2 页面组件 (`src/pages/`)
+
+-   `Announcements.tsx`: 公告列表页面
+-   `News.tsx`: 资讯页面
+-   `DataInsights.tsx`: 数据洞察页面
+-   `Settings.tsx`: 设置页面
+
+### 4.3 业务组件 (`src/components/`)
+
+-   `AnnouncementList.tsx`: 公告列表组件
+-   `NewsList.tsx`: 资讯列表组件
+-   `StockList/`: 股票列表组件
+-   `FavoriteButton.tsx`: 收藏按钮组件
+-   `PDFViewer.tsx`: PDF 查看器组件
+
+### 4.4 自定义 Hooks (`src/hooks/`)
 
 -   `useStockList.ts`: 股票列表管理
--   `useStockSearch.ts`: 股票搜索
--   `useStockFilter.ts`: 股票筛选
 -   `useFavoriteStocks.ts`: 收藏股票管理
+-   `useStockSearch.ts`: 股票搜索
+-   `useStockFilter.ts`: 股票过滤
 
----
+### 4.5 服务层 (`src/services/`)
+
+-   `stockService.ts`: 股票服务（渲染进程）
+-   `favoriteStockService.ts`: 收藏服务（渲染进程）
+-   `stockListSync.ts`: 股票列表同步服务
+
+## 5. 核心功能流程图
+
+### 5.1 应用启动流程
+
+```mermaid
+graph TD
+    A[应用启动] --> B{单实例检查}
+    B -->|已有实例| C[退出当前实例]
+    B -->|无实例| D[注册依赖注入服务]
+    D --> E[初始化数据库连接]
+    E --> F[执行数据库迁移]
+    F --> G[创建主窗口]
+    G --> H[创建系统托盘]
+    H --> I[注册全局快捷键]
+    I --> J[注册 IPC 处理器]
+    J --> K[设置自动更新]
+    K --> L{股票列表是否为空?}
+    L -->|是| M[同步股票列表]
+    L -->|否| N[显示主窗口]
+    M --> N
+    N --> O[应用就绪]
+```
+
+### 5.2 公告数据同步流程
+
+```mermaid
+graph TD
+    A[用户请求公告数据] --> B{检查时间范围是否已同步?}
+    B -->|是| C[从数据库读取]
+    B -->|否| D[调用 Tushare API]
+    D --> E[获取公告数据]
+    E --> F[保存到数据库]
+    F --> G[记录同步范围]
+    G --> H[按股票聚合数据]
+    C --> H
+    H --> I[应用分类规则]
+    I --> J[返回聚合结果]
+    J --> K[渲染进程展示]
+```
+
+### 5.3 股票列表同步流程
+
+```mermaid
+graph TD
+    A[触发股票列表同步] --> B[检查数据库股票数量]
+    B --> C{数量 > 0?}
+    C -->|是| D[跳过同步]
+    C -->|否| E[调用 Tushare API]
+    E --> F[获取股票列表]
+    F --> G[批量插入/更新数据库]
+    G --> H[更新同步标志位]
+    H --> I[发送完成通知]
+    I --> J[更新 UI]
+```
+
+### 5.4 公告分类流程
+
+```mermaid
+graph TD
+    A[获取公告标题] --> B[加载分类规则]
+    B --> C[按优先级排序规则]
+    C --> D{遍历规则}
+    D --> E{匹配关键词?}
+    E -->|是| F[返回分类]
+    E -->|否| G{还有规则?}
+    G -->|是| D
+    G -->|否| H[返回默认分类]
+    F --> I[更新公告分类字段]
+    H --> I
+```
+
+### 5.5 IPC 通信流程
+
+```mermaid
+sequenceDiagram
+    participant R as 渲染进程
+    participant P as Preload
+    participant M as 主进程
+    participant S as Service
+    participant DB as 数据库
+
+    R->>P: 调用 electronAPI.getAnnouncements()
+    P->>M: ipcRenderer.invoke('get-announcements')
+    M->>M: ipcMain.handle('get-announcements')
+    M->>S: announcementService.getAnnouncements()
+    S->>DB: announcementRepository.query()
+    DB-->>S: 返回数据
+    S-->>M: 返回结果
+    M-->>P: 返回 Promise
+    P-->>R: 返回数据
+    R->>R: 更新 UI
+```
+
+### 5.6 自动更新流程
+
+```mermaid
+graph TD
+    A[应用启动/手动检查] --> B[调用 electron-updater]
+    B --> C{有新版本?}
+    C -->|否| D[显示已是最新版本]
+    C -->|是| E[发送更新可用事件]
+    E --> F[用户确认下载]
+    F --> G[开始下载]
+    G --> H[发送下载进度事件]
+    H --> I{下载完成?}
+    I -->|否| H
+    I -->|是| J[发送下载完成事件]
+    J --> K[用户确认安装]
+    K --> L[退出应用]
+    L --> M[安装更新]
+    M --> N[重启应用]
+```
+
+### 5.7 数据查询流程（渲染进程）
+
+```mermaid
+graph TD
+    A[用户操作触发查询] --> B[调用 React Hook]
+    B --> C[调用 electronAPI 方法]
+    C --> D[IPC 通信]
+    D --> E[主进程 IPC Handler]
+    E --> F[调用 Service 方法]
+    F --> G[Repository 查询数据库]
+    G --> H[返回数据]
+    H --> I[IPC 返回结果]
+    I --> J[Hook 更新状态]
+    J --> K[组件重新渲染]
+```
 
 ## 6. 数据流
 
-### 6.1 公告数据流
+### 6.1 数据同步流
 
 ```
-用户操作
-  │
-  ├─► 选择日期范围 ──► IPC 调用 getAnnouncementsGrouped
-  │                      │
-  │                      ▼
-  │              IPC 错误处理中间件 ⭐
-  │                      │
-  │                      ▼
-  │              调用公告服务
-  │                      │
-  │                      ▼
-  │              检查本地缓存 (announcement_sync_ranges)
-  │                      │
-  │                      ├─► 已缓存 ──► 从仓储层读取 ──► 返回前端
-  │                      │
-  │                      └─► 未缓存 ──► 调用 Tushare API
-  │                                      │
-  │                                      ▼
-  │                              通过仓储层保存到数据库
-  │                                      │
-  │                                      ▼
-  │                              记录同步范围
-  │                                      │
-  │                                      ▼
-  │                              返回数据给前端
-  │
-  └─► 搜索公告 ──► IPC 调用 searchAnnouncementsGrouped
-                     │
-                     ▼
-               仓储层数据库全文搜索
-                     │
-                     ▼
-               返回搜索结果
+Tushare API → Service Layer → Repository Layer → SQLite Database
 ```
 
-### 6.2 股票列表同步流程
+### 6.2 数据查询流
 
 ```
-应用启动
-  │
-  ▼
-DI 容器初始化 ⭐
-  │
-  ▼
-检查股票数量（通过仓储层）
-  │
-  ├─► 数量 > 0 ──► 跳过同步
-  │
-  └─► 数量 = 0 ──► 调用股票服务
-                     │
-                     ▼
-               调用 Tushare API 获取股票列表
-                     │
-                     ▼
-               通过仓储层批量插入数据库
-                     │
-                     ▼
-               显示同步完成通知
+React Component → Hook → electronAPI → IPC → Service → Repository → Database
 ```
 
-### 6.3 十大股东同步流程
+### 6.3 数据展示流
 
 ```
-用户触发同步
-  │
-  ▼
-IPC 调用 syncAllTop10Holders
-  │
-  ▼
-调用股东服务
-  │
-  ▼
-通过仓储层获取股票列表
-  │
-  ▼
-遍历股票（支持暂停/恢复）
-  │
-  ├─► 调用 Tushare API 获取十大股东
-  │      │
-  │      ▼
-  │   通过仓储层保存到数据库
-  │      │
-  │      ▼
-  │   发送进度事件给前端
-  │
-  └─► 完成 ──► 发送完成事件
+Database → Repository → Service → IPC → electronAPI → Hook → React Component → UI
 ```
 
----
+## 7. 关键技术特性
 
-## 7. IPC 通信架构
-
-### 7.1 IPC 处理器注册
-
-所有 IPC 处理器在 `electron/ipc/index.ts` 中统一注册：
-
-```typescript
-setupIPC(mainWindow) {
-  registerSystemHandlers()        // 系统相关（3个）
-  registerUpdaterHandlers()       // 自动更新（3个）
-  registerFavoriteHandlers()      // 收藏相关（5个）
-  registerNewsHandlers()           // 资讯相关（1个）
-  registerStockHandlers()          // 股票相关（7个）
-  registerAnnouncementHandlers()   // 公告相关（12个）
-  registerHolderHandlers()         // 股东相关（10个）
-  registerClassificationHandlers() // 分类相关（8个）
-  registerDatabaseHandlers()        // 数据库相关（9个）
-}
-```
-
-**总计**: 58 个 IPC 处理器
-
-### 7.2 IPC 通信模式
-
-#### 7.2.1 请求-响应模式（invoke）⭐ 使用错误处理中间件
-
-**渲染进程**:
-
-```typescript
-const result = await window.electronAPI.getAnnouncements(page, pageSize);
-// result: IPCResponse<T> = { success: boolean, data?: T, error?: ErrorDetails }
-```
-
-**主进程**:
-
-```typescript
-ipcMain.handle(
-	"get-announcements",
-	withErrorHandler(async (event, page, pageSize) => {
-		return await announcementService.getAnnouncementsGrouped(page, pageSize);
-	}, "get-announcements")
-);
-```
-
-**响应格式**:
-
-```typescript
-interface IPCResponse<T = unknown> {
-	success: boolean;
-	data?: T;
-	error?: {
-		code: ErrorCode | string;
-		message: string;
-		details?: unknown;
-	};
-}
-```
-
-#### 7.2.2 事件监听模式（on/send）
-
-**渲染进程**:
-
-```typescript
-window.electronAPI.onDataUpdated((data) => {
-	console.log("Data updated:", data);
-});
-```
-
-**主进程**:
-
-```typescript
-mainWindow.webContents.send("data-updated", data);
-```
-
-### 7.3 Preload 脚本 (`electron/preload.ts`)
-
-**职责**: 安全地暴露 Electron API 到渲染进程
-
-**关键特性**:
-
--   使用 `contextBridge` 确保安全隔离
--   统一 API 命名空间 `window.electronAPI`
--   提供类型定义 (`src/electron.d.ts`)
-
----
-
-## 8. 数据库设计
-
-### 8.1 数据库配置
-
--   **数据库引擎**: SQLite 3 (better-sqlite3)
--   **数据库位置**: `app.getPath('userData')/cafe_stock.db`
--   **WAL 模式**: 启用，提高并发性能
--   **缓存大小**: 64MB
--   **同步模式**: NORMAL
-
-### 8.2 核心表结构
-
-#### 8.2.1 stocks（股票表）
-
-```sql
-CREATE TABLE stocks (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  ts_code TEXT NOT NULL UNIQUE,      -- Tushare 股票代码
-  symbol TEXT,                        -- 股票代码（6位）
-  name TEXT,                          -- 股票名称
-  area TEXT,                          -- 地区
-  industry TEXT,                      -- 行业
-  fullname TEXT,                      -- 全称
-  enname TEXT,                        -- 英文名
-  cnspell TEXT,                       -- 拼音
-  market TEXT,                        -- 市场类型
-  exchange TEXT,                      -- 交易所
-  curr_type TEXT,                     -- 交易货币
-  list_status TEXT,                   -- 上市状态
-  list_date TEXT,                     -- 上市日期
-  delist_date TEXT,                   -- 退市日期
-  is_hs TEXT,                         -- 是否沪深港通
-  is_favorite INTEGER DEFAULT 0,     -- 是否收藏
-  updated_at TEXT NOT NULL            -- 更新时间
-);
-```
-
-**索引**:
-
--   `idx_stock_name`: 股票名称
--   `idx_stock_industry`: 行业
--   `idx_stock_list_status`: 上市状态
--   `idx_stock_is_favorite`: 收藏状态
-
-#### 8.2.2 announcements（公告表）
-
-```sql
-CREATE TABLE announcements (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  ts_code TEXT NOT NULL,              -- 股票代码
-  ann_date TEXT NOT NULL,             -- 公告日期
-  ann_type TEXT,                      -- 公告类型
-  title TEXT,                         -- 标题
-  content TEXT,                       -- 内容
-  pub_time TEXT,                      -- 发布时间
-  file_path TEXT,                     -- PDF 文件路径
-  name TEXT,                          -- 股票名称（冗余）
-  category TEXT,                      -- 分类标签
-  url TEXT,                           -- 公告 URL
-  rec_time TEXT,                      -- 记录时间
-  UNIQUE(ts_code, ann_date, title)    -- 唯一约束
-);
-```
-
-**索引**:
-
--   `idx_ann_date`: 公告日期（DESC）
--   `idx_ann_ts_code`: 股票代码
--   `idx_ann_ts_code_date`: 股票代码+日期（复合）
--   `idx_ann_category`: 分类标签
-
-#### 8.2.3 top10_holders（十大股东表）
-
-```sql
-CREATE TABLE top10_holders (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  ts_code TEXT NOT NULL,              -- 股票代码
-  ann_date TEXT NOT NULL,             -- 公告日期
-  end_date TEXT NOT NULL,             -- 报告期
-  holder_name TEXT NOT NULL,          -- 股东名称
-  hold_amount REAL,                   -- 持股数量
-  hold_ratio REAL,                    -- 持股比例
-  updated_at TEXT NOT NULL,           -- 更新时间
-  UNIQUE(ts_code, end_date, holder_name)
-);
-```
-
-**索引**:
-
--   `idx_top10_ts_code`: 股票代码
--   `idx_top10_end_date`: 报告期（DESC）
--   `idx_top10_holder_name`: 股东名称
--   `idx_top10_ts_end_date`: 股票代码+报告期（复合）
-
-#### 8.2.4 announcement_sync_ranges（同步范围表）
-
-```sql
-CREATE TABLE announcement_sync_ranges (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  ts_code TEXT,                       -- 股票代码（NULL 表示全市场）
-  start_date TEXT NOT NULL,           -- 开始日期
-  end_date TEXT NOT NULL,             -- 结束日期
-  synced_at TEXT NOT NULL             -- 同步时间
-);
-```
-
-**用途**: 记录已同步的时间范围，避免重复同步
-
-#### 8.2.5 classification_categories（分类定义表）
-
-```sql
-CREATE TABLE classification_categories (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  category_key TEXT NOT NULL UNIQUE,  -- 分类键
-  category_name TEXT NOT NULL,        -- 分类名称
-  color TEXT,                         -- 颜色
-  icon TEXT,                          -- 图标
-  priority INTEGER NOT NULL,         -- 优先级
-  enabled INTEGER DEFAULT 1,         -- 是否启用
-  created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL
-);
-```
-
-#### 8.2.6 classification_rules（分类规则表）
-
-```sql
-CREATE TABLE classification_rules (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  category_key TEXT NOT NULL,         -- 分类键
-  keyword TEXT NOT NULL,              -- 关键词
-  enabled INTEGER DEFAULT 1,         -- 是否启用
-  created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL,
-  FOREIGN KEY (category_key) REFERENCES classification_categories(category_key)
-);
-```
-
-### 8.3 数据库迁移
-
-**迁移策略**: 在 `database/migrations.ts` 中实现 `migrateDatabase()` 函数，检查并添加缺失的列。
-
-**已实现的迁移**:
-
--   添加 `announcements.name` 列
--   添加 `announcements.url` 列
--   添加 `announcements.rec_time` 列
--   添加 `stocks.is_favorite` 列
--   添加 `announcements.category` 列
--   初始化默认分类规则
-
----
-
-## 9. 依赖注入
-
-### 9.1 DI 容器设计
-
-**容器类** (`di/container.ts`):
-
-```typescript
-class DIContainer {
-	private services = new Map<string, any>();
-	private factories = new Map<string, Factory<any>>();
-	private singletons = new Map<string, any>();
-
-	register<T>(key: string, factory: Factory<T>, singleton: boolean = true): void;
-	registerInstance<T>(key: string, instance: T): void;
-	resolve<T>(key: string): T;
-	has(key: string): boolean;
-	clear(): void;
-	getRegisteredKeys(): string[];
-}
-```
-
-### 9.2 服务注册
-
-**注册流程** (`di/serviceRegistry.ts`):
-
-```typescript
-export function registerServices(): void {
-	const db = getDatabase();
-
-	// 注册仓储（单例）
-	container.register("StockRepository", () => new StockRepository(db), true);
-	container.register("FavoriteRepository", () => new FavoriteRepository(db), true);
-	container.register("AnnouncementRepository", () => new AnnouncementRepository(db), true);
-	container.register("HolderRepository", () => new HolderRepository(db), true);
-	container.register("ClassificationRepository", () => new ClassificationRepository(db), true);
-}
-```
-
-### 9.3 服务解析
-
-**便捷方法**:
-
-```typescript
-export function getStockRepository(): IStockRepository {
-	return container.resolve<IStockRepository>("StockRepository");
-}
-
-export function getAnnouncementRepository(): IAnnouncementRepository {
-	return container.resolve<IAnnouncementRepository>("AnnouncementRepository");
-}
-```
-
-### 9.4 使用示例
-
-**在服务层使用**:
-
-```typescript
-import { getStockRepository, getAnnouncementRepository } from "../di/serviceRegistry.js";
-
-const stockRepository = getStockRepository();
-const announcementRepository = getAnnouncementRepository();
-```
-
----
-
-## 10. 错误处理
-
-### 10.1 错误类型定义
-
-**错误码枚举** (`types/errors.ts`):
-
-```typescript
-enum ErrorCode {
-	// 通用错误 (1000-1999)
-	UNKNOWN_ERROR = "UNKNOWN_ERROR",
-	INVALID_PARAMS = "INVALID_PARAMS",
-	OPERATION_FAILED = "OPERATION_FAILED",
-
-	// 数据库错误 (2000-2999)
-	DATABASE_ERROR = "DATABASE_ERROR",
-	DATABASE_CONNECTION_ERROR = "DATABASE_CONNECTION_ERROR",
-	DATABASE_QUERY_ERROR = "DATABASE_QUERY_ERROR",
-
-	// API 错误 (3000-3999)
-	API_ERROR = "API_ERROR",
-	API_REQUEST_FAILED = "API_REQUEST_FAILED",
-	API_RESPONSE_ERROR = "API_RESPONSE_ERROR",
-	API_RATE_LIMIT = "API_RATE_LIMIT",
-
-	// 业务错误 (4000-4999)
-	STOCK_NOT_FOUND = "STOCK_NOT_FOUND",
-	ANNOUNCEMENT_NOT_FOUND = "ANNOUNCEMENT_NOT_FOUND",
-	SYNC_IN_PROGRESS = "SYNC_IN_PROGRESS",
-	SYNC_FAILED = "SYNC_FAILED",
-}
-```
-
-**错误响应接口**:
-
-```typescript
-interface IPCResponse<T = unknown> {
-	success: boolean;
-	data?: T;
-	error?: {
-		code: ErrorCode | string;
-		message: string;
-		details?: unknown;
-	};
-}
-```
-
-### 10.2 错误处理中间件
-
-**中间件实现** (`ipc/middleware/errorHandler.ts`):
-
-```typescript
-export function withErrorHandler<T extends any[], R = any>(handler: IPCHandler<T, R>, handlerName?: string): WrappedIPCHandler<T> {
-	return async (event: IpcMainInvokeEvent, ...args: T): Promise<IPCResponse> => {
-		try {
-			const result = await handler(event, ...args);
-			return createSuccessResponse(result);
-		} catch (error) {
-			log.error("IPC", `请求失败: ${handlerName}`, error);
-			return createErrorResponse(error);
-		}
-	};
-}
-```
-
-### 10.3 自定义错误类
-
-**AppError 类**:
-
-```typescript
-class AppError extends Error {
-	public readonly code: ErrorCode | string;
-	public readonly details?: unknown;
-
-	constructor(code: ErrorCode | string, message: string, details?: unknown) {
-		super(message);
-		this.name = "AppError";
-		this.code = code;
-		this.details = details;
-	}
-}
-```
-
-### 10.4 使用示例
-
-**在 IPC handler 中使用**:
-
-```typescript
-ipcMain.handle(
-	"open-external",
-	withErrorHandler(async (_event, url: string) => {
-		// 安全检查
-		if (!url.startsWith("http://") && !url.startsWith("https://")) {
-			throw new AppError(ErrorCode.INVALID_PARAMS, "只支持 HTTP/HTTPS 协议");
-		}
-
-		await shell.openExternal(url);
-		return { success: true };
-	}, "open-external")
-);
-```
-
----
-
-## 11. 构建与部署
-
-### 11.1 开发环境
-
-**启动命令**:
-
-```bash
-npm run dev
-```
-
-**构建流程**:
-
-1. Vite 编译渲染进程代码（TypeScript → JavaScript）
-2. TypeScript 编译主进程代码
-3. Electron 启动应用
-
-**启动日志**:
-
-```
-[INFO][DB] 初始化数据库连接
-[INFO][DB] 数据库连接初始化成功
-[INFO][DB] 开始创建数据库表...
-[INFO][DB] 数据库表创建完成
-[INFO][DB] 开始数据库迁移...
-[INFO][DB] 数据库迁移完成
-[INFO][DI] 开始注册服务...
-[DEBUG][DI] 注册服务: StockRepository (单例: true)
-[DEBUG][DI] 注册服务: FavoriteRepository (单例: true)
-[DEBUG][DI] 注册服务: AnnouncementRepository (单例: true)
-[DEBUG][DI] 注册服务: HolderRepository (单例: true)
-[DEBUG][DI] 注册服务: ClassificationRepository (单例: true)
-[INFO][DI] 服务注册完成
-[INFO][IPC] All IPC handlers registered successfully
-[INFO][App] 酷咖啡股票助手 - 启动完成
-```
-
-### 11.2 生产构建
-
-**构建命令**:
-
-```bash
-npm run build
-```
-
-**构建流程**:
-
-1. 编译 TypeScript 代码
-2. Vite 构建渲染进程
-3. 编译主进程代码
-4. electron-builder 打包应用
-
-**输出目录**:
-
--   `dist/`: 渲染进程构建输出
--   `dist-electron/`: 主进程构建输出
--   `release/`: 打包后的应用安装包
-
-### 11.3 打包配置
-
-**配置文件**: `package.json` 的 `build` 字段
-
-**macOS 配置**:
-
-```json
-{
-	"mac": {
-		"category": "public.app-category.finance",
-		"target": ["dmg"],
-		"icon": "build/icon.icns",
-		"hardenedRuntime": true,
-		"entitlements": "build/entitlements.mac.plist"
-	}
-}
-```
-
-### 11.4 自动更新
-
-**更新服务**: GitHub Releases
-
-**配置**:
-
-```json
-{
-	"publish": [
-		{
-			"provider": "github",
-			"owner": "cafe9k",
-			"repo": "cafe-stock"
-		}
-	]
-}
-```
-
-**更新流程**:
-
-1. 应用启动时自动检查更新
-2. 发现新版本后后台下载
-3. 下载完成后提示用户安装
-4. 用户确认后重启应用安装新版本
-
----
-
-## 12. 开发规范
-
-### 12.1 代码规范
-
--   **命名规范**:
-
-    -   类名: PascalCase（如 `UserService`）
-    -   函数/变量: camelCase（如 `getUserName`）
-    -   常量: UPPER_SNAKE_CASE（如 `MAX_RETRY_COUNT`）
-    -   接口: I + PascalCase（如 `IStockRepository`）
-
--   **缩进**: 使用 Tab（2 空格）
-
--   **行长度**: 不超过 120 字符
-
-### 12.2 TypeScript 规范
-
--   所有文件使用 TypeScript
--   避免使用 `any`，优先使用具体类型
--   导出类型定义到 `types/` 目录
--   服务层和仓储层必须定义接口
--   使用依赖注入而非直接实例化
-
-### 12.3 文件组织
-
--   **主进程代码**: `electron/` 目录
--   **渲染进程代码**: `src/` 目录
--   **文档**: `docs/` 目录
--   **构建资源**: `build/` 目录
--   **接口定义**: `interfaces/` 子目录
--   **实现类**: `implementations/` 子目录
-
-### 12.4 架构规范
-
--   **分层原则**: 严格遵守分层架构，不跨层调用
--   **依赖方向**: 上层依赖下层，下层不依赖上层
--   **接口抽象**: 服务层和仓储层必须定义接口
--   **依赖注入**: 使用 DI 容器管理依赖
--   **错误处理**: IPC 层使用统一的错误处理中间件
--   **主进程独立**: 主进程代码不依赖渲染进程代码
-
-### 12.5 Git 提交规范
-
--   `feat`: 新功能
--   `fix`: 修复 bug
--   `docs`: 文档更新
--   `style`: 代码格式调整
--   `refactor`: 代码重构
--   `test`: 测试相关
--   `chore`: 构建/工具相关
-
----
-
-## 附录
-
-### A. 关键文件说明
-
-| 文件                                      | 说明                                  |
-| ----------------------------------------- | ------------------------------------- |
-| `electron/main.ts`                        | 应用入口，生命周期管理，DI 容器初始化 |
-| `electron/preload.ts`                     | IPC 桥接脚本                          |
-| `electron/database/connection.ts`         | 数据库连接管理                        |
-| `electron/database/migrations.ts`         | 数据库迁移                            |
-| `electron/di/container.ts`                | 依赖注入容器                          |
-| `electron/di/serviceRegistry.ts`          | 服务注册                              |
-| `electron/ipc/middleware/errorHandler.ts` | IPC 错误处理中间件                    |
-| `electron/types/errors.ts`                | 错误类型定义                          |
-| `electron/tushare.ts`                     | Tushare API 客户端                    |
-| `src/App.tsx`                             | React 应用根组件                      |
-| `vite.config.ts`                          | Vite 构建配置                         |
-
-### B. 环境变量
-
-| 变量名          | 说明              | 默认值         |
-| --------------- | ----------------- | -------------- |
-| `TUSHARE_TOKEN` | Tushare API Token | 硬编码在代码中 |
-
-### C. 性能优化
+### 7.1 性能优化
 
 1. **数据库优化**:
 
-    - 使用 WAL 模式提高并发性能
-    - 合理使用索引
-    - 批量操作使用事务
-    - 64MB 缓存大小
+    - WAL 模式提高并发性能
+    - 索引优化查询速度
+    - 批量操作减少 I/O
 
-2. **网络优化**:
+2. **数据缓存**:
 
-    - 智能缓存策略
-    - 增量同步避免重复请求
-    - 批量请求减少 API 调用次数
+    - 本地 SQLite 数据库缓存
+    - 同步范围记录避免重复请求
+    - 增量同步减少数据传输
 
-3. **前端优化**:
+3. **API 限流**:
+    - 批次间延迟控制
+    - 批量查询减少请求次数
 
-    - React 组件懒加载
-    - 虚拟滚动处理大量数据
-    - 防抖和节流优化搜索
+### 7.2 安全性
 
-4. **架构优化** ⭐:
-    - 依赖注入单例模式减少实例创建
-    - 仓储层缓存查询结果
-    - IPC 层统一错误处理减少重复代码
+1. **IPC 安全**:
 
-### D. 架构演进 (v1.0 → v2.0)
+    - Context Isolation 启用
+    - Node Integration 禁用
+    - 使用 contextBridge 安全暴露 API
 
-**v1.0 问题**:
+2. **内容安全策略**:
+    - CSP 限制资源加载
+    - 仅允许白名单域名
 
--   数据库逻辑混乱，职责不清
--   服务层直接创建依赖，难以测试
--   IPC 层错误处理不统一
--   主进程依赖渲染进程代码
+### 7.3 可维护性
 
-**v2.0 改进**:
+1. **代码组织**:
 
--   ✅ 数据库模块化：连接、迁移、同步标志位分离
--   ✅ 依赖注入：使用 DI 容器管理依赖
--   ✅ 接口抽象：服务层和仓储层都有接口定义
--   ✅ 统一错误处理：IPC 层使用中间件
--   ✅ 主进程独立：分类器移到主进程
+    - 清晰的分层架构
+    - 依赖注入解耦
+    - 接口抽象便于测试
 
-**架构对比**:
+2. **类型安全**:
 
-| 特性         | v1.0         | v2.0               |
-| ------------ | ------------ | ------------------ |
-| 数据库管理   | 单一文件     | 模块化（3 个文件） |
-| 依赖管理     | 直接实例化   | DI 容器            |
-| 接口抽象     | 仅仓储层     | 服务层+仓储层      |
-| 错误处理     | 分散         | 统一中间件         |
-| 主进程独立性 | 依赖渲染进程 | 完全独立           |
-| 可测试性     | 低           | 高                 |
-| 可扩展性     | 中           | 高                 |
+    - TypeScript 全面覆盖
+    - 接口定义规范
 
----
+3. **日志系统**:
+    - 统一日志格式
+    - 模块化日志标识
+    - 多级别日志支持
 
-**文档维护**: 本文档应随项目架构变更及时更新  
-**最后更新**: 2025-12-17  
-**版本**: v2.0.0 (架构重构版)
+## 8. 扩展性设计
+
+### 8.1 新增数据源
+
+1. 实现新的 API 客户端
+2. 创建对应的 Service
+3. 创建对应的 Repository
+4. 注册 IPC Handler
+
+### 8.2 新增功能模块
+
+1. 创建 Service 接口和实现
+2. 创建 Repository 接口和实现
+3. 注册到 DI 容器
+4. 添加 IPC Handler
+5. 在 Preload 中暴露 API
+6. 创建前端组件和 Hook
+
+## 9. 总结
+
+CafeStock 采用现代化的 Electron 应用架构，通过清晰的分层设计、依赖注入模式和仓储模式，实现了高内聚、低耦合的代码结构。主进程负责数据同步和业务逻辑，渲染进程专注于 UI 展示，通过 IPC 安全通信，确保了应用的稳定性和安全性。
