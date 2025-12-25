@@ -5,9 +5,13 @@
 
 import { Notification } from "electron";
 import { TushareClient } from "../tushare.js";
-import { stockRepository, stockDetailRepository } from "../repositories/index.js";
-import { syncFlagManager } from "../db.js";
+import { StockRepository } from "../repositories/implementations/StockRepository.js";
+import { StockDetailRepository } from "../repositories/implementations/StockDetailRepository.js";
+import { getDb, syncFlagManager } from "../db.js";
 import { log } from "../utils/logger.js";
+
+const stockRepository = new StockRepository(getDb());
+const stockDetailRepository = new StockDetailRepository(getDb());
 
 interface SyncProgress {
 	status: "started" | "syncing" | "completed" | "failed";

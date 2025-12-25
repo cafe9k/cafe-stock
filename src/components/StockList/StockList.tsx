@@ -532,12 +532,12 @@ function StockListComponent<T extends Stock | StockGroup = Stock | StockGroup>({
 							current: page,
 							total,
 							pageSize,
-							onChange: onPageChange,
-							showSizeChanger: true,
-							showTotal: (total, range) => {
-								const totalPages = Math.ceil(total / pageSize);
-								return `显示第 ${page} 页 共 ${totalPages} 页 (总计 ${total} 条记录)`;
-							},
+						onChange: onPageChange,
+						showSizeChanger: true,
+						showTotal: (total) => {
+							const totalPages = Math.ceil(total / pageSize);
+							return `显示第 ${page} 页 共 ${totalPages} 页 (总计 ${total} 条记录)`;
+						},
 							pageSizeOptions: ["10", "20", "50", "100"],
 							style: { 
 								marginTop: 16,

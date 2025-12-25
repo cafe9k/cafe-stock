@@ -8,7 +8,6 @@ import {
 	StarOutlined,
 	StarFilled,
 	ClockCircleOutlined,
-	CloseOutlined,
 } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import { StockList } from "./StockList/index";

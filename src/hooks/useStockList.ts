@@ -47,9 +47,9 @@ function isFilterEqual(filter1?: StockFilter, filter2?: StockFilter): boolean {
 	// 比较 categories
 	const categories1 = filter1.categories;
 	const categories2 = filter2.categories;
-	const categoriesEqual =
+	const categoriesEqual: boolean =
 		(!categories1 && !categories2) ||
-		(categories1 &&
+		!!(categories1 &&
 			categories2 &&
 			categories1.length === categories2.length &&
 			categories1.every((cat, idx) => cat === categories2[idx]));

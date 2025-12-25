@@ -3,7 +3,6 @@ import {
 	Card, 
 	Button, 
 	Progress, 
-	Statistic, 
 	Space, 
 	message, 
 	Typography, 
@@ -783,11 +782,11 @@ export function Settings() {
 									<Spin spinning={loadingSampleData}>
 										{sampleData.length > 0 ? (
 											<Table
-												dataSource={sampleData}
-												rowKey={(record, index) => `row-${index}`}
-												pagination={false}
-												size="small"
-												bordered
+											dataSource={sampleData}
+											rowKey={(_record, index) => `row-${index}`}
+											pagination={false}
+											size="small"
+											bordered
 												scroll={{ x: "max-content" }}
 												columns={Object.keys(sampleData[0] || {}).map(key => ({
 													title: key,
