@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Table, Card, Tag, Typography, Badge, Space, Button, Input, Select, App } from "antd";
+import { useEffect, useState, useMemo } from "react";
+import { Table, Card, Tag, Typography, Badge, Space, Button, Input, Select, App, InputNumber } from "antd";
 import {
 	FileTextOutlined,
 	ReloadOutlined,
@@ -13,7 +13,7 @@ import type { ColumnsType } from "antd/es/table";
 import { StockList } from "./StockList/index";
 import { useStockList } from "../hooks/useStockList";
 import { useStockFilter } from "../hooks/useStockFilter";
-import type { StockGroup } from "../types/stock";
+import type { StockGroup, StockFilter } from "../types/stock";
 import { AnnouncementCategory, getCategoryColor, getCategoryIcon } from "../utils/announcementClassifier";
 
 const { Text: AntText } = Typography;
@@ -39,6 +39,11 @@ export function AnnouncementList() {
 	const [loadingExpanded, setLoadingExpanded] = useState<Record<string, boolean>>({});
 	const [showFavoriteOnly, setShowFavoriteOnly] = useState(false);
 	const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+	
+	// 市值筛选状态
+	const [marketCapFilter, setMarketCapFilter] = useState<string>("all"); // all | < 10 | < 50 | < 100 | custom
+	const [customMarketCapMin, setCustomMarketCapMin] = useState<number | null>(null);
+	const [customMarketCapMax, setCustomMarketCapMax] = useState<number | null>(null);
 
 	// 使用新的 hooks
 	const filter = useStockFilter();
@@ -57,15 +62,52 @@ export function AnnouncementList() {
 		pageSize: 20,
 	});
 
+	// 构建完整的筛选条件
+	const currentFilter = useMemo<StockFilter>(() => {
+		const baseFilter = filter.getFilter();
+		
+		// 构建市值筛选范围
+		let marketCapRange: { min?: number; max?: number } | undefined;
+		if (marketCapFilter === "< 10") {
+			marketCapRange = { max: 10 };
+		} else if (marketCapFilter === "< 50") {
+			marketCapRange = { max: 50 };
+		} else if (marketCapFilter === "< 100") {
+			marketCapRange = { max: 100 };
+		} else if (marketCapFilter === "custom" && (customMarketCapMin !== null || customMarketCapMax !== null)) {
+			marketCapRange = {
+				min: customMarketCapMin ?? undefined,
+				max: customMarketCapMax ?? undefined,
+			};
+		}
+		
+		return {
+			...baseFilter,
+			searchKeyword: searchKeyword.trim() || undefined,
+			showFavoriteOnly,
+			marketCapRange,
+		};
+	}, [filter, searchKeyword, showFavoriteOnly, marketCapFilter, customMarketCapMin, customMarketCapMax]);
 
-	// 当筛选条件变化时更新数据
+	// 当筛选条件变化时，重新从数据库获取数据并重置到第一页
 	useEffect(() => {
-		const currentFilter = filter.getFilter();
-		currentFilter.searchKeyword = searchKeyword || undefined;
-		currentFilter.showFavoriteOnly = showFavoriteOnly;
+		// 筛选条件变化时，清理展开的数据和状态
+		setExpandedRowKeys([]);
+		setExpandedData({});
+		setExpandedPageMap({});
+		
+		// 更新筛选条件并重新加载（会自动重置到第一页）
 		updateFilter(currentFilter);
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [filter.dateRange, filter.selectedMarket, searchKeyword, showFavoriteOnly]);
+	}, [
+		currentFilter.market,
+		currentFilter.searchKeyword,
+		currentFilter.showFavoriteOnly,
+		currentFilter.dateRange?.[0],
+		currentFilter.dateRange?.[1],
+		currentFilter.marketCapRange?.min,
+		currentFilter.marketCapRange?.max,
+	]);
 
 	// 分页状态（针对每个股票的展开详情）
 	const [expandedPageMap, setExpandedPageMap] = useState<Record<string, number>>({});
@@ -260,17 +302,40 @@ export function AnnouncementList() {
 		);
 	};
 
-	// 根据分类筛选过滤股票列表
-	const filteredStockGroups = selectedCategories.length > 0
-		? stockGroups.filter((stock) => {
+	// 根据分类筛选和市值筛选过滤股票列表
+	const filteredStockGroups = useMemo(() => {
+		let filtered = stockGroups;
+		
+		// 分类筛选
+		if (selectedCategories.length > 0) {
+			filtered = filtered.filter((stock) => {
 				// 检查该股票是否有选中分类的公告
 				if (!stock.category_stats) return false;
 				return selectedCategories.some((category) => {
 					const count = stock.category_stats?.[category];
 					return count && count > 0;
 				});
-		  })
-		: stockGroups;
+			});
+		}
+		
+		// 市值筛选（如果有市值数据）
+		if (currentFilter.marketCapRange) {
+			const { min, max } = currentFilter.marketCapRange;
+			filtered = filtered.filter((stock) => {
+				// 如果股票没有市值数据，默认不过滤
+				if (stock.total_mv === undefined || stock.total_mv === null) {
+					return true; // 暂时保留没有市值数据的股票
+				}
+				
+				// 应用市值范围筛选
+				if (min !== undefined && stock.total_mv < min) return false;
+				if (max !== undefined && stock.total_mv > max) return false;
+				return true;
+			});
+		}
+		
+		return filtered;
+	}, [stockGroups, selectedCategories, currentFilter.marketCapRange]);
 
 	return (
 		<div style={{ padding: "24px" }}>
@@ -293,20 +358,14 @@ export function AnnouncementList() {
 		{/* 操作栏 - 所有控件在同一行 */}
 		<div style={{ marginBottom: 16 }}>
 			<Space style={{ width: "100%" }} align="start" wrap size={[8, 8]}>
-				{/* 时间选择 - 最重要的筛选条件，放在最左边 */}
-				<Select
-					value={filter.quickSelectValue}
-					onChange={filter.handleQuickSelect}
-					style={{ width: 140 }}
-					suffixIcon={<ClockCircleOutlined />}
-					options={[
-						{ value: "today", label: "今天" },
-						{ value: "yesterday", label: "昨天" },
-						{ value: "week", label: "最近一周" },
-						{ value: "month", label: "最近一个月" },
-						{ value: "quarter", label: "最近三个月" },
-					]}
-				/>
+				{/* 关注筛选 - 最重要的筛选条件，放在最左边 */}
+				<Button
+					type={showFavoriteOnly ? "primary" : "default"}
+					icon={showFavoriteOnly ? <StarFilled /> : <StarOutlined />}
+					onClick={handleToggleFavoriteFilter}
+				>
+					{showFavoriteOnly ? "仅关注" : "关注"}
+				</Button>
 
 				{/* 市场选择 - 第二重要的筛选条件 */}
 				<Select
@@ -322,14 +381,55 @@ export function AnnouncementList() {
 					]}
 				/>
 
-				{/* 关注筛选 - 特殊筛选条件 */}
-				<Button
-					type={showFavoriteOnly ? "primary" : "default"}
-					icon={showFavoriteOnly ? <StarFilled /> : <StarOutlined />}
-					onClick={handleToggleFavoriteFilter}
-				>
-					{showFavoriteOnly ? "仅关注" : "关注"}
-				</Button>
+				{/* 市值筛选 */}
+				<Select
+					value={marketCapFilter}
+					onChange={setMarketCapFilter}
+					style={{ width: 120 }}
+					options={[
+						{ value: "all", label: "全部市值" },
+						{ value: "< 10", label: "< 10亿" },
+						{ value: "< 50", label: "< 50亿" },
+						{ value: "< 100", label: "< 100亿" },
+						{ value: "custom", label: "自定义" },
+					]}
+				/>
+				{marketCapFilter === "custom" && (
+					<>
+						<InputNumber
+							placeholder="最小值（亿）"
+							value={customMarketCapMin}
+							onChange={(value) => setCustomMarketCapMin(value)}
+							style={{ width: 110 }}
+							min={0}
+							precision={2}
+						/>
+						<span>-</span>
+						<InputNumber
+							placeholder="最大值（亿）"
+							value={customMarketCapMax}
+							onChange={(value) => setCustomMarketCapMax(value)}
+							style={{ width: 110 }}
+							min={0}
+							precision={2}
+						/>
+					</>
+				)}
+
+				{/* 时间选择 */}
+				<Select
+					value={filter.quickSelectValue}
+					onChange={filter.handleQuickSelect}
+					style={{ width: 120 }}
+					suffixIcon={<ClockCircleOutlined />}
+					options={[
+						{ value: "today", label: "今天" },
+						{ value: "yesterday", label: "昨天" },
+						{ value: "week", label: "最近一周" },
+						{ value: "month", label: "最近一个月" },
+						{ value: "quarter", label: "最近三个月" },
+					]}
+				/>
 
 				{/* 搜索框 - 关键词搜索 */}
 				<Search

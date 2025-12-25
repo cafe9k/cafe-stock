@@ -42,3 +42,5 @@ mv icon.icns build/
 
 
 
+
+

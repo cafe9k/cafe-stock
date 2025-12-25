@@ -26,6 +26,15 @@ export interface StockGroup {
 	latest_ann_title?: string;
 	isFavorite?: boolean; // 是否已关注
 	category_stats?: Record<string, number>; // 公告分类统计
+	total_mv?: number; // 总市值（亿元）
+}
+
+/**
+ * 市值范围筛选条件
+ */
+export interface MarketCapRange {
+	min?: number; // 最小市值（亿元）
+	max?: number; // 最大市值（亿元）
 }
 
 /**
@@ -36,6 +45,7 @@ export interface StockFilter {
 	searchKeyword?: string; // 搜索关键词
 	dateRange?: [string, string]; // 日期范围 [startDate, endDate] YYYYMMDD格式
 	showFavoriteOnly?: boolean; // 是否仅显示关注的股票
+	marketCapRange?: MarketCapRange; // 市值范围筛选
 }
 
 /**

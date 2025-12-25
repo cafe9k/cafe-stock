@@ -12,3 +12,5 @@ echo "构建日期时间: $BUILD_DATE"
 tsc && tsc -p electron/tsconfig.json --noEmit && vite build && electron-builder --mac --publish never
 
 
+
+

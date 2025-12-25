@@ -332,7 +332,7 @@ function StockListComponent<T extends Stock | StockGroup = Stock | StockGroup>({
 		if (showAnnouncementCategories && hasCategoryStatsField) {
 			const colWidth = columnWidths["category_stats"] || 400;
 			cols.push({
-				title: "公告分类统计",
+				title: "公告分类",
 				key: "category_stats",
 				width: colWidth,
 				onHeaderCell: () => ({
