@@ -1,0 +1,26 @@
+#!/bin/bash
+
+# Git pre-commit hook - 分形文档结构验证
+# 在提交前自动检查文档完整性
+
+echo "🔍 检查分形文档结构..."
+
+# 运行验证脚本
+node scripts/validate-fractal-docs.cjs
+
+# 获取退出码
+EXIT_CODE=$?
+
+if [ $EXIT_CODE -ne 0 ]; then
+  echo ""
+  echo "❌ 文档验证未通过，请修复问题后再提交。"
+  echo "   查看详细报告: cat fractal-docs-validation-report.txt"
+  echo ""
+  echo "💡 提示：如果这是紧急修复，可以使用 --no-verify 跳过检查："
+  echo "   git commit --no-verify -m 'your message'"
+  exit 1
+fi
+
+echo "✅ 文档验证通过！"
+exit 0
+

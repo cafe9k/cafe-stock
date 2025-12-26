@@ -11,7 +11,9 @@ const CONFIG = {
     'src/components',
     'src/hooks',
     'src/pages',
-    // 后续可添加更多目录
+    'src/services',
+    'src/types',
+    'src/utils',
   ],
   // 需要检查的文件扩展名
   fileExtensions: ['.ts', '.tsx'],
@@ -33,6 +35,8 @@ const results = {
   totalDirs: 0,
   dirsWithReadme: 0,
   dirsWithoutReadme: [],
+  readmeWithoutSelfRef: [], // README缺少自指声明
+  readmeWithoutArch: [], // README缺少架构定位
   errors: [],
 };
 
@@ -49,7 +53,7 @@ function shouldExcludeFile(filename) {
 function checkFileHeader(filePath) {
   try {
     const content = fs.readFileSync(filePath, 'utf-8');
-    const lines = content.split('\n').slice(0, 20); // 只检查前20行
+    const lines = content.split('\n').slice(0, 30); // 检查前30行
     const headerText = lines.join('\n');
     
     // 检查是否包含所有必需的关键词
@@ -57,16 +61,42 @@ function checkFileHeader(filePath) {
       keyword => !headerText.includes(keyword)
     );
     
+    // 检查是否包含更新提醒（可选但推荐）
+    const hasUpdateReminder = headerText.includes('更新提醒') || headerText.includes('⚠️');
+    
     return {
       valid: missingKeywords.length === 0,
       missingKeywords,
+      hasUpdateReminder,
     };
   } catch (error) {
     results.errors.push({
       file: filePath,
       error: `读取文件失败: ${error.message}`,
     });
-    return { valid: false, missingKeywords: CONFIG.requiredKeywords };
+    return { valid: false, missingKeywords: CONFIG.requiredKeywords, hasUpdateReminder: false };
+  }
+}
+
+/**
+ * 检查README.md是否符合规范
+ */
+function checkReadme(readmePath) {
+  try {
+    const content = fs.readFileSync(readmePath, 'utf-8');
+    
+    const hasSelfRef = content.includes('自指声明') || content.includes('⚠️');
+    const hasArch = content.includes('架构定位') || content.includes('职责') && content.includes('依赖') && content.includes('输出');
+    
+    return {
+      hasSelfRef,
+      hasArch,
+    };
+  } catch (error) {
+    return {
+      hasSelfRef: false,
+      hasArch: false,
+    };
   }
 }
 
@@ -81,6 +111,15 @@ function scanDirectory(dirPath, relativePath = '') {
   results.totalDirs++;
   if (hasReadme) {
     results.dirsWithReadme++;
+    // 检查README.md是否符合规范
+    const readmePath = path.join(dirPath, 'README.md');
+    const readmeCheck = checkReadme(readmePath);
+    if (!readmeCheck.hasSelfRef) {
+      results.readmeWithoutSelfRef.push(relativePath || dirPath);
+    }
+    if (!readmeCheck.hasArch) {
+      results.readmeWithoutArch.push(relativePath || dirPath);
+    }
   } else {
     results.dirsWithoutReadme.push(relativePath || dirPath);
   }
@@ -170,6 +209,28 @@ function generateReport() {
     report.push('');
   }
   
+  // README质量检查
+  if (results.readmeWithoutSelfRef.length > 0 || results.readmeWithoutArch.length > 0) {
+    report.push('## README.md 质量检查');
+    report.push('-'.repeat(70));
+    
+    if (results.readmeWithoutSelfRef.length > 0) {
+      report.push(`缺少自指声明的README: ${results.readmeWithoutSelfRef.length}`);
+      results.readmeWithoutSelfRef.forEach(dir => {
+        report.push(`  ⚠️  ${dir}`);
+      });
+      report.push('');
+    }
+    
+    if (results.readmeWithoutArch.length > 0) {
+      report.push(`缺少架构定位的README: ${results.readmeWithoutArch.length}`);
+      results.readmeWithoutArch.forEach(dir => {
+        report.push(`  ⚠️  ${dir}`);
+      });
+      report.push('');
+    }
+  }
+  
   // 错误信息
   if (results.errors.length > 0) {
     report.push('## 错误信息');
@@ -184,6 +245,8 @@ function generateReport() {
   report.push('='.repeat(70));
   const allValid = results.invalidFiles.length === 0 && 
                    results.dirsWithoutReadme.length === 0 &&
+                   results.readmeWithoutSelfRef.length === 0 &&
+                   results.readmeWithoutArch.length === 0 &&
                    results.errors.length === 0;
   
   if (allValid) {
@@ -295,6 +358,8 @@ function main() {
   // 返回退出码
   const hasIssues = results.invalidFiles.length > 0 || 
                     results.dirsWithoutReadme.length > 0 ||
+                    results.readmeWithoutSelfRef.length > 0 ||
+                    results.readmeWithoutArch.length > 0 ||
                     results.errors.length > 0;
   
   process.exit(hasIssues ? 1 : 0);

@@ -116,12 +116,31 @@ _注意：请勿直接运行 `electron .` 或其他命令，会导致 preload �
 -   [`src/components/`](src/components/README.md) - UI 组件层 ✅ 已实施分形结构
 -   [`src/hooks/`](src/hooks/README.md) - 业务逻辑 Hook 层 ✅ 已实施分形结构
 -   [`src/pages/`](src/pages/README.md) - 页面层 ✅ 已实施分形结构
+-   [`src/services/`](src/services/README.md) - IPC通信封装层 ✅ 已实施分形结构
+-   [`src/types/`](src/types/README.md) - 类型定义层 ✅ 已实施分形结构
+-   [`src/utils/`](src/utils/README.md) - 工具函数层 ✅ 已实施分形结构
 
 #### 技术文档
 
 -   [`docs/architecture-fractal.md`](docs/architecture-fractal.md) - 分形架构文档（新增）
 -   [`docs/architecture.md`](docs/architecture.md) - 原技术架构文档（保留）
 -   [`docs/README.md`](docs/README.md) - 文档索引
+
+### 4.4 分形文档验证
+
+项目已实施完整的分形文档结构，包含自动验证工具：
+
+**运行验证**：
+```bash
+node scripts/validate-fractal-docs.cjs
+```
+
+**安装 Git Hooks（提交前自动验证）**：
+```bash
+bash scripts/install-git-hooks.sh
+```
+
+安装后，每次 `git commit` 前会自动检查文档完整性。如需跳过检查，使用 `git commit --no-verify`。
 
 ### 4.5 打包构建
 
