@@ -14,3 +14,4 @@ tsc && tsc -p electron/tsconfig.json --noEmit && vite build && electron-builder 
 
 
 
+
