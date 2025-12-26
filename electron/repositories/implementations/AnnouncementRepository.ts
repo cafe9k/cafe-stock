@@ -1,6 +1,12 @@
 /**
- * 公告仓储实现
- * 负责公告数据的数据库访问
+ * INPUT: Database(better-sqlite3), IAnnouncementRepository(接口), BaseRepository(基类), ClassificationRepository(分类), announcementClassifier(分类器)
+ * OUTPUT: AnnouncementRepository 类 - 提供公告数据的CRUD和查询操作（upsertAnnouncements, getAnnouncementsByStock等）
+ * POS: 公告数据访问层实现，封装公告表的数据库操作和智能分类逻辑
+ * 
+ * ⚠️ 更新提醒：修改此文件后，请同步更新：
+ *    1. 本文件开头的 INPUT/OUTPUT/POS 注释
+ *    2. electron/repositories/README.md 中的文件列表
+ *    3. 如影响架构，更新 README.md 和 docs/architecture-fractal.md
  */
 
 import Database from "better-sqlite3";

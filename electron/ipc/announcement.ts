@@ -1,5 +1,12 @@
 /**
- * 公告相关 IPC 处理器
+ * INPUT: ipcMain(Electron), announcementService(服务层), classificationService(分类服务), AnnouncementRepository(数据访问)
+ * OUTPUT: registerAnnouncementHandlers() - 注册公告相关的IPC处理器（get-announcements, sync-announcements等）
+ * POS: IPC通信层公告处理器，连接渲染进程与主进程的公告业务逻辑
+ * 
+ * ⚠️ 更新提醒：修改此文件后，请同步更新：
+ *    1. 本文件开头的 INPUT/OUTPUT/POS 注释
+ *    2. electron/ipc/README.md 中的文件列表
+ *    3. 如影响架构，更新 README.md 和 docs/architecture-fractal.md
  */
 
 import { ipcMain } from "electron";

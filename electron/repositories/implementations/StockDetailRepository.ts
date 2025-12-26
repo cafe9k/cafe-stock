@@ -1,5 +1,12 @@
 /**
- * 股票详情仓储实现
+ * INPUT: Database(better-sqlite3), IStockDetailRepository(接口), BaseRepository(基类)
+ * OUTPUT: StockDetailRepository 类 - 提供股票详情数据的CRUD操作（upsertDailyBasic, getDailyBasic等）
+ * POS: 股票详情数据访问层实现，封装股票日线指标表的数据库操作
+ * 
+ * ⚠️ 更新提醒：修改此文件后，请同步更新：
+ *    1. 本文件开头的 INPUT/OUTPUT/POS 注释
+ *    2. electron/repositories/README.md 中的文件列表
+ *    3. 如影响架构，更新 README.md 和 docs/architecture-fractal.md
  */
 
 import { BaseRepository } from "../base/BaseRepository.js";

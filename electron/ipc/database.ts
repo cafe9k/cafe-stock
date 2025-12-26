@@ -1,5 +1,12 @@
 /**
- * 数据库相关 IPC 处理器
+ * INPUT: ipcMain(Electron), BrowserWindow(窗口), app(Electron应用), fs(文件系统), http(HTTP服务器)
+ * OUTPUT: registerDatabaseHandlers() - 注册数据库相关的IPC处理器（get-db-connection-info, export-db等）
+ * POS: IPC通信层数据库处理器，提供数据库管理、导出、HTTP服务等功能
+ * 
+ * ⚠️ 更新提醒：修改此文件后，请同步更新：
+ *    1. 本文件开头的 INPUT/OUTPUT/POS 注释
+ *    2. electron/ipc/README.md 中的文件列表
+ *    3. 如影响架构，更新 README.md 和 docs/architecture-fractal.md
  */
 
 import { ipcMain, BrowserWindow, app } from "electron";

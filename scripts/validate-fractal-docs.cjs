@@ -6,9 +6,11 @@ const CONFIG = {
   // 需要检查的目录
   targetDirs: [
     'electron/services',
+    'electron/repositories',
+    'electron/ipc',
     // 后续可添加更多目录
-    // 'electron/repositories',
-    // 'electron/ipc',
+    // 'src/components',
+    // 'src/hooks',
   ],
   // 需要检查的文件扩展名
   fileExtensions: ['.ts', '.tsx'],

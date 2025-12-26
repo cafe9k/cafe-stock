@@ -1,6 +1,9 @@
 /**
- * IPC 错误处理中间件
- * 统一处理 IPC 调用中的错误
+ * INPUT: IpcMainInvokeEvent(Electron), IPCResponse(响应类型), log(日志工具)
+ * OUTPUT: withErrorHandler() - 错误处理包装函数，统一处理IPC调用异常
+ * POS: IPC通信层错误处理中间件，提供统一的错误捕获和响应格式
+ * 
+ * ⚠️ 更新提醒：修改此文件后，请更新 electron/ipc/README.md
  */
 
 import { IpcMainInvokeEvent } from "electron";

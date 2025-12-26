@@ -1,6 +1,12 @@
 /**
- * 基础仓储类
- * 提供通用的数据库操作功能
+ * INPUT: Database(better-sqlite3) - SQLite数据库连接
+ * OUTPUT: BaseRepository 抽象类 - 提供通用数据库操作方法（事务、日期格式化等）
+ * POS: 数据访问层基类，封装所有Repository的公共功能，实现代码复用
+ *
+ * ⚠️ 更新提醒：修改此文件后，请同步更新：
+ *    1. 本文件开头的 INPUT/OUTPUT/POS 注释
+ *    2. electron/repositories/README.md 中的文件列表
+ *    3. 如影响架构，更新 README.md 和 docs/architecture-fractal.md
  */
 
 import Database from "better-sqlite3";
@@ -64,4 +70,3 @@ export abstract class BaseRepository {
 		return this.formatDateToYYYYMMDD(date);
 	}
 }
-

@@ -1,5 +1,12 @@
 /**
- * 股票相关 IPC 处理器
+ * INPUT: ipcMain(Electron), stockService(服务层), StockRepository(数据访问), StockDetailRepository(详情数据)
+ * OUTPUT: registerStockHandlers() - 注册股票相关的IPC处理器（get-all-stocks, sync-stocks等）
+ * POS: IPC通信层股票处理器，连接渲染进程与主进程的股票业务逻辑
+ * 
+ * ⚠️ 更新提醒：修改此文件后，请同步更新：
+ *    1. 本文件开头的 INPUT/OUTPUT/POS 注释
+ *    2. electron/ipc/README.md 中的文件列表
+ *    3. 如影响架构，更新 README.md 和 docs/architecture-fractal.md
  */
 
 import { ipcMain, BrowserWindow } from "electron";

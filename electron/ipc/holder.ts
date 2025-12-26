@@ -1,5 +1,12 @@
 /**
- * 股东相关 IPC 处理器
+ * INPUT: ipcMain(Electron), holderService(服务层), TushareClient(API), StockRepository(数据访问)
+ * OUTPUT: registerHolderHandlers() - 注册股东相关的IPC处理器（get-top10-holders, sync-holders等）
+ * POS: IPC通信层股东处理器，连接渲染进程与主进程的股东业务逻辑
+ * 
+ * ⚠️ 更新提醒：修改此文件后，请同步更新：
+ *    1. 本文件开头的 INPUT/OUTPUT/POS 注释
+ *    2. electron/ipc/README.md 中的文件列表
+ *    3. 如影响架构，更新 README.md 和 docs/architecture-fractal.md
  */
 
 import { ipcMain, BrowserWindow } from "electron";

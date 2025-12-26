@@ -108,8 +108,8 @@ _注意：请勿直接运行 `electron .` 或其他命令，会导致 preload �
 #### Electron 主进程模块
 
 -   [`electron/services/`](electron/services/README.md) - 业务逻辑服务层 ✅ 已实施分形结构
--   `electron/repositories/` - 数据访问层（待添加）
--   `electron/ipc/` - IPC 通信层（待添加）
+-   [`electron/repositories/`](electron/repositories/README.md) - 数据访问层 ✅ 已实施分形结构
+-   [`electron/ipc/`](electron/ipc/README.md) - IPC 通信层 ✅ 已实施分形结构
 
 #### React 渲染进程模块
 

@@ -1,5 +1,9 @@
 /**
- * IPC 处理器统一注册入口
+ * INPUT: 各IPC处理器模块（announcement, stock, favorite, holder等）
+ * OUTPUT: setupIPC() - 统一注册所有IPC处理器的主入口函数
+ * POS: IPC通信层聚合模块，提供统一的IPC处理器注册入口
+ * 
+ * ⚠️ 更新提醒：新增IPC处理器时，请在此处添加注册调用并更新 electron/ipc/README.md
  */
 
 import { BrowserWindow } from "electron";
