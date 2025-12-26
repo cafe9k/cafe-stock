@@ -1,3 +1,14 @@
+/**
+ * INPUT: Electron webview API, Ant Design(UI组件), window.electron(IPC获取PDF)
+ * OUTPUT: PDFWebViewer 组件 - WebView版PDF查看器，使用Electron原生webview展示PDF
+ * POS: 渲染进程UI组件，提供基于webview的PDF查看方案（备选方案）
+ * 
+ * ⚠️ 更新提醒：修改此文件后，请同步更新：
+ *    1. 本文件开头的 INPUT/OUTPUT/POS 注释
+ *    2. src/components/README.md 中的文件列表
+ *    3. 如影响架构，更新 README.md 和 docs/architecture-fractal.md
+ */
+
 import { useEffect, useRef } from "react";
 import { Modal, Button, Space, message } from "antd";
 import { DownloadOutlined, CloseOutlined, ReloadOutlined } from "@ant-design/icons";

@@ -1,3 +1,14 @@
+/**
+ * INPUT: window.electron(IPC), Ant Design(UI组件)
+ * OUTPUT: CacheDataIndicator 组件 - 缓存数据统计指示器，显示本地数据概览
+ * POS: 渲染进程UI组件，展示本地数据库的统计信息（股票数、公告数、收藏数等）
+ * 
+ * ⚠️ 更新提醒：修改此文件后，请同步更新：
+ *    1. 本文件开头的 INPUT/OUTPUT/POS 注释
+ *    2. src/components/README.md 中的文件列表
+ *    3. 如影响架构，更新 README.md 和 docs/architecture-fractal.md
+ */
+
 import { useEffect, useState } from "react";
 import { Card, Typography, Space, Tag, Tooltip } from "antd";
 import { StockOutlined, StarOutlined, TeamOutlined, NotificationOutlined } from "@ant-design/icons";

@@ -1,3 +1,14 @@
+/**
+ * INPUT: window.electron(IPC更新接口), Ant Design(UI组件)
+ * OUTPUT: UpdateChecker 组件 - 自动更新检查器，提供版本检查和更新下载功能
+ * POS: 渲染进程UI组件，负责应用自动更新的用户界面和交互
+ * 
+ * ⚠️ 更新提醒：修改此文件后，请同步更新：
+ *    1. 本文件开头的 INPUT/OUTPUT/POS 注释
+ *    2. src/components/README.md 中的文件列表
+ *    3. 如影响架构，更新 README.md 和 docs/architecture-fractal.md
+ */
+
 import { useEffect, useState } from "react";
 import { Button, Card, Progress, Alert, Space, Typography, Divider } from "antd";
 import { DownloadOutlined, ReloadOutlined, CheckCircleOutlined, ExclamationCircleOutlined } from "@ant-design/icons";

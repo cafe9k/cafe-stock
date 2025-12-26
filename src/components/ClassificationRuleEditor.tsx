@@ -1,3 +1,14 @@
+/**
+ * INPUT: window.electron(IPC分类接口), Ant Design(UI组件)
+ * OUTPUT: ClassificationRuleEditor 组件 - 分类规则编辑器，提供分类规则的CRUD管理界面
+ * POS: 渲染进程UI组件，负责公告分类规则的可视化编辑和管理
+ * 
+ * ⚠️ 更新提醒：修改此文件后，请同步更新：
+ *    1. 本文件开头的 INPUT/OUTPUT/POS 注释
+ *    2. src/components/README.md 中的文件列表
+ *    3. 如影响架构，更新 README.md 和 docs/architecture-fractal.md
+ */
+
 import { useState, useEffect } from "react";
 import { 
 	Collapse, 

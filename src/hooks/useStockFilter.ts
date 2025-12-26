@@ -1,6 +1,12 @@
 /**
- * 股票筛选 Hook
- * 封装股票筛选相关的状态和逻辑
+ * INPUT: dayjs(日期库), types(类型定义)
+ * OUTPUT: useStockFilter Hook - 提供股票筛选条件的状态管理（市场、关键词、日期范围等）
+ * POS: 渲染进程业务逻辑Hook，封装股票筛选的状态管理和逻辑处理
+ * 
+ * ⚠️ 更新提醒：修改此文件后，请同步更新：
+ *    1. 本文件开头的 INPUT/OUTPUT/POS 注释
+ *    2. src/hooks/README.md 中的文件列表
+ *    3. 如影响架构，更新 README.md 和 docs/architecture-fractal.md
  */
 
 import { useState, useCallback } from "react";

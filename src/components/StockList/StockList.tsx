@@ -1,6 +1,12 @@
 /**
- * 通用股票列表组件
- * 集成关注功能，支持搜索、筛选、分页等通用功能
+ * INPUT: FavoriteButton(组件), useStockList(hook), types(类型定义), announcementClassifier(分类工具)
+ * OUTPUT: StockList 组件 - 通用股票列表组件，提供搜索、筛选、分页、收藏等功能
+ * POS: 渲染进程UI组件，封装股票列表的通用展示逻辑，可复用于多个页面
+ * 
+ * ⚠️ 更新提醒：修改此文件后，请同步更新：
+ *    1. 本文件开头的 INPUT/OUTPUT/POS 注释
+ *    2. src/components/README.md 中的文件列表
+ *    3. 如影响架构，更新 README.md 和 docs/architecture-fractal.md
  */
 
 import { useMemo, memo, useState, useEffect, useCallback } from "react";

@@ -1,3 +1,14 @@
+/**
+ * INPUT: useStockList(hook), useStockFilter(hook), StockList(组件), announcementClassifier(分类工具), window.electron(IPC)
+ * OUTPUT: AnnouncementList 组件 - 公告列表展示组件，提供搜索、筛选、分页、PDF查看等功能
+ * POS: 渲染进程核心UI组件，负责公告数据的展示和交互，是用户与公告数据的主要界面
+ * 
+ * ⚠️ 更新提醒：修改此文件后，请同步更新：
+ *    1. 本文件开头的 INPUT/OUTPUT/POS 注释
+ *    2. src/components/README.md 中的文件列表
+ *    3. 如影响架构，更新 README.md 和 docs/architecture-fractal.md
+ */
+
 import { useEffect, useState, useMemo, useRef } from "react";
 import { Table, Card, Tag, Typography, Badge, Space, Button, Input, Select, App, InputNumber, Descriptions, Divider } from "antd";
 import {

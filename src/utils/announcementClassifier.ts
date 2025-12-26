@@ -1,7 +1,12 @@
 /**
- * 公告分类工具
- * 基于对863,580条公告的10,000条样本分析生成
- * 生成时间: 2025-12-16
+ * INPUT: 无（纯函数工具）
+ * OUTPUT: classifyAnnouncement(), getCategoryColor(), getCategoryIcon() - 公告分类工具函数
+ * POS: 渲染进程工具层，提供公告标题的智能分类功能，基于规则匹配进行分类
+ * 
+ * ⚠️ 更新提醒：修改此文件后，请同步更新：
+ *    1. 本文件开头的 INPUT/OUTPUT/POS 注释
+ *    2. src/utils/README.md 中的文件列表
+ *    3. 如影响架构，更新 README.md 和 docs/architecture-fractal.md
  */
 
 /**

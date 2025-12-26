@@ -1,6 +1,12 @@
 /**
- * 股票服务
- * 封装所有股票相关的 API 调用
+ * INPUT: window.electronAPI(IPC), favoriteStockService(收藏服务), types(类型定义)
+ * OUTPUT: getAnnouncementsGrouped(), getAllStocks() - 股票数据获取服务函数
+ * POS: 渲染进程服务层，封装股票相关的IPC调用，提供数据获取和处理的统一接口
+ * 
+ * ⚠️ 更新提醒：修改此文件后，请同步更新：
+ *    1. 本文件开头的 INPUT/OUTPUT/POS 注释
+ *    2. src/services/README.md 中的文件列表
+ *    3. 如影响架构，更新 README.md 和 docs/architecture-fractal.md
  */
 
 import type { Stock, StockGroup, StockListQueryResult } from "../types/stock";

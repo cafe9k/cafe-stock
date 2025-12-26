@@ -1,3 +1,14 @@
+/**
+ * INPUT: react-router-dom(路由), Ant Design Layout(布局组件), CacheDataIndicator(组件)
+ * OUTPUT: Layout 组件 - 应用主布局组件，提供导航菜单和内容区域
+ * POS: 渲染进程布局组件，定义应用的整体结构（导航栏、侧边栏、内容区）
+ * 
+ * ⚠️ 更新提醒：修改此文件后，请同步更新：
+ *    1. 本文件开头的 INPUT/OUTPUT/POS 注释
+ *    2. src/components/README.md 中的文件列表
+ *    3. 如影响架构，更新 README.md 和 docs/architecture-fractal.md
+ */
+
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { Layout as AntLayout, Menu } from "antd";
 import {

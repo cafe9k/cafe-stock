@@ -72,9 +72,16 @@ graph TB
     Pages --> Components[components/<br/>UI组件]
 
     Pages --> Hooks[hooks/<br/>业务逻辑Hook]
+    Components --> Hooks
     Hooks --> Services[services/<br/>IPC通信封装]
     Services --> Electron[window.electron<br/>预加载API]
 ```
+
+**核心模块文档**：
+
+-   [`src/components/`](../src/components/README.md) - UI 组件层 ✅ 已实施分形结构
+-   [`src/hooks/`](../src/hooks/README.md) - Hook 层 ✅ 已实施分形结构
+-   [`src/pages/`](../src/pages/README.md) - 页面层 ✅ 已实施分形结构
 
 ---
 
@@ -379,11 +386,11 @@ sequenceDiagram
 -   ✅ electron/repositories/ - 数据访问层
 -   ✅ electron/ipc/ - IPC 通信层
 
-### 第三批（Q2）
+### 第三批（Q2）✅ 已完成
 
--   src/components/ - UI 组件层
--   src/hooks/ - Hook 层
--   src/pages/ - 页面层
+-   ✅ src/components/ - UI 组件层
+-   ✅ src/hooks/ - Hook 层
+-   ✅ src/pages/ - 页面层
 
 ### 完整覆盖（Q3）
 
@@ -393,7 +400,7 @@ sequenceDiagram
 
 ---
 
-**文档版本**：v1.1  
+**文档版本**：v1.2  
 **最后更新**：2025-12-26  
 **维护者**：开发团队  
 **已实施模块**：
@@ -401,3 +408,6 @@ sequenceDiagram
 -   ✅ electron/services/ - 业务逻辑层
 -   ✅ electron/repositories/ - 数据访问层
 -   ✅ electron/ipc/ - IPC 通信层
+-   ✅ src/components/ - UI 组件层
+-   ✅ src/hooks/ - Hook 层
+-   ✅ src/pages/ - 页面层

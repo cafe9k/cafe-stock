@@ -8,9 +8,10 @@ const CONFIG = {
     'electron/services',
     'electron/repositories',
     'electron/ipc',
+    'src/components',
+    'src/hooks',
+    'src/pages',
     // 后续可添加更多目录
-    // 'src/components',
-    // 'src/hooks',
   ],
   // 需要检查的文件扩展名
   fileExtensions: ['.ts', '.tsx'],

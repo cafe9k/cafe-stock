@@ -1,3 +1,14 @@
+/**
+ * INPUT: react-pdf(PDF库), Ant Design(UI组件), window.electron(IPC获取PDF)
+ * OUTPUT: PDFViewer 组件 - PDF查看器组件，提供PDF文件的预览和下载功能
+ * POS: 渲染进程UI组件，负责公告PDF文件的展示和交互
+ * 
+ * ⚠️ 更新提醒：修改此文件后，请同步更新：
+ *    1. 本文件开头的 INPUT/OUTPUT/POS 注释
+ *    2. src/components/README.md 中的文件列表
+ *    3. 如影响架构，更新 README.md 和 docs/architecture-fractal.md
+ */
+
 import { useState, useEffect } from "react";
 import { Modal, Button, Space, message, Spin } from "antd";
 import { DownloadOutlined, ZoomInOutlined, ZoomOutOutlined, CloseOutlined } from "@ant-design/icons";

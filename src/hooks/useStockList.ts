@@ -1,6 +1,12 @@
 /**
- * 股票列表数据获取 Hook
- * 封装股票列表数据获取逻辑，统一的状态管理和错误处理
+ * INPUT: stockService(服务层), types(类型定义), Ant Design App(消息提示)
+ * OUTPUT: useStockList Hook - 提供股票列表数据获取、分页、筛选的状态管理
+ * POS: 渲染进程业务逻辑Hook，封装股票列表的数据获取和状态管理逻辑
+ * 
+ * ⚠️ 更新提醒：修改此文件后，请同步更新：
+ *    1. 本文件开头的 INPUT/OUTPUT/POS 注释
+ *    2. src/hooks/README.md 中的文件列表
+ *    3. 如影响架构，更新 README.md 和 docs/architecture-fractal.md
  */
 
 import { useState, useEffect, useCallback, useRef } from "react";

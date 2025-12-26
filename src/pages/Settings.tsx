@@ -1,18 +1,29 @@
+/**
+ * INPUT: window.electronAPI(IPC), Ant Design(UI组件), ClassificationRuleEditor(组件)
+ * OUTPUT: Settings 页面组件 - 设置页面，提供应用配置和分类规则管理
+ * POS: 渲染进程页面组件，应用设置和配置管理的主界面
+ *
+ * ⚠️ 更新提醒：修改此文件后，请同步更新：
+ *    1. 本文件开头的 INPUT/OUTPUT/POS 注释
+ *    2. src/pages/README.md 中的文件列表
+ *    3. 如影响架构，更新 README.md 和 docs/architecture-fractal.md
+ */
+
 import { useState, useEffect } from "react";
-import { 
-	Card, 
-	Button, 
-	Progress, 
-	Space, 
-	message, 
-	Typography, 
-	Form, 
-	Input, 
-	Modal, 
-	Descriptions, 
-	Badge, 
-	Row, 
-	Col, 
+import {
+	Card,
+	Button,
+	Progress,
+	Space,
+	message,
+	Typography,
+	Form,
+	Input,
+	Modal,
+	Descriptions,
+	Badge,
+	Row,
+	Col,
 	Checkbox,
 	Tabs,
 	Divider,
@@ -21,25 +32,25 @@ import {
 	Table,
 	Tag,
 	Spin,
-	Empty
+	Empty,
 } from "antd";
-import { 
-	TagsOutlined, 
+import {
+	TagsOutlined,
 	SyncOutlined,
-	CopyOutlined, 
-	PlayCircleOutlined, 
-	StopOutlined, 
-	LockOutlined, 
-	UserOutlined, 
-	DatabaseOutlined, 
-	ExclamationCircleOutlined, 
-	ReloadOutlined, 
+	CopyOutlined,
+	PlayCircleOutlined,
+	StopOutlined,
+	LockOutlined,
+	UserOutlined,
+	DatabaseOutlined,
+	ExclamationCircleOutlined,
+	ReloadOutlined,
 	SettingOutlined,
 	CloudServerOutlined,
 	AppstoreOutlined,
 	InfoCircleOutlined,
 	TableOutlined,
-	EyeOutlined
+	EyeOutlined,
 } from "@ant-design/icons";
 import { ClassificationRuleEditor } from "../components/ClassificationRuleEditor";
 import { UpdateChecker } from "../components/UpdateChecker";
@@ -85,7 +96,7 @@ export function Settings() {
 		total?: number;
 		phase?: string;
 	} | null>(null);
-	
+
 	// 断点续传状态
 	const [stockDetailsSyncInfo, setStockDetailsSyncInfo] = useState<{
 		hasProgress: boolean;
@@ -232,12 +243,9 @@ export function Settings() {
 		setTableSchema(null);
 		setSampleData([]);
 		setTotalCount(0);
-		
+
 		if (tableName) {
-			await Promise.all([
-				loadTableSchema(tableName),
-				loadSampleData(tableName, sampleLimit)
-			]);
+			await Promise.all([loadTableSchema(tableName), loadSampleData(tableName, sampleLimit)]);
 		}
 	};
 
@@ -251,17 +259,14 @@ export function Settings() {
 	// 加载服务器状态
 	const loadServerStatus = async () => {
 		try {
-			const [status, info] = await Promise.all([
-				window.electronAPI.getSqliteHttpServerStatus(),
-				window.electronAPI.getDbConnectionInfo()
-			]);
-			
+			const [status, info] = await Promise.all([window.electronAPI.getSqliteHttpServerStatus(), window.electronAPI.getDbConnectionInfo()]);
+
 			setIsServerRunning(status.isRunning);
 			setServerPort(status.port || 8080);
 			setServerUrl(status.url || null);
 			setHasAuth(status.hasAuth);
 			setUsername(status.username);
-			
+
 			if (info.success && info.dbPath) {
 				setDbPath(info.dbPath);
 			}
@@ -392,7 +397,7 @@ export function Settings() {
 		setResetting(true);
 		try {
 			const result = await window.electronAPI.resetDatabase({ backup: backupBeforeReset });
-			
+
 			if (result.success) {
 				let successMessage = "数据库重置成功！";
 				if (result.backupPath) {
@@ -400,7 +405,7 @@ export function Settings() {
 				}
 				message.success(successMessage, 5);
 				setShowResetModal(false);
-				
+
 				// 刷新页面数据
 				setTimeout(() => {
 					loadServerStatus();
@@ -428,7 +433,7 @@ export function Settings() {
 			children: (
 				<Space orientation="vertical" size="large" style={{ width: "100%" }}>
 					{/* 分类规则配置 */}
-					<Card 
+					<Card
 						title={
 							<Space>
 								<SettingOutlined />
@@ -439,7 +444,7 @@ export function Settings() {
 						<ClassificationRuleEditor />
 					</Card>
 				</Space>
-			)
+			),
 		},
 		{
 			key: "database",
@@ -454,14 +459,14 @@ export function Settings() {
 					<Row gutter={[16, 16]}>
 						{/* 数据库信息 */}
 						<Col xs={24} lg={12}>
-							<Card 
+							<Card
 								title={
 									<Space>
 										<DatabaseOutlined />
 										<span>数据库信息</span>
 									</Space>
 								}
-								style={{ height: '100%' }}
+								style={{ height: "100%" }}
 							>
 								<Space orientation="vertical" size="large" style={{ width: "100%" }}>
 									<Descriptions column={1} size="middle" bordered>
@@ -484,16 +489,10 @@ export function Settings() {
 									/>
 
 									<Space orientation="vertical" style={{ width: "100%" }}>
-										<Button
-											danger
-											icon={<ReloadOutlined />}
-											onClick={() => setShowResetModal(true)}
-											block
-											size="large"
-										>
+										<Button danger icon={<ReloadOutlined />} onClick={() => setShowResetModal(true)} block size="large">
 											重置数据库
 										</Button>
-										
+
 										<Alert
 											message="警告：重置数据库将删除所有本地数据，包括股票列表、公告、十大股东等信息。"
 											type="warning"
@@ -506,14 +505,14 @@ export function Settings() {
 
 						{/* 股票详情同步 */}
 						<Col xs={24} lg={12}>
-							<Card 
+							<Card
 								title={
 									<Space>
 										<SyncOutlined />
 										<span>股票详情同步</span>
 									</Space>
 								}
-								style={{ height: '100%' }}
+								style={{ height: "100%" }}
 							>
 								<Space orientation="vertical" size="large" style={{ width: "100%" }}>
 									<Descriptions column={1} size="middle" bordered>
@@ -562,9 +561,7 @@ export function Settings() {
 												<div>• 同步后可在公告列表中使用市值筛选功能</div>
 												{stockDetailsSyncInfo?.hasProgress && (
 													<div style={{ marginTop: 8 }}>
-														<Text type="warning">
-															⚠️ 检测到未完成的同步任务，点击同步按钮继续
-														</Text>
+														<Text type="warning">⚠️ 检测到未完成的同步任务，点击同步按钮继续</Text>
 													</div>
 												)}
 											</>
@@ -584,8 +581,10 @@ export function Settings() {
 													)}
 												</Text>
 												{stockDetailsSyncProgress.current !== undefined && stockDetailsSyncProgress.total !== undefined && (
-													<Progress 
-														percent={Math.round((stockDetailsSyncProgress.current / stockDetailsSyncProgress.total) * 100)}
+													<Progress
+														percent={Math.round(
+															(stockDetailsSyncProgress.current / stockDetailsSyncProgress.total) * 100
+														)}
 														status="active"
 													/>
 												)}
@@ -606,12 +605,7 @@ export function Settings() {
 
 									{/* 删除同步状态按钮 */}
 									{(stockDetailsSyncInfo?.isSyncedThisMonth || stockDetailsSyncInfo?.hasProgress) && !syncingStockDetails && (
-										<Button
-											danger
-											icon={<ExclamationCircleOutlined />}
-											onClick={handleDeleteStockDetailsSyncFlag}
-											block
-										>
+										<Button danger icon={<ExclamationCircleOutlined />} onClick={handleDeleteStockDetailsSyncFlag} block>
 											删除同步状态（重新同步）
 										</Button>
 									)}
@@ -621,21 +615,21 @@ export function Settings() {
 
 						{/* 远程访问 */}
 						<Col xs={24} lg={12}>
-							<Card 
+							<Card
 								title={
 									<Space>
 										<CloudServerOutlined />
 										<span>远程访问服务</span>
 									</Space>
 								}
-								style={{ height: '100%' }}
+								style={{ height: "100%" }}
 							>
 								<Space orientation="vertical" size="large" style={{ width: "100%" }}>
 									<Descriptions column={1} size="middle" bordered>
 										<Descriptions.Item label="HTTP 服务器">
-											<Badge 
-												status={isServerRunning ? "processing" : "default"} 
-												text={isServerRunning ? `运行中 (端口 ${serverPort})` : "未启动"} 
+											<Badge
+												status={isServerRunning ? "processing" : "default"}
+												text={isServerRunning ? `运行中 (端口 ${serverPort})` : "未启动"}
 											/>
 										</Descriptions.Item>
 										{isServerRunning && serverUrl && (
@@ -644,10 +638,7 @@ export function Settings() {
 											</Descriptions.Item>
 										)}
 										<Descriptions.Item label="认证状态">
-											<Badge 
-												status={hasAuth ? "success" : "default"} 
-												text={hasAuth ? `已设置 (${username})` : "未设置"} 
-											/>
+											<Badge status={hasAuth ? "success" : "default"} text={hasAuth ? `已设置 (${username})` : "未设置"} />
 										</Descriptions.Item>
 									</Descriptions>
 
@@ -683,26 +674,17 @@ export function Settings() {
 										</Space>
 
 										<Space wrap style={{ width: "100%" }}>
-											<Button
-												icon={<LockOutlined />}
-												onClick={() => setShowAuthModal(true)}
-											>
+											<Button icon={<LockOutlined />} onClick={() => setShowAuthModal(true)}>
 												{hasAuth ? "修改认证" : "设置认证"}
 											</Button>
 
 											{hasAuth && (
-												<Button
-													icon={<UserOutlined />}
-													onClick={handleClearAuth}
-												>
+												<Button icon={<UserOutlined />} onClick={handleClearAuth}>
 													清除认证
 												</Button>
 											)}
 
-											<Button
-												icon={<CopyOutlined />}
-												onClick={handleCopyDbConnection}
-											>
+											<Button icon={<CopyOutlined />} onClick={handleCopyDbConnection}>
 												复制连接信息
 											</Button>
 										</Space>
@@ -713,7 +695,7 @@ export function Settings() {
 					</Row>
 
 					{/* 数据库 Schema 和样本数据 */}
-					<Card 
+					<Card
 						title={
 							<Space>
 								<TableOutlined />
@@ -729,194 +711,183 @@ export function Settings() {
 									value={selectedTable}
 									onChange={handleTableChange}
 									showSearch
-									filterOption={(input, option) =>
-										(option?.label ?? "").toLowerCase().includes(input.toLowerCase())
-									}
-									options={tables.map(table => ({ label: table, value: table }))}
+									filterOption={(input, option) => (option?.label ?? "").toLowerCase().includes(input.toLowerCase())}
+									options={tables.map((table) => ({ label: table, value: table }))}
 								/>
-								<Button
-									icon={<ReloadOutlined />}
-									onClick={loadDatabaseTables}
-								>
+								<Button icon={<ReloadOutlined />} onClick={loadDatabaseTables}>
 									刷新表列表
 								</Button>
 							</Space>
 
-						{selectedTable && (
-							<>
-								<Divider />
+							{selectedTable && (
+								<>
+									<Divider />
 
-								{/* 样本数据 */}
-								<div>
-									<Space style={{ marginBottom: 16, width: "100%", justifyContent: "space-between" }}>
-										<Space>
-											<Text strong>样本数据：</Text>
-											{totalCount > 0 && (
-												<Text type="secondary">共 {totalCount} 条记录</Text>
-											)}
+									{/* 样本数据 */}
+									<div>
+										<Space style={{ marginBottom: 16, width: "100%", justifyContent: "space-between" }}>
+											<Space>
+												<Text strong>样本数据：</Text>
+												{totalCount > 0 && <Text type="secondary">共 {totalCount} 条记录</Text>}
+											</Space>
+											<Space>
+												<Select
+													value={sampleLimit}
+													onChange={(value) => {
+														setSampleLimit(value);
+														loadSampleData(selectedTable, value);
+													}}
+													style={{ width: 100 }}
+													options={[
+														{ label: "10 条", value: 10 },
+														{ label: "20 条", value: 20 },
+														{ label: "50 条", value: 50 },
+														{ label: "100 条", value: 100 },
+													]}
+												/>
+												<Button icon={<EyeOutlined />} onClick={handleRefreshSampleData} loading={loadingSampleData}>
+													刷新
+												</Button>
+											</Space>
 										</Space>
-										<Space>
-											<Select
-												value={sampleLimit}
-												onChange={(value) => {
-													setSampleLimit(value);
-													loadSampleData(selectedTable, value);
-												}}
-												style={{ width: 100 }}
-												options={[
-													{ label: "10 条", value: 10 },
-													{ label: "20 条", value: 20 },
-													{ label: "50 条", value: 50 },
-													{ label: "100 条", value: 100 },
-												]}
-											/>
-											<Button
-												icon={<EyeOutlined />}
-												onClick={handleRefreshSampleData}
-												loading={loadingSampleData}
-											>
-												刷新
-											</Button>
-										</Space>
-									</Space>
-									<Spin spinning={loadingSampleData}>
-										{sampleData.length > 0 ? (
-											<Table
-											dataSource={sampleData}
-											rowKey={(_record, index) => `row-${index}`}
-											pagination={false}
-											size="small"
-											bordered
-												scroll={{ x: "max-content" }}
-												columns={Object.keys(sampleData[0] || {}).map(key => ({
-													title: key,
-													dataIndex: key,
-													key: key,
-													width: 150,
-													ellipsis: true,
-													render: (value: any) => {
-														if (value === null || value === undefined) {
-															return <Text type="secondary">NULL</Text>;
-														}
-														if (typeof value === "string" && value.length > 50) {
-															return <Text title={value}>{value.substring(0, 50)}...</Text>;
-														}
-														return String(value);
-													},
-												}))}
-											/>
-										) : (
-											<Empty description="暂无样本数据" />
-										)}
-									</Spin>
-								</div>
-
-								<Divider />
-								
-								{/* Schema 信息 */}
-								<div>
-									<Space style={{ marginBottom: 16 }}>
-										<Text strong>表结构信息：</Text>
-										<Text code>{selectedTable}</Text>
-									</Space>
-									<Spin spinning={loadingSchema}>
-										{tableSchema ? (
-											<Space orientation="vertical" size="middle" style={{ width: "100%" }}>
-												{/* 列信息 */}
+										<Spin spinning={loadingSampleData}>
+											{sampleData.length > 0 ? (
 												<Table
-													dataSource={tableSchema.columns}
-													rowKey="cid"
+													dataSource={sampleData}
+													rowKey={(_record, index) => `row-${index}`}
 													pagination={false}
 													size="small"
 													bordered
-													columns={[
-														{
-															title: "列名",
-															dataIndex: "name",
-															key: "name",
-															width: 150,
+													scroll={{ x: "max-content" }}
+													columns={Object.keys(sampleData[0] || {}).map((key) => ({
+														title: key,
+														dataIndex: key,
+														key: key,
+														width: 150,
+														ellipsis: true,
+														render: (value: any) => {
+															if (value === null || value === undefined) {
+																return <Text type="secondary">NULL</Text>;
+															}
+															if (typeof value === "string" && value.length > 50) {
+																return <Text title={value}>{value.substring(0, 50)}...</Text>;
+															}
+															return String(value);
 														},
-														{
-															title: "类型",
-															dataIndex: "type",
-															key: "type",
-															width: 100,
-														},
-														{
-															title: "非空",
-															dataIndex: "notNull",
-															key: "notNull",
-															width: 80,
-															render: (notNull: boolean) => (
-																notNull ? <Tag color="red">是</Tag> : <Tag>否</Tag>
-															),
-														},
-														{
-															title: "主键",
-															dataIndex: "primaryKey",
-															key: "primaryKey",
-															width: 80,
-															render: (primaryKey: boolean) => (
-																primaryKey ? <Tag color="blue">是</Tag> : null
-															),
-														},
-														{
-															title: "默认值",
-															dataIndex: "defaultValue",
-															key: "defaultValue",
-															render: (value: any) => value ?? <Text type="secondary">NULL</Text>,
-														},
-													]}
+													}))}
 												/>
+											) : (
+												<Empty description="暂无样本数据" />
+											)}
+										</Spin>
+									</div>
 
-												{/* 索引信息 */}
-												{tableSchema.indexes && tableSchema.indexes.length > 0 && (
-													<div>
-														<Text strong style={{ display: "block", marginBottom: 8 }}>索引信息：</Text>
-														{tableSchema.indexes.map((idx: any, index: number) => (
-															<div key={index} style={{ marginBottom: 8 }}>
-																<Text code>{idx.name}</Text>
-																{idx.sql && (
-																	<Text type="secondary" style={{ marginLeft: 8, fontSize: 12 }}>
-																		{idx.sql}
-																	</Text>
-																)}
-															</div>
-														))}
-													</div>
-												)}
+									<Divider />
 
-												{/* 创建 SQL */}
-												{tableSchema.createSql && (
-													<div>
-														<Text strong style={{ display: "block", marginBottom: 8 }}>创建 SQL：</Text>
-														<pre style={{ 
-															background: "#f5f5f5", 
-															padding: 12, 
-															borderRadius: 4,
-															overflow: "auto",
-															fontSize: 12
-														}}>
-															<code>{tableSchema.createSql}</code>
-														</pre>
-													</div>
-												)}
-											</Space>
-										) : (
-											<Empty description="暂无表结构信息" />
-										)}
-									</Spin>
-								</div>
-							</>
-						)}
+									{/* Schema 信息 */}
+									<div>
+										<Space style={{ marginBottom: 16 }}>
+											<Text strong>表结构信息：</Text>
+											<Text code>{selectedTable}</Text>
+										</Space>
+										<Spin spinning={loadingSchema}>
+											{tableSchema ? (
+												<Space orientation="vertical" size="middle" style={{ width: "100%" }}>
+													{/* 列信息 */}
+													<Table
+														dataSource={tableSchema.columns}
+														rowKey="cid"
+														pagination={false}
+														size="small"
+														bordered
+														columns={[
+															{
+																title: "列名",
+																dataIndex: "name",
+																key: "name",
+																width: 150,
+															},
+															{
+																title: "类型",
+																dataIndex: "type",
+																key: "type",
+																width: 100,
+															},
+															{
+																title: "非空",
+																dataIndex: "notNull",
+																key: "notNull",
+																width: 80,
+																render: (notNull: boolean) => (notNull ? <Tag color="red">是</Tag> : <Tag>否</Tag>),
+															},
+															{
+																title: "主键",
+																dataIndex: "primaryKey",
+																key: "primaryKey",
+																width: 80,
+																render: (primaryKey: boolean) => (primaryKey ? <Tag color="blue">是</Tag> : null),
+															},
+															{
+																title: "默认值",
+																dataIndex: "defaultValue",
+																key: "defaultValue",
+																render: (value: any) => value ?? <Text type="secondary">NULL</Text>,
+															},
+														]}
+													/>
 
-							{!selectedTable && (
-								<Empty description="请选择一个数据表查看 Schema 和样本数据" />
+													{/* 索引信息 */}
+													{tableSchema.indexes && tableSchema.indexes.length > 0 && (
+														<div>
+															<Text strong style={{ display: "block", marginBottom: 8 }}>
+																索引信息：
+															</Text>
+															{tableSchema.indexes.map((idx: any, index: number) => (
+																<div key={index} style={{ marginBottom: 8 }}>
+																	<Text code>{idx.name}</Text>
+																	{idx.sql && (
+																		<Text type="secondary" style={{ marginLeft: 8, fontSize: 12 }}>
+																			{idx.sql}
+																		</Text>
+																	)}
+																</div>
+															))}
+														</div>
+													)}
+
+													{/* 创建 SQL */}
+													{tableSchema.createSql && (
+														<div>
+															<Text strong style={{ display: "block", marginBottom: 8 }}>
+																创建 SQL：
+															</Text>
+															<pre
+																style={{
+																	background: "#f5f5f5",
+																	padding: 12,
+																	borderRadius: 4,
+																	overflow: "auto",
+																	fontSize: 12,
+																}}
+															>
+																<code>{tableSchema.createSql}</code>
+															</pre>
+														</div>
+													)}
+												</Space>
+											) : (
+												<Empty description="暂无表结构信息" />
+											)}
+										</Spin>
+									</div>
+								</>
 							)}
+
+							{!selectedTable && <Empty description="请选择一个数据表查看 Schema 和样本数据" />}
 						</Space>
 					</Card>
 				</Space>
-			)
+			),
 		},
 		{
 			key: "update",
@@ -926,7 +897,7 @@ export function Settings() {
 					软件更新
 				</span>
 			),
-			children: <UpdateChecker />
+			children: <UpdateChecker />,
 		},
 		{
 			key: "about",
@@ -940,8 +911,12 @@ export function Settings() {
 				<Card>
 					<Space orientation="vertical" size="large" style={{ width: "100%" }}>
 						<div style={{ textAlign: "center", padding: "24px 0" }}>
-							<Title level={2} style={{ marginBottom: 8 }}>酷咖啡</Title>
-							<Text type="secondary" style={{ fontSize: 16 }}>股票数据管理工具</Text>
+							<Title level={2} style={{ marginBottom: 8 }}>
+								酷咖啡
+							</Title>
+							<Text type="secondary" style={{ fontSize: 16 }}>
+								股票数据管理工具
+							</Text>
 						</div>
 
 						<Divider />
@@ -949,9 +924,7 @@ export function Settings() {
 						<Descriptions column={1} size="middle" bordered>
 							<Descriptions.Item label="版本号">1.0.0</Descriptions.Item>
 							<Descriptions.Item label="开发者">酷咖啡团队</Descriptions.Item>
-							<Descriptions.Item label="技术栈">
-								Electron + React + TypeScript + Ant Design
-							</Descriptions.Item>
+							<Descriptions.Item label="技术栈">Electron + React + TypeScript + Ant Design</Descriptions.Item>
 						</Descriptions>
 
 						<Alert
@@ -974,18 +947,13 @@ export function Settings() {
 						</div>
 					</Space>
 				</Card>
-			)
-		}
+			),
+		},
 	];
 
 	return (
 		<div style={{ padding: 24, maxWidth: 1400, margin: "0 auto" }}>
-			<Tabs 
-				defaultActiveKey="classification" 
-				items={tabItems}
-				size="large"
-				tabBarStyle={{ marginBottom: 24 }}
-			/>
+			<Tabs defaultActiveKey="classification" items={tabItems} size="large" tabBarStyle={{ marginBottom: 24 }} />
 
 			{/* 设置认证信息对话框 */}
 			<Modal
@@ -1018,7 +986,7 @@ export function Settings() {
 			<Modal
 				title={
 					<Space>
-						<ExclamationCircleOutlined style={{ color: '#ff4d4f' }} />
+						<ExclamationCircleOutlined style={{ color: "#ff4d4f" }} />
 						<span>确认重置数据库</span>
 					</Space>
 				}
@@ -1038,14 +1006,12 @@ export function Settings() {
 				maskClosable={!resetting}
 			>
 				<Space orientation="vertical" size="large" style={{ width: "100%" }}>
-					<Alert
-						message="警告：此操作将删除所有本地数据！"
-						type="error"
-						showIcon
-					/>
-					
+					<Alert message="警告：此操作将删除所有本地数据！" type="error" showIcon />
+
 					<div>
-						<Text strong style={{ marginBottom: 8, display: "block" }}>重置数据库将清空以下数据：</Text>
+						<Text strong style={{ marginBottom: 8, display: "block" }}>
+							重置数据库将清空以下数据：
+						</Text>
 						<ul style={{ marginTop: 8, marginBottom: 0 }}>
 							<li>所有股票列表数据</li>
 							<li>关注的股票</li>
@@ -1055,11 +1021,7 @@ export function Settings() {
 						</ul>
 					</div>
 
-					<Checkbox
-						checked={backupBeforeReset}
-						onChange={(e) => setBackupBeforeReset(e.target.checked)}
-						disabled={resetting}
-					>
+					<Checkbox checked={backupBeforeReset} onChange={(e) => setBackupBeforeReset(e.target.checked)} disabled={resetting}>
 						在重置前备份数据库（推荐）
 					</Checkbox>
 
@@ -1070,14 +1032,9 @@ export function Settings() {
 						</div>
 					)}
 
-					<Alert
-						message="提示：重置完成后，您需要重新同步股票列表和其他数据。"
-						type="info"
-						showIcon
-					/>
+					<Alert message="提示：重置完成后，您需要重新同步股票列表和其他数据。" type="info" showIcon />
 				</Space>
 			</Modal>
 		</div>
 	);
 }
-

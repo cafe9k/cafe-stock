@@ -1,3 +1,14 @@
+/**
+ * INPUT: window.electronAPI(IPC), Ant Design(UI组件), types(类型定义)
+ * OUTPUT: DataInsights 页面组件 - 数据洞察页面，提供股东数据同步和统计展示
+ * POS: 渲染进程页面组件，数据分析和洞察功能的主界面
+ *
+ * ⚠️ 更新提醒：修改此文件后，请同步更新：
+ *    1. 本文件开头的 INPUT/OUTPUT/POS 注释
+ *    2. src/pages/README.md 中的文件列表
+ *    3. 如影响架构，更新 README.md 和 docs/architecture-fractal.md
+ */
+
 import { useState, useEffect } from "react";
 import { Button, Select, Table, Card, Space, Typography, Tag, Progress, Statistic, Row, Col, Divider, App } from "antd";
 import { SyncOutlined } from "@ant-design/icons";
@@ -221,7 +232,6 @@ export function DataInsights() {
 		}
 	};
 
-
 	// 暂停/恢复同步
 	const handleTogglePause = async () => {
 		try {
@@ -420,7 +430,7 @@ export function DataInsights() {
 								placeholder="请选择股票"
 								style={{ width: 400 }}
 								filterOption={(input, option) => {
-									const label = option?.label as string || "";
+									const label = (option?.label as string) || "";
 									return label.toLowerCase().includes(input.toLowerCase());
 								}}
 								onChange={handleStockSelect}

@@ -113,8 +113,9 @@ _注意：请勿直接运行 `electron .` 或其他命令，会导致 preload �
 
 #### React 渲染进程模块
 
--   `src/components/` - UI 组件层（待添加）
--   `src/hooks/` - 业务逻辑 Hook 层（待添加）
+-   [`src/components/`](src/components/README.md) - UI 组件层 ✅ 已实施分形结构
+-   [`src/hooks/`](src/hooks/README.md) - 业务逻辑 Hook 层 ✅ 已实施分形结构
+-   [`src/pages/`](src/pages/README.md) - 页面层 ✅ 已实施分形结构
 
 #### 技术文档
 

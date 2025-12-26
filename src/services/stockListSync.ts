@@ -1,3 +1,14 @@
+/**
+ * INPUT: window.electronAPI(IPC)
+ * OUTPUT: StockListSyncService 类 - 股票列表同步服务，提供同步状态管理和进度回调
+ * POS: 渲染进程服务层，封装股票列表同步的业务逻辑，管理同步状态和进度
+ * 
+ * ⚠️ 更新提醒：修改此文件后，请同步更新：
+ *    1. 本文件开头的 INPUT/OUTPUT/POS 注释
+ *    2. src/services/README.md 中的文件列表
+ *    3. 如影响架构，更新 README.md 和 docs/architecture-fractal.md
+ */
+
 interface SyncProgress {
 	status: "started" | "syncing" | "completed" | "failed";
 	message?: string;

@@ -1,6 +1,12 @@
 /**
- * 关注股票 Hook
- * 管理股票关注状态和操作
+ * INPUT: window.electronAPI(IPC), Ant Design App(消息提示)
+ * OUTPUT: useFavoriteStocks Hook - 提供收藏股票的状态管理和操作方法
+ * POS: 渲染进程业务逻辑Hook，封装股票收藏的状态管理和IPC调用
+ * 
+ * ⚠️ 更新提醒：修改此文件后，请同步更新：
+ *    1. 本文件开头的 INPUT/OUTPUT/POS 注释
+ *    2. src/hooks/README.md 中的文件列表
+ *    3. 如影响架构，更新 README.md 和 docs/architecture-fractal.md
  */
 
 import { useState, useEffect, useCallback } from "react";

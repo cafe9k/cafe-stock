@@ -1,5 +1,9 @@
 /**
- * 公告分类器使用示例
+ * INPUT: announcementClassifier(分类工具)
+ * OUTPUT: 无（示例代码文件）
+ * POS: 渲染进程工具层示例文件，展示announcementClassifier的使用方法
+ * 
+ * ⚠️ 更新提醒：修改此文件后，请更新 src/utils/README.md
  */
 
 import {
