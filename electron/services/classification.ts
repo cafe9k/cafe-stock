@@ -1,6 +1,12 @@
 /**
- * 公告分类服务模块
- * 负责公告分类相关功能
+ * INPUT: announcementClassifier(分类工具)
+ * OUTPUT: classifyAnnouncementTitle(), classifyAnnouncementsBatch() - 分类规则管理接口
+ * POS: 公告分类规则服务，管理公告的智能分类逻辑
+ * 
+ * ⚠️ 更新提醒：修改此文件后，请同步更新：
+ *    1. 本文件开头的 INPUT/OUTPUT/POS 注释
+ *    2. electron/services/README.md 中的文件列表
+ *    3. 如影响架构，更新 README.md 和 docs/architecture-fractal.md
  */
 
 import { classifyAnnouncement } from "../utils/announcementClassifier.js";

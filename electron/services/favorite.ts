@@ -1,6 +1,12 @@
 /**
- * 收藏服务模块
- * 负责股票收藏功能
+ * INPUT: FavoriteRepository(数据访问)
+ * OUTPUT: addFavoriteStock(), removeFavoriteStock(), getAllFavoriteStocks() - 收藏管理CRUD接口
+ * POS: 用户收藏服务，提供股票收藏的业务逻辑封装
+ * 
+ * ⚠️ 更新提醒：修改此文件后，请同步更新：
+ *    1. 本文件开头的 INPUT/OUTPUT/POS 注释
+ *    2. electron/services/README.md 中的文件列表
+ *    3. 如影响架构，更新 README.md 和 docs/architecture-fractal.md
  */
 
 import { getDb } from "../db.js";

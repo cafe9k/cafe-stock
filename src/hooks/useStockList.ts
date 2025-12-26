@@ -47,21 +47,26 @@ function isFilterEqual(filter1?: StockFilter, filter2?: StockFilter): boolean {
 	// 比较 categories
 	const categories1 = filter1.categories;
 	const categories2 = filter2.categories;
-	const categoriesEqual: boolean =
-		(!categories1 && !categories2) ||
-		!!(categories1 &&
-			categories2 &&
-			categories1.length === categories2.length &&
-			categories1.every((cat, idx) => cat === categories2[idx]));
+	let categoriesEqual: boolean;
+	if (!categories1 && !categories2) {
+		categoriesEqual = true;
+	} else if (categories1 && categories2) {
+		categoriesEqual = categories1.length === categories2.length && 
+			categories1.every((cat, idx) => cat === categories2[idx]);
+	} else {
+		categoriesEqual = false;
+	}
 
-	return (
-		filter1.market === filter2.market &&
-		filter1.searchKeyword === filter2.searchKeyword &&
-		filter1.showFavoriteOnly === filter2.showFavoriteOnly &&
+	const result: boolean = !!(
+		(filter1.market ?? "") === (filter2.market ?? "") &&
+		(filter1.searchKeyword ?? "") === (filter2.searchKeyword ?? "") &&
+		(filter1.showFavoriteOnly ?? false) === (filter2.showFavoriteOnly ?? false) &&
 		dateRangeEqual &&
 		marketCapRangeEqual &&
 		categoriesEqual
 	);
+	
+	return result;
 }
 
 /**

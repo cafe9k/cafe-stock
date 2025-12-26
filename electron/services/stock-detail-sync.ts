@@ -1,6 +1,12 @@
 /**
- * 股票详情同步服务
- * 支持断点续传和月度同步策略
+ * INPUT: TushareClient(API), StockDetailRepository(数据), syncFlagManager(状态管理)
+ * OUTPUT: syncStockDetailsWithResume(), getStockDetailsSyncProgress() - 断点续传同步接口
+ * POS: 股票详情同步工具，实现增量更新、断点续传和进度管理的低级别同步引擎
+ * 
+ * ⚠️ 更新提醒：修改此文件后，请同步更新：
+ *    1. 本文件开头的 INPUT/OUTPUT/POS 注释
+ *    2. electron/services/README.md 中的文件列表
+ *    3. 如影响架构，更新 README.md 和 docs/architecture-fractal.md
  */
 
 import { Notification } from "electron";

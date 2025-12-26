@@ -1,6 +1,12 @@
 /**
- * 公告服务模块
- * 负责公告数据的获取、聚合和搜索
+ * INPUT: TushareClient(API), AnnouncementRepository(数据), StockRepository(股票), FavoriteRepository(收藏), announcementClassifier(分类器)
+ * OUTPUT: syncAnnouncements(), getGroupedAnnouncements() - 公告同步与聚合查询接口
+ * POS: 公告业务核心，连接API与数据层，负责智能分类和PDF下载管理
+ * 
+ * ⚠️ 更新提醒：修改此文件后，请同步更新：
+ *    1. 本文件开头的 INPUT/OUTPUT/POS 注释
+ *    2. electron/services/README.md 中的文件列表
+ *    3. 如影响架构，更新 README.md 和 docs/architecture-fractal.md
  */
 
 import { TushareClient } from "../tushare.js";
@@ -55,7 +61,8 @@ export async function getAnnouncementsGroupedFromAPI(
 	market?: string,
 	forceRefresh?: boolean,
 	searchKeyword?: string,
-	categories?: string[]
+	categories?: string[],
+	marketCapRange?: { min?: number; max?: number }
 ): Promise<AnnouncementListResponse> {
 	// 获取所有股票列表
 	const allStocks = stockRepository.getAllStocks();
@@ -153,6 +160,22 @@ export async function getAnnouncementsGroupedFromAPI(
 				const count = stock.category_stats?.[category];
 				return count && count > 0;
 			});
+		});
+	}
+
+	// 应用市值筛选
+	if (marketCapRange) {
+		const { min, max } = marketCapRange;
+		groupedData = groupedData.filter((stock) => {
+			// 如果股票没有市值数据，默认不过滤
+			if (stock.total_mv === undefined || stock.total_mv === null) {
+				return true; // 保留没有市值数据的股票
+			}
+			
+			// 应用市值范围筛选
+			if (min !== undefined && stock.total_mv < min) return false;
+			if (max !== undefined && stock.total_mv > max) return false;
+			return true;
 		});
 	}
 

@@ -1,5 +1,9 @@
 /**
- * 公告服务接口
+ * INPUT: 无（接口定义）
+ * OUTPUT: IAnnouncementService 接口规范 - 定义公告服务的契约
+ * POS: 服务层接口定义，规范公告服务的对外API
+ * 
+ * ⚠️ 更新提醒：修改此文件后，请更新 electron/services/README.md
  */
 
 import { AnnouncementListResponse, GroupedAnnouncement } from "../../types/index.js";

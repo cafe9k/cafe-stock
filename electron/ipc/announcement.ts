@@ -44,14 +44,14 @@ export function registerAnnouncementHandlers(): void {
 	// 获取按股票聚合的公告列表
 	ipcMain.handle(
 		"get-announcements-grouped",
-		async (_event, page: number, pageSize: number, startDate?: string, endDate?: string, market?: string, forceRefresh?: boolean, searchKeyword?: string, categories?: string[]) => {
+		async (_event, page: number, pageSize: number, startDate?: string, endDate?: string, market?: string, forceRefresh?: boolean, searchKeyword?: string, categories?: string[], marketCapRange?: { min?: number; max?: number }) => {
 			try {
 				log.debug(
 					"IPC",
-					`get-announcements-grouped: page=${page}, pageSize=${pageSize}, dateRange=${startDate}-${endDate}, market=${market}, forceRefresh=${forceRefresh}, searchKeyword=${searchKeyword}, categories=${categories?.join(",")}`
+					`get-announcements-grouped: page=${page}, pageSize=${pageSize}, dateRange=${startDate}-${endDate}, market=${market}, forceRefresh=${forceRefresh}, searchKeyword=${searchKeyword}, categories=${categories?.join(",")}, marketCapRange=${JSON.stringify(marketCapRange)}`
 				);
 
-				const result = await announcementService.getAnnouncementsGroupedFromAPI(page, pageSize, startDate, endDate, market, forceRefresh, searchKeyword, categories);
+				const result = await announcementService.getAnnouncementsGroupedFromAPI(page, pageSize, startDate, endDate, market, forceRefresh, searchKeyword, categories, marketCapRange);
 
 				log.debug("IPC", `get-announcements-grouped: page=${page}, items=${result.items.length}, total=${result.total}`);
 

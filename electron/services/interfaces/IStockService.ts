@@ -1,5 +1,9 @@
 /**
- * 股票服务接口
+ * INPUT: 无（接口定义）
+ * OUTPUT: IStockService 接口规范 - 定义股票服务的契约
+ * POS: 服务层接口定义，规范股票服务的对外API
+ * 
+ * ⚠️ 更新提醒：修改此文件后，请更新 electron/services/README.md
  */
 
 import { SyncResult } from "../../types/index.js";

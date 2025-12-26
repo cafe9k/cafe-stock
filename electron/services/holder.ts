@@ -1,6 +1,12 @@
 /**
- * 股东服务模块
- * 负责十大股东数据的同步和管理
+ * INPUT: TushareClient(API), HolderRepository(数据), StockRepository(股票)
+ * OUTPUT: syncAllTop10Holders(), pauseSync(), resumeSync(), stopSync() - 股东数据同步接口
+ * POS: 股东信息服务，负责十大股东和流通股东的增量数据同步
+ * 
+ * ⚠️ 更新提醒：修改此文件后，请同步更新：
+ *    1. 本文件开头的 INPUT/OUTPUT/POS 注释
+ *    2. electron/services/README.md 中的文件列表
+ *    3. 如影响架构，更新 README.md 和 docs/architecture-fractal.md
  */
 
 import { BrowserWindow } from "electron";

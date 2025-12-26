@@ -1,0 +1,244 @@
+项目统计报告
+生成时间: 2025/12/26 19:57:58
+
+总文件夹数: 27
+总文件数: 124
+总代码行数: 29192
+
+详细统计:
+📁 /Users/ctrip/Desktop/cafe-stock
+   文件数: 17
+   总行数: 10991
+   文件列表:
+   📄 .DS_Store (1 行)
+  📁 .cursor
+     文件数: 1
+     总行数: 18
+     文件列表:
+     📄 mcp.json (18 行)
+    📁 rules
+       文件数: 6
+       总行数: 301
+       文件列表:
+       📄 dev-startup.mdc (143 行)
+       📄 documentation.mdc (66 行)
+       📄 electron-best-practices.mdc (26 行)
+       📄 project-structure.mdc (22 行)
+       📄 react-typescript.mdc (33 行)
+       📄 tushare-api.mdc (11 行)
+   📄 .cursorignore (83 行)
+   📄 .electronignore (79 行)
+   📄 .gitignore (57 行)
+   📄 .nvmrc (11 行)
+   📄 README.md (178 行)
+   📄 dev-app-update.yml (9 行)
+  📁 docs
+     文件数: 1
+     总行数: 140
+     文件列表:
+     📄 README.md (140 行)
+  📁 electron
+     文件数: 5
+     总行数: 1311
+     文件列表:
+    📁 core
+       文件数: 3
+       总行数: 256
+       文件列表:
+       📄 shortcuts.ts (29 行)
+       📄 tray.ts (87 行)
+       📄 window.ts (140 行)
+    📁 database
+       文件数: 4
+       总行数: 680
+       文件列表:
+       📄 connection.ts (108 行)
+       📄 index.ts (9 行)
+       📄 migrations.ts (351 行)
+       📄 syncFlags.ts (212 行)
+     📄 db.ts (115 行)
+    📁 di
+       文件数: 3
+       总行数: 218
+       文件列表:
+       📄 container.ts (103 行)
+       📄 index.ts (8 行)
+       📄 serviceRegistry.ts (107 行)
+    📁 ipc
+       文件数: 9
+       总行数: 1665
+       文件列表:
+       📄 announcement.ts (323 行)
+       📄 classification.ts (105 行)
+       📄 database.ts (609 行)
+       📄 favorite.ts (72 行)
+       📄 holder.ts (153 行)
+       📄 index.ts (53 行)
+      📁 middleware
+         文件数: 2
+         总行数: 80
+         文件列表:
+         📄 errorHandler.ts (73 行)
+         📄 index.ts (7 行)
+       📄 stock.ts (258 行)
+       📄 system.ts (51 行)
+       📄 updater.ts (41 行)
+     📄 main.ts (156 行)
+     📄 preload.ts (422 行)
+    📁 repositories
+       文件数: 0
+       总行数: 0
+       文件列表:
+      📁 base
+         文件数: 1
+         总行数: 68
+         文件列表:
+         📄 BaseRepository.ts (68 行)
+      📁 implementations
+         文件数: 7
+         总行数: 1330
+         文件列表:
+         📄 AnnouncementRepository.ts (472 行)
+         📄 ClassificationRepository.ts (247 行)
+         📄 FavoriteRepository.ts (89 行)
+         📄 HolderRepository.ts (178 行)
+         📄 StockDetailRepository.ts (204 行)
+         📄 StockRepository.ts (129 行)
+         📄 index.ts (11 行)
+      📁 interfaces
+         文件数: 8
+         总行数: 423
+         文件列表:
+         📄 IAnnouncementRepository.ts (84 行)
+         📄 IClassificationRepository.ts (91 行)
+         📄 IFavoriteRepository.ts (36 行)
+         📄 IHolderRepository.ts (64 行)
+         📄 IRepository.ts (47 行)
+         📄 IStockDetailRepository.ts (47 行)
+         📄 IStockRepository.ts (42 行)
+         📄 index.ts (12 行)
+    📁 services
+       文件数: 6
+       总行数: 1283
+       文件列表:
+       📄 announcement.ts (474 行)
+       📄 classification.ts (25 行)
+       📄 favorite.ts (47 行)
+       📄 holder.ts (247 行)
+      📁 interfaces
+         文件数: 6
+         总行数: 170
+         文件列表:
+         📄 IAnnouncementService.ts (58 行)
+         📄 IClassificationService.ts (17 行)
+         📄 IFavoriteService.ts (17 行)
+         📄 IHolderService.ts (41 行)
+         📄 IStockService.ts (26 行)
+         📄 index.ts (11 行)
+       📄 stock-detail-sync.ts (307 行)
+       📄 stock.ts (183 行)
+     📄 tsconfig.json (18 行)
+     📄 tushare.ts (600 行)
+    📁 types
+       文件数: 2
+       总行数: 586
+       文件列表:
+       📄 errors.ts (152 行)
+       📄 index.ts (434 行)
+    📁 updater
+       文件数: 1
+       总行数: 107
+       文件列表:
+       📄 index.ts (107 行)
+    📁 utils
+       文件数: 2
+       总行数: 675
+       文件列表:
+       📄 announcementClassifier.ts (438 行)
+       📄 logger.ts (237 行)
+   📄 index.html (15 行)
+   📄 package-lock.json (10152 行)
+   📄 package.json (125 行)
+   📄 postcss.config.js (7 行)
+  📁 scripts
+     文件数: 11
+     总行数: 2103
+     文件列表:
+     📄 analyze-announcements.cjs (223 行)
+     📄 analyze-bundle.cjs (130 行)
+     📄 analyze-uncovered.cjs (195 行)
+     📄 announcement-analysis-report.json (487 行)
+     📄 build.sh (17 行)
+     📄 final-classification-report.json (122 行)
+     📄 final-validation.cjs (280 行)
+     📄 optimize-build.sh (45 行)
+     📄 stats-project.cjs (226 行)
+     📄 validate-classification.cjs (292 行)
+     📄 verify-optimization.sh (86 行)
+  📁 src
+     文件数: 6
+     总行数: 1081
+     文件列表:
+     📄 App.css (43 行)
+     📄 App.tsx (65 行)
+    📁 components
+       文件数: 9
+       总行数: 2051
+       文件列表:
+       📄 AnnouncementList.tsx (785 行)
+       📄 CacheDataIndicator.tsx (138 行)
+       📄 ClassificationRuleEditor.tsx (355 行)
+       📄 FavoriteButton.tsx (83 行)
+       📄 Layout.tsx (71 行)
+       📄 PDFViewer.tsx (177 行)
+       📄 PDFWebViewer.tsx (131 行)
+      📁 StockList
+         文件数: 2
+         总行数: 592
+         文件列表:
+         📄 StockList.tsx (584 行)
+         📄 index.ts (8 行)
+       📄 StockListSyncIndicator.tsx (115 行)
+       📄 UpdateChecker.tsx (196 行)
+     📄 electron.d.ts (719 行)
+    📁 hooks
+       文件数: 3
+       总行数: 484
+       文件列表:
+       📄 useFavoriteStocks.ts (93 行)
+       📄 useStockFilter.ts (170 行)
+       📄 useStockList.ts (221 行)
+     📄 index.css (220 行)
+     📄 main.tsx (32 行)
+    📁 pages
+       文件数: 3
+       总行数: 1595
+       文件列表:
+       📄 Announcements.tsx (6 行)
+       📄 DataInsights.tsx (505 行)
+       📄 Settings.tsx (1084 行)
+    📁 services
+       文件数: 3
+       总行数: 313
+       文件列表:
+       📄 favoriteStockService.ts (30 行)
+       📄 stockListSync.ts (184 行)
+       📄 stockService.ts (99 行)
+    📁 types
+       文件数: 1
+       总行数: 70
+       文件列表:
+       📄 stock.ts (70 行)
+    📁 utils
+       文件数: 2
+       总行数: 601
+       文件列表:
+       📄 announcementClassifier.example.ts (164 行)
+       📄 announcementClassifier.ts (437 行)
+     📄 vite-env.d.ts (2 行)
+   📄 start.sh (78 行)
+   📄 tailwind.config.js (9 行)
+   📄 test-sorting.js (35 行)
+   📄 tsconfig.json (23 行)
+   📄 tsconfig.node.json (11 行)
+   📄 vite.config.ts (118 行)

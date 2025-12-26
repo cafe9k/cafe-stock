@@ -2,6 +2,24 @@
 
 基于 Electron + React 的本地化 A 股市场公告浏览器。通过离线数据库设计，提供极速、无延迟的公告阅读体验。
 
+> **📐 文档维护原则 - 分形结构自指系统**
+>
+> 本项目采用三层分形文档结构，遵循《GEB》的自指与递归原则：
+>
+> **文件层** → 每个 .ts/.tsx 文件开头有 INPUT/OUTPUT/POS 三行注释  
+> **目录层** → 每个代码目录有 README.md 说明架构与文件清单  
+> **系统层** → 根目录文档描述整体架构与模块关系
+>
+> **更新规则**：
+>
+> 1. 修改文件 → 更新文件开头注释 + 所在目录的 README.md
+> 2. 文件夹结构变化 → 更新该目录的 README.md + 根目录架构文档
+> 3. 架构级变更 → 更新 README.md + docs/architecture-fractal.md
+>
+> 💡 **哲学**：局部清晰 → 模块清晰 → 系统清晰。文档即地图，地图必须与领土同步。
+
+---
+
 ## 1. 核心架构
 
 本项目采用 **"主进程同步 (Backend Sync) + 本地数据库 (Local DB) + 渲染进程展示 (Frontend Display)"** 架构。
@@ -83,7 +101,28 @@ _注意：请勿直接运行 `electron .` 或其他命令，会导致 preload �
     -   `preload.ts`: IPC 桥接 (CommonJS)。
 -   `src/`: 渲染进程代码 (React)。
 
-### 4.4 打包构建
+### 4.4 分形文档导航
+
+本项目已为核心模块建立分形文档结构，每个模块都有完整的自说明文档：
+
+#### Electron 主进程模块
+
+-   [`electron/services/`](electron/services/README.md) - 业务逻辑服务层 ✅ 已实施分形结构
+-   `electron/repositories/` - 数据访问层（待添加）
+-   `electron/ipc/` - IPC 通信层（待添加）
+
+#### React 渲染进程模块
+
+-   `src/components/` - UI 组件层（待添加）
+-   `src/hooks/` - 业务逻辑 Hook 层（待添加）
+
+#### 技术文档
+
+-   [`docs/architecture-fractal.md`](docs/architecture-fractal.md) - 分形架构文档（新增）
+-   [`docs/architecture.md`](docs/architecture.md) - 原技术架构文档（保留）
+-   [`docs/README.md`](docs/README.md) - 文档索引
+
+### 4.5 打包构建
 
 构建 macOS 应用（需要在 macOS 上运行）：
 
@@ -112,7 +151,7 @@ npm run analyze
 
 详细的优化说明请参考 [构建优化指南](docs/build-optimization-guide.md)。
 
-### 4.5 发布更新
+### 4.6 发布更新
 
 1. 更新 `package.json` 中的版本号
 2. 在 `package.json` 的 `build.publish` 中配置 GitHub 仓库信息
