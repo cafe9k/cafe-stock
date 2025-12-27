@@ -707,3 +707,4 @@ Database → Repository → Service → IPC → electronAPI → Hook → React C
 
 CafeStock 采用现代化的 Electron 应用架构，通过清晰的分层设计、依赖注入模式和仓储模式，实现了高内聚、低耦合的代码结构。主进程负责数据同步和业务逻辑，渲染进程专注于 UI 展示，通过 IPC 安全通信，确保了应用的稳定性和安全性。
 
+

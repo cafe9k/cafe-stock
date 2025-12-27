@@ -1,0 +1,1936 @@
+{
+  "nodes": [
+    {
+      "data": {
+        "id": "electron",
+        "label": "Electron 主进程",
+        "type": "root",
+        "dependencies": "",
+        "outputs": "",
+        "responsibilities": "主进程业务逻辑和数据管理",
+        "path": "electron"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-core",
+        "label": "core",
+        "type": "directory",
+        "dependencies": "",
+        "outputs": "",
+        "responsibilities": "",
+        "path": "electron/core"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-core-shortcuts",
+        "label": "shortcuts.ts",
+        "type": "file",
+        "dependencies": "",
+        "outputs": "",
+        "responsibilities": "",
+        "path": "electron/core/shortcuts.ts"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-core-tray",
+        "label": "tray.ts",
+        "type": "file",
+        "dependencies": "",
+        "outputs": "",
+        "responsibilities": "",
+        "path": "electron/core/tray.ts"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-core-window",
+        "label": "window.ts",
+        "type": "file",
+        "dependencies": "",
+        "outputs": "",
+        "responsibilities": "",
+        "path": "electron/core/window.ts"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-database",
+        "label": "database",
+        "type": "directory",
+        "dependencies": "",
+        "outputs": "",
+        "responsibilities": "",
+        "path": "electron/database"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-database-connection",
+        "label": "connection.ts",
+        "type": "file",
+        "dependencies": "",
+        "outputs": "",
+        "responsibilities": "",
+        "path": "electron/database/connection.ts"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-database-index",
+        "label": "index.ts",
+        "type": "file",
+        "dependencies": "",
+        "outputs": "",
+        "responsibilities": "",
+        "path": "electron/database/index.ts"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-database-migrations",
+        "label": "migrations.ts",
+        "type": "file",
+        "dependencies": "",
+        "outputs": "",
+        "responsibilities": "",
+        "path": "electron/database/migrations.ts"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-database-syncFlags",
+        "label": "syncFlags.ts",
+        "type": "file",
+        "dependencies": "",
+        "outputs": "",
+        "responsibilities": "",
+        "path": "electron/database/syncFlags.ts"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-db",
+        "label": "db.ts",
+        "type": "file",
+        "dependencies": "",
+        "outputs": "",
+        "responsibilities": "",
+        "path": "electron/db.ts"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-di",
+        "label": "di",
+        "type": "directory",
+        "dependencies": "",
+        "outputs": "",
+        "responsibilities": "",
+        "path": "electron/di"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-di-container",
+        "label": "container.ts",
+        "type": "file",
+        "dependencies": "",
+        "outputs": "",
+        "responsibilities": "",
+        "path": "electron/di/container.ts"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-di-index",
+        "label": "index.ts",
+        "type": "file",
+        "dependencies": "",
+        "outputs": "",
+        "responsibilities": "",
+        "path": "electron/di/index.ts"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-di-serviceRegistry",
+        "label": "serviceRegistry.ts",
+        "type": "file",
+        "dependencies": "",
+        "outputs": "",
+        "responsibilities": "",
+        "path": "electron/di/serviceRegistry.ts"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-ipc",
+        "label": "IPC 通信层 - 主进程与渲染进程通信",
+        "type": "directory",
+        "dependencies": "services（业务逻辑层）、repositories（数据访问层）、Electron IPC API",
+        "outputs": "向渲染进程提供可调用的IPC接口，是主进程与渲染进程的桥梁",
+        "responsibilities": "定义主进程与渲染进程的通信协议，实现IPC处理器，调用服务层方法",
+        "path": "electron/ipc"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-ipc-announcement",
+        "label": "announcement.ts",
+        "type": "file",
+        "dependencies": "ipcMain(Electron), announcementService(服务层), classificationService(分类服务), AnnouncementRepository(数据访问)",
+        "outputs": "registerAnnouncementHandlers() - 注册公告相关的IPC处理器（get-announcements, sync-announcements等）",
+        "responsibilities": "IPC通信层公告处理器，连接渲染进程与主进程的公告业务逻辑",
+        "path": "electron/ipc/announcement.ts"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-ipc-classification",
+        "label": "classification.ts",
+        "type": "file",
+        "dependencies": "ipcMain(Electron), ClassificationRepository(数据访问)",
+        "outputs": "registerClassificationHandlers() - 注册分类相关的IPC处理器（get-classification-categories, update-rule等）",
+        "responsibilities": "IPC通信层分类处理器，连接渲染进程与主进程的分类规则管理功能",
+        "path": "electron/ipc/classification.ts"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-ipc-database",
+        "label": "database.ts",
+        "type": "file",
+        "dependencies": "ipcMain(Electron), BrowserWindow(窗口), app(Electron应用), fs(文件系统), http(HTTP服务器)",
+        "outputs": "registerDatabaseHandlers() - 注册数据库相关的IPC处理器（get-db-connection-info, export-db等）",
+        "responsibilities": "IPC通信层数据库处理器，提供数据库管理、导出、HTTP服务等功能",
+        "path": "electron/ipc/database.ts"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-ipc-favorite",
+        "label": "favorite.ts",
+        "type": "file",
+        "dependencies": "ipcMain(Electron), favoriteService(服务层)",
+        "outputs": "registerFavoriteHandlers() - 注册收藏相关的IPC处理器（add-favorite-stock, remove-favorite-stock等）",
+        "responsibilities": "IPC通信层收藏处理器，连接渲染进程与主进程的收藏业务逻辑",
+        "path": "electron/ipc/favorite.ts"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-ipc-holder",
+        "label": "holder.ts",
+        "type": "file",
+        "dependencies": "ipcMain(Electron), holderService(服务层), TushareClient(API), StockRepository(数据访问)",
+        "outputs": "registerHolderHandlers() - 注册股东相关的IPC处理器（get-top10-holders, sync-holders等）",
+        "responsibilities": "IPC通信层股东处理器，连接渲染进程与主进程的股东业务逻辑",
+        "path": "electron/ipc/holder.ts"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-ipc-index",
+        "label": "index.ts",
+        "type": "file",
+        "dependencies": "各IPC处理器模块（announcement, stock, favorite, holder等）",
+        "outputs": "setupIPC() - 统一注册所有IPC处理器的主入口函数",
+        "responsibilities": "IPC通信层聚合模块，提供统一的IPC处理器注册入口",
+        "path": "electron/ipc/index.ts"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-ipc-middleware",
+        "label": "IPC Middleware - IPC中间件",
+        "type": "directory",
+        "dependencies": "Electron IPC API、types（错误类型定义）",
+        "outputs": "向IPC处理器提供可复用的中间件函数",
+        "responsibilities": "提供IPC通信层的中间件功能（错误处理、日志记录等）",
+        "path": "electron/ipc/middleware"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-ipc-middleware-errorHandler",
+        "label": "errorHandler.ts",
+        "type": "file",
+        "dependencies": "IpcMainInvokeEvent(Electron), IPCResponse(响应类型), log(日志工具)",
+        "outputs": "withErrorHandler() - 错误处理包装函数，统一处理IPC调用异常",
+        "responsibilities": "IPC通信层错误处理中间件，提供统一的错误捕获和响应格式",
+        "path": "electron/ipc/middleware/errorHandler.ts"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-ipc-middleware-index",
+        "label": "index.ts",
+        "type": "file",
+        "dependencies": "errorHandler(错误处理中间件)",
+        "outputs": "统一导出所有IPC中间件",
+        "responsibilities": "IPC中间件聚合模块，提供统一的导出入口",
+        "path": "electron/ipc/middleware/index.ts"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-ipc-stock",
+        "label": "stock.ts",
+        "type": "file",
+        "dependencies": "ipcMain(Electron), stockService(服务层), StockRepository(数据访问), StockDetailRepository(详情数据)",
+        "outputs": "registerStockHandlers() - 注册股票相关的IPC处理器（get-all-stocks, sync-stocks等）",
+        "responsibilities": "IPC通信层股票处理器，连接渲染进程与主进程的股票业务逻辑",
+        "path": "electron/ipc/stock.ts"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-ipc-system",
+        "label": "system.ts",
+        "type": "file",
+        "dependencies": "ipcMain(Electron), Notification(通知), shell(系统shell), updater(更新器), errorHandler(错误处理)",
+        "outputs": "registerSystemHandlers() - 注册系统相关的IPC处理器（show-notification, get-app-version等）",
+        "responsibilities": "IPC通信层系统处理器，提供系统级功能（通知、版本、外部链接等）",
+        "path": "electron/ipc/system.ts"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-ipc-updater",
+        "label": "updater.ts",
+        "type": "file",
+        "dependencies": "ipcMain(Electron), updater(更新器模块)",
+        "outputs": "registerUpdaterHandlers() - 注册自动更新相关的IPC处理器（check-for-updates, download-update等）",
+        "responsibilities": "IPC通信层更新处理器，连接渲染进程与主进程的自动更新功能",
+        "path": "electron/ipc/updater.ts"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-main",
+        "label": "main.ts",
+        "type": "file",
+        "dependencies": "",
+        "outputs": "",
+        "responsibilities": "",
+        "path": "electron/main.ts"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-preload",
+        "label": "preload.ts",
+        "type": "file",
+        "dependencies": "",
+        "outputs": "",
+        "responsibilities": "",
+        "path": "electron/preload.ts"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-repositories",
+        "label": "Repositories 层 - 数据访问层",
+        "type": "directory",
+        "dependencies": "database（SQLite连接）、types（实体类型定义）",
+        "outputs": "向 services/ 层提供数据访问接口，实现数据访问的抽象和复用",
+        "responsibilities": "封装数据库操作，实现Repository模式，隔离业务逻辑与数据持久化",
+        "path": "electron/repositories"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-repositories-base",
+        "label": "Base Repository - 基础仓储类",
+        "type": "directory",
+        "dependencies": "better-sqlite3（SQLite数据库）",
+        "outputs": "BaseRepository抽象类，供所有Repository实现继承",
+        "responsibilities": "提供所有Repository的公共功能（事务、日期格式化、时间戳等）",
+        "path": "electron/repositories/base"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-repositories-base-BaseRepository",
+        "label": "BaseRepository.ts",
+        "type": "file",
+        "dependencies": "Database(better-sqlite3) - SQLite数据库连接",
+        "outputs": "BaseRepository 抽象类 - 提供通用数据库操作方法（事务、日期格式化等）",
+        "responsibilities": "数据访问层基类，封装所有Repository的公共功能，实现代码复用",
+        "path": "electron/repositories/base/BaseRepository.ts"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-repositories-implementations",
+        "label": "Repository Implementations - 仓储实现",
+        "type": "directory",
+        "dependencies": "BaseRepository（基类）、interfaces（接口定义）、types（实体类型）",
+        "outputs": "向services层提供数据访问实现类",
+        "responsibilities": "实现具体的Repository类，封装各业务实体的数据库操作",
+        "path": "electron/repositories/implementations"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-repositories-implementations-AnnouncementRepository",
+        "label": "AnnouncementRepository.ts",
+        "type": "file",
+        "dependencies": "Database(better-sqlite3), IAnnouncementRepository(接口), BaseRepository(基类), ClassificationRepository(分类), announcementClassifier(分类器)",
+        "outputs": "AnnouncementRepository 类 - 提供公告数据的CRUD和查询操作（upsertAnnouncements, getAnnouncementsByStock等）",
+        "responsibilities": "公告数据访问层实现，封装公告表的数据库操作和智能分类逻辑",
+        "path": "electron/repositories/implementations/AnnouncementRepository.ts"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-repositories-implementations-ClassificationRepository",
+        "label": "ClassificationRepository.ts",
+        "type": "file",
+        "dependencies": "Database(better-sqlite3), IClassificationRepository(接口), BaseRepository(基类), announcementClassifier(分类工具)",
+        "outputs": "ClassificationRepository 类 - 提供分类规则的CRUD操作（getAllRules, updateRule等）",
+        "responsibilities": "分类规则数据访问层实现，封装公告分类规则表的数据库操作",
+        "path": "electron/repositories/implementations/ClassificationRepository.ts"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-repositories-implementations-FavoriteRepository",
+        "label": "FavoriteRepository.ts",
+        "type": "file",
+        "dependencies": "Database(better-sqlite3), IFavoriteRepository(接口), BaseRepository(基类)",
+        "outputs": "FavoriteRepository 类 - 提供收藏数据的CRUD操作（addFavoriteStock, removeFavoriteStock等）",
+        "responsibilities": "收藏数据访问层实现，封装用户收藏表的数据库操作",
+        "path": "electron/repositories/implementations/FavoriteRepository.ts"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-repositories-implementations-HolderRepository",
+        "label": "HolderRepository.ts",
+        "type": "file",
+        "dependencies": "Database(better-sqlite3), IHolderRepository(接口), BaseRepository(基类)",
+        "outputs": "HolderRepository 类 - 提供股东数据的CRUD和查询操作（upsertHolders, getHoldersByStock等）",
+        "responsibilities": "股东数据访问层实现，封装十大股东表的数据库操作",
+        "path": "electron/repositories/implementations/HolderRepository.ts"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-repositories-implementations-StockDetailRepository",
+        "label": "StockDetailRepository.ts",
+        "type": "file",
+        "dependencies": "Database(better-sqlite3), IStockDetailRepository(接口), BaseRepository(基类)",
+        "outputs": "StockDetailRepository 类 - 提供股票详情数据的CRUD操作（upsertDailyBasic, getDailyBasic等）",
+        "responsibilities": "股票详情数据访问层实现，封装股票日线指标表的数据库操作",
+        "path": "electron/repositories/implementations/StockDetailRepository.ts"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-repositories-implementations-StockRepository",
+        "label": "StockRepository.ts",
+        "type": "file",
+        "dependencies": "Database(better-sqlite3), IStockRepository(接口), BaseRepository(基类)",
+        "outputs": "StockRepository 类 - 提供股票数据的CRUD操作（upsertStocks, findById, findAll等）",
+        "responsibilities": "股票数据访问层实现，封装股票表的数据库操作，隔离业务逻辑与数据持久化",
+        "path": "electron/repositories/implementations/StockRepository.ts"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-repositories-implementations-index",
+        "label": "index.ts",
+        "type": "file",
+        "dependencies": "各Repository实现类",
+        "outputs": "统一导出所有Repository实现类",
+        "responsibilities": "Repository实现聚合模块，提供统一的导出入口",
+        "path": "electron/repositories/implementations/index.ts"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-repositories-interfaces",
+        "label": "Repository Interfaces - 仓储接口定义",
+        "type": "directory",
+        "dependencies": "types（实体类型定义）",
+        "outputs": "向实现层提供接口契约，向调用方提供类型定义",
+        "responsibilities": "定义Repository的TypeScript接口规范，确保实现与契约一致",
+        "path": "electron/repositories/interfaces"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-repositories-interfaces-IAnnouncementRepository",
+        "label": "IAnnouncementRepository.ts",
+        "type": "file",
+        "dependencies": "无（接口定义）",
+        "outputs": "IAnnouncementRepository 接口 - 定义公告数据访问操作的契约",
+        "responsibilities": "公告Repository接口，规范公告数据访问层的标准操作",
+        "path": "electron/repositories/interfaces/IAnnouncementRepository.ts"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-repositories-interfaces-IClassificationRepository",
+        "label": "IClassificationRepository.ts",
+        "type": "file",
+        "dependencies": "无（接口定义）",
+        "outputs": "IClassificationRepository 接口 - 定义分类规则数据访问操作的契约",
+        "responsibilities": "分类Repository接口，规范分类规则数据访问层的标准操作",
+        "path": "electron/repositories/interfaces/IClassificationRepository.ts"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-repositories-interfaces-IFavoriteRepository",
+        "label": "IFavoriteRepository.ts",
+        "type": "file",
+        "dependencies": "无（接口定义）",
+        "outputs": "IFavoriteRepository 接口 - 定义收藏数据访问操作的契约",
+        "responsibilities": "收藏Repository接口，规范收藏数据访问层的标准操作",
+        "path": "electron/repositories/interfaces/IFavoriteRepository.ts"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-repositories-interfaces-IHolderRepository",
+        "label": "IHolderRepository.ts",
+        "type": "file",
+        "dependencies": "无（接口定义）",
+        "outputs": "IHolderRepository 接口 - 定义股东数据访问操作的契约",
+        "responsibilities": "股东Repository接口，规范股东数据访问层的标准操作",
+        "path": "electron/repositories/interfaces/IHolderRepository.ts"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-repositories-interfaces-IRepository",
+        "label": "IRepository.ts",
+        "type": "file",
+        "dependencies": "无（接口定义）",
+        "outputs": "IRepository<T> 泛型接口 - 定义所有Repository的通用操作契约",
+        "responsibilities": "Repository模式的基础接口，规范数据访问层的标准操作（CRUD）",
+        "path": "electron/repositories/interfaces/IRepository.ts"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-repositories-interfaces-IStockDetailRepository",
+        "label": "IStockDetailRepository.ts",
+        "type": "file",
+        "dependencies": "无（接口定义）",
+        "outputs": "IStockDetailRepository 接口 - 定义股票详情数据访问操作的契约",
+        "responsibilities": "股票详情Repository接口，规范股票详情数据访问层的标准操作",
+        "path": "electron/repositories/interfaces/IStockDetailRepository.ts"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-repositories-interfaces-IStockRepository",
+        "label": "IStockRepository.ts",
+        "type": "file",
+        "dependencies": "无（接口定义）",
+        "outputs": "IStockRepository 接口 - 定义股票数据访问操作的契约",
+        "responsibilities": "股票Repository接口，规范股票数据访问层的标准操作",
+        "path": "electron/repositories/interfaces/IStockRepository.ts"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-repositories-interfaces-index",
+        "label": "index.ts",
+        "type": "file",
+        "dependencies": "各Repository接口文件",
+        "outputs": "统一导出所有Repository接口",
+        "responsibilities": "Repository接口聚合模块，提供统一的导出入口",
+        "path": "electron/repositories/interfaces/index.ts"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-services",
+        "label": "Services 层 - 业务逻辑服务",
+        "type": "directory",
+        "dependencies": "repositories（数据访问）、tushare（外部API）、database（连接管理）",
+        "outputs": "向 ipc/ 层提供可调用的业务方法，是主进程的业务逻辑中枢",
+        "responsibilities": "封装业务逻辑，协调外部API与数据持久层，提供IPC调用接口",
+        "path": "electron/services"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-services-announcement",
+        "label": "announcement.ts",
+        "type": "file",
+        "dependencies": "TushareClient(API), AnnouncementRepository(数据), StockRepository(股票), FavoriteRepository(收藏), announcementClassifier(分类器)",
+        "outputs": "syncAnnouncements(), getGroupedAnnouncements() - 公告同步与聚合查询接口",
+        "responsibilities": "公告业务核心，连接API与数据层，负责智能分类和PDF下载管理",
+        "path": "electron/services/announcement.ts"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-services-classification",
+        "label": "classification.ts",
+        "type": "file",
+        "dependencies": "announcementClassifier(分类工具)",
+        "outputs": "classifyAnnouncementTitle(), classifyAnnouncementsBatch() - 分类规则管理接口",
+        "responsibilities": "公告分类规则服务，管理公告的智能分类逻辑",
+        "path": "electron/services/classification.ts"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-services-favorite",
+        "label": "favorite.ts",
+        "type": "file",
+        "dependencies": "FavoriteRepository(数据访问)",
+        "outputs": "addFavoriteStock(), removeFavoriteStock(), getAllFavoriteStocks() - 收藏管理CRUD接口",
+        "responsibilities": "用户收藏服务，提供股票收藏的业务逻辑封装",
+        "path": "electron/services/favorite.ts"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-services-holder",
+        "label": "holder.ts",
+        "type": "file",
+        "dependencies": "TushareClient(API), HolderRepository(数据), StockRepository(股票)",
+        "outputs": "syncAllTop10Holders(), pauseSync(), resumeSync(), stopSync() - 股东数据同步接口",
+        "responsibilities": "股东信息服务，负责十大股东和流通股东的增量数据同步",
+        "path": "electron/services/holder.ts"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-services-interfaces",
+        "label": "Services Interfaces - 服务接口定义",
+        "type": "directory",
+        "dependencies": "types（类型定义）",
+        "outputs": "向服务实现层提供接口契约，向调用方提供类型定义",
+        "responsibilities": "定义服务层的 TypeScript 接口规范，确保实现与契约一致",
+        "path": "electron/services/interfaces"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-services-interfaces-IAnnouncementService",
+        "label": "IAnnouncementService.ts",
+        "type": "file",
+        "dependencies": "无（接口定义）",
+        "outputs": "IAnnouncementService 接口规范 - 定义公告服务的契约",
+        "responsibilities": "服务层接口定义，规范公告服务的对外API",
+        "path": "electron/services/interfaces/IAnnouncementService.ts"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-services-interfaces-IClassificationService",
+        "label": "IClassificationService.ts",
+        "type": "file",
+        "dependencies": "无（接口定义）",
+        "outputs": "IClassificationService 接口规范 - 定义分类服务的契约",
+        "responsibilities": "服务层接口定义，规范分类服务的对外API",
+        "path": "electron/services/interfaces/IClassificationService.ts"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-services-interfaces-IFavoriteService",
+        "label": "IFavoriteService.ts",
+        "type": "file",
+        "dependencies": "无（接口定义）",
+        "outputs": "IFavoriteService 接口规范 - 定义收藏服务的契约",
+        "responsibilities": "服务层接口定义，规范收藏服务的对外API",
+        "path": "electron/services/interfaces/IFavoriteService.ts"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-services-interfaces-IHolderService",
+        "label": "IHolderService.ts",
+        "type": "file",
+        "dependencies": "无（接口定义）",
+        "outputs": "IHolderService 接口规范 - 定义股东服务的契约",
+        "responsibilities": "服务层接口定义，规范股东服务的对外API",
+        "path": "electron/services/interfaces/IHolderService.ts"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-services-interfaces-IStockService",
+        "label": "IStockService.ts",
+        "type": "file",
+        "dependencies": "无（接口定义）",
+        "outputs": "IStockService 接口规范 - 定义股票服务的契约",
+        "responsibilities": "服务层接口定义，规范股票服务的对外API",
+        "path": "electron/services/interfaces/IStockService.ts"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-services-interfaces-index",
+        "label": "index.ts",
+        "type": "file",
+        "dependencies": "各服务接口文件",
+        "outputs": "统一导出所有服务接口",
+        "responsibilities": "接口聚合模块，提供统一的导出入口",
+        "path": "electron/services/interfaces/index.ts"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-services-stock-detail-sync",
+        "label": "stock-detail-sync.ts",
+        "type": "file",
+        "dependencies": "TushareClient(API), StockDetailRepository(数据), syncFlagManager(状态管理)",
+        "outputs": "syncStockDetailsWithResume(), getStockDetailsSyncProgress() - 断点续传同步接口",
+        "responsibilities": "股票详情同步工具，实现增量更新、断点续传和进度管理的低级别同步引擎",
+        "path": "electron/services/stock-detail-sync.ts"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-services-stock",
+        "label": "stock.ts",
+        "type": "file",
+        "dependencies": "TushareClient(API), StockRepository(基础), StockDetailRepository(详情), stock-detail-sync(同步引擎)",
+        "outputs": "syncStocksIfNeeded(), syncAllStocks() - 股票数据同步接口",
+        "responsibilities": "股票数据服务核心，管理股票列表与详情的增量同步协调",
+        "path": "electron/services/stock.ts"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-tushare",
+        "label": "tushare.ts",
+        "type": "file",
+        "dependencies": "",
+        "outputs": "",
+        "responsibilities": "",
+        "path": "electron/tushare.ts"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-types",
+        "label": "types",
+        "type": "directory",
+        "dependencies": "",
+        "outputs": "",
+        "responsibilities": "",
+        "path": "electron/types"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-types-errors",
+        "label": "errors.ts",
+        "type": "file",
+        "dependencies": "",
+        "outputs": "",
+        "responsibilities": "",
+        "path": "electron/types/errors.ts"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-types-index",
+        "label": "index.ts",
+        "type": "file",
+        "dependencies": "",
+        "outputs": "",
+        "responsibilities": "",
+        "path": "electron/types/index.ts"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-updater",
+        "label": "updater",
+        "type": "directory",
+        "dependencies": "",
+        "outputs": "",
+        "responsibilities": "",
+        "path": "electron/updater"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-updater-index",
+        "label": "index.ts",
+        "type": "file",
+        "dependencies": "",
+        "outputs": "",
+        "responsibilities": "",
+        "path": "electron/updater/index.ts"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-utils",
+        "label": "utils",
+        "type": "directory",
+        "dependencies": "",
+        "outputs": "",
+        "responsibilities": "",
+        "path": "electron/utils"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-utils-announcementClassifier",
+        "label": "announcementClassifier.ts",
+        "type": "file",
+        "dependencies": "",
+        "outputs": "",
+        "responsibilities": "",
+        "path": "electron/utils/announcementClassifier.ts"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-utils-logger",
+        "label": "logger.ts",
+        "type": "file",
+        "dependencies": "",
+        "outputs": "",
+        "responsibilities": "",
+        "path": "electron/utils/logger.ts"
+      }
+    },
+    {
+      "data": {
+        "id": "src",
+        "label": "React 渲染进程",
+        "type": "root",
+        "dependencies": "",
+        "outputs": "",
+        "responsibilities": "渲染进程UI和交互",
+        "path": "src"
+      }
+    },
+    {
+      "data": {
+        "id": "src-App",
+        "label": "App.tsx",
+        "type": "file",
+        "dependencies": "",
+        "outputs": "",
+        "responsibilities": "",
+        "path": "src/App.tsx"
+      }
+    },
+    {
+      "data": {
+        "id": "src-assets",
+        "label": "assets",
+        "type": "directory",
+        "dependencies": "",
+        "outputs": "",
+        "responsibilities": "",
+        "path": "src/assets"
+      }
+    },
+    {
+      "data": {
+        "id": "src-components",
+        "label": "Components - UI组件层",
+        "type": "directory",
+        "dependencies": "Ant Design(UI库)、hooks(业务逻辑)、services(IPC通信封装)、types(类型定义)",
+        "outputs": "向pages层提供可复用的UI组件，是渲染进程的UI构建基础",
+        "responsibilities": "封装可复用的UI组件，提供用户界面展示和交互功能",
+        "path": "src/components"
+      }
+    },
+    {
+      "data": {
+        "id": "src-components-AnnouncementList",
+        "label": "AnnouncementList.tsx",
+        "type": "file",
+        "dependencies": "useStockList(hook), useStockFilter(hook), StockList(组件), announcementClassifier(分类工具), window.electron(IPC)",
+        "outputs": "AnnouncementList 组件 - 公告列表展示组件，提供搜索、筛选、分页、PDF查看等功能",
+        "responsibilities": "渲染进程核心UI组件，负责公告数据的展示和交互，是用户与公告数据的主要界面",
+        "path": "src/components/AnnouncementList.tsx"
+      }
+    },
+    {
+      "data": {
+        "id": "src-components-CacheDataIndicator",
+        "label": "CacheDataIndicator.tsx",
+        "type": "file",
+        "dependencies": "window.electron(IPC), Ant Design(UI组件)",
+        "outputs": "CacheDataIndicator 组件 - 缓存数据统计指示器，显示本地数据概览",
+        "responsibilities": "渲染进程UI组件，展示本地数据库的统计信息（股票数、公告数、收藏数等）",
+        "path": "src/components/CacheDataIndicator.tsx"
+      }
+    },
+    {
+      "data": {
+        "id": "src-components-ClassificationRuleEditor",
+        "label": "ClassificationRuleEditor.tsx",
+        "type": "file",
+        "dependencies": "window.electron(IPC分类接口), Ant Design(UI组件)",
+        "outputs": "ClassificationRuleEditor 组件 - 分类规则编辑器，提供分类规则的CRUD管理界面",
+        "responsibilities": "渲染进程UI组件，负责公告分类规则的可视化编辑和管理",
+        "path": "src/components/ClassificationRuleEditor.tsx"
+      }
+    },
+    {
+      "data": {
+        "id": "src-components-FavoriteButton",
+        "label": "FavoriteButton.tsx",
+        "type": "file",
+        "dependencies": "useFavoriteStocks(hook), window.electron(IPC), Ant Design(UI组件)",
+        "outputs": "FavoriteButton 组件 - 收藏按钮组件，提供股票收藏/取消收藏功能",
+        "responsibilities": "渲染进程UI组件，封装股票收藏功能的交互逻辑，可复用于多个场景",
+        "path": "src/components/FavoriteButton.tsx"
+      }
+    },
+    {
+      "data": {
+        "id": "src-components-Layout",
+        "label": "Layout.tsx",
+        "type": "file",
+        "dependencies": "react-router-dom(路由), Ant Design Layout(布局组件), CacheDataIndicator(组件)",
+        "outputs": "Layout 组件 - 应用主布局组件，提供导航菜单和内容区域",
+        "responsibilities": "渲染进程布局组件，定义应用的整体结构（导航栏、侧边栏、内容区）",
+        "path": "src/components/Layout.tsx"
+      }
+    },
+    {
+      "data": {
+        "id": "src-components-PDFViewer",
+        "label": "PDFViewer.tsx",
+        "type": "file",
+        "dependencies": "react-pdf(PDF库), Ant Design(UI组件), window.electron(IPC获取PDF)",
+        "outputs": "PDFViewer 组件 - PDF查看器组件，提供PDF文件的预览和下载功能",
+        "responsibilities": "渲染进程UI组件，负责公告PDF文件的展示和交互",
+        "path": "src/components/PDFViewer.tsx"
+      }
+    },
+    {
+      "data": {
+        "id": "src-components-PDFWebViewer",
+        "label": "PDFWebViewer.tsx",
+        "type": "file",
+        "dependencies": "Electron webview API, Ant Design(UI组件), window.electron(IPC获取PDF)",
+        "outputs": "PDFWebViewer 组件 - WebView版PDF查看器，使用Electron原生webview展示PDF",
+        "responsibilities": "渲染进程UI组件，提供基于webview的PDF查看方案（备选方案）",
+        "path": "src/components/PDFWebViewer.tsx"
+      }
+    },
+    {
+      "data": {
+        "id": "src-components-StockList",
+        "label": "StockList - 股票列表组件",
+        "type": "directory",
+        "dependencies": "FavoriteButton(组件), useStockList(hook), types(类型定义)",
+        "outputs": "向其他组件提供可复用的股票列表展示功能",
+        "responsibilities": "提供通用股票列表组件，封装股票列表的展示逻辑",
+        "path": "src/components/StockList"
+      }
+    },
+    {
+      "data": {
+        "id": "src-components-StockList-StockList",
+        "label": "StockList.tsx",
+        "type": "file",
+        "dependencies": "FavoriteButton(组件), useStockList(hook), types(类型定义), announcementClassifier(分类工具)",
+        "outputs": "StockList 组件 - 通用股票列表组件，提供搜索、筛选、分页、收藏等功能",
+        "responsibilities": "渲染进程UI组件，封装股票列表的通用展示逻辑，可复用于多个页面",
+        "path": "src/components/StockList/StockList.tsx"
+      }
+    },
+    {
+      "data": {
+        "id": "src-components-StockList-index",
+        "label": "index.ts",
+        "type": "file",
+        "dependencies": "StockList(组件)",
+        "outputs": "统一导出 StockList 组件及其类型定义",
+        "responsibilities": "组件导出聚合模块，提供统一的导出入口",
+        "path": "src/components/StockList/index.ts"
+      }
+    },
+    {
+      "data": {
+        "id": "src-components-StockListSyncIndicator",
+        "label": "StockListSyncIndicator.tsx",
+        "type": "file",
+        "dependencies": "window.electron(IPC同步接口), Ant Design(UI组件)",
+        "outputs": "StockListSyncIndicator 组件 - 股票列表同步指示器，显示同步进度和状态",
+        "responsibilities": "渲染进程UI组件，提供股票数据同步的可视化反馈",
+        "path": "src/components/StockListSyncIndicator.tsx"
+      }
+    },
+    {
+      "data": {
+        "id": "src-components-UpdateChecker",
+        "label": "UpdateChecker.tsx",
+        "type": "file",
+        "dependencies": "window.electron(IPC更新接口), Ant Design(UI组件)",
+        "outputs": "UpdateChecker 组件 - 自动更新检查器，提供版本检查和更新下载功能",
+        "responsibilities": "渲染进程UI组件，负责应用自动更新的用户界面和交互",
+        "path": "src/components/UpdateChecker.tsx"
+      }
+    },
+    {
+      "data": {
+        "id": "src-hooks",
+        "label": "Hooks - 业务逻辑Hook层",
+        "type": "directory",
+        "dependencies": "services(IPC通信封装)、types(类型定义)、Ant Design(消息提示)",
+        "outputs": "向components层提供业务逻辑Hook，隔离UI与业务逻辑",
+        "responsibilities": "封装业务逻辑的状态管理和数据获取，提供可复用的React Hook",
+        "path": "src/hooks"
+      }
+    },
+    {
+      "data": {
+        "id": "src-hooks-useFavoriteStocks",
+        "label": "useFavoriteStocks.ts",
+        "type": "file",
+        "dependencies": "window.electronAPI(IPC), Ant Design App(消息提示)",
+        "outputs": "useFavoriteStocks Hook - 提供收藏股票的状态管理和操作方法",
+        "responsibilities": "渲染进程业务逻辑Hook，封装股票收藏的状态管理和IPC调用",
+        "path": "src/hooks/useFavoriteStocks.ts"
+      }
+    },
+    {
+      "data": {
+        "id": "src-hooks-useStockFilter",
+        "label": "useStockFilter.ts",
+        "type": "file",
+        "dependencies": "dayjs(日期库), types(类型定义)",
+        "outputs": "useStockFilter Hook - 提供股票筛选条件的状态管理（市场、关键词、日期范围等）",
+        "responsibilities": "渲染进程业务逻辑Hook，封装股票筛选的状态管理和逻辑处理",
+        "path": "src/hooks/useStockFilter.ts"
+      }
+    },
+    {
+      "data": {
+        "id": "src-hooks-useStockList",
+        "label": "useStockList.ts",
+        "type": "file",
+        "dependencies": "stockService(服务层), types(类型定义), Ant Design App(消息提示)",
+        "outputs": "useStockList Hook - 提供股票列表数据获取、分页、筛选的状态管理",
+        "responsibilities": "渲染进程业务逻辑Hook，封装股票列表的数据获取和状态管理逻辑",
+        "path": "src/hooks/useStockList.ts"
+      }
+    },
+    {
+      "data": {
+        "id": "src-main",
+        "label": "main.tsx",
+        "type": "file",
+        "dependencies": "",
+        "outputs": "",
+        "responsibilities": "",
+        "path": "src/main.tsx"
+      }
+    },
+    {
+      "data": {
+        "id": "src-pages",
+        "label": "Pages - 页面层",
+        "type": "directory",
+        "dependencies": "components(UI组件)、hooks(业务逻辑)、react-router-dom(路由)",
+        "outputs": "向路由系统提供页面组件，是用户访问的功能入口",
+        "responsibilities": "定义应用的路由页面，组合components和hooks，形成完整的页面功能",
+        "path": "src/pages"
+      }
+    },
+    {
+      "data": {
+        "id": "src-pages-Announcements",
+        "label": "Announcements.tsx",
+        "type": "file",
+        "dependencies": "AnnouncementList(组件)",
+        "outputs": "Announcements 页面组件 - 公告列表页面",
+        "responsibilities": "渲染进程页面组件，公告功能的主入口页面",
+        "path": "src/pages/Announcements.tsx"
+      }
+    },
+    {
+      "data": {
+        "id": "src-pages-ArchitectureVisualization",
+        "label": "ArchitectureVisualization.tsx",
+        "type": "file",
+        "dependencies": "cytoscape(图形库), cytoscapeData(生成的数据), Ant Design(UI组件)",
+        "outputs": "ArchitectureVisualization 页面组件 - 架构可视化页面",
+        "responsibilities": "使用Cytoscape.js可视化项目的文件和文件夹依赖关系",
+        "path": "src/pages/ArchitectureVisualization.tsx"
+      }
+    },
+    {
+      "data": {
+        "id": "src-pages-DataInsights",
+        "label": "DataInsights.tsx",
+        "type": "file",
+        "dependencies": "window.electronAPI(IPC), Ant Design(UI组件), types(类型定义)",
+        "outputs": "DataInsights 页面组件 - 数据洞察页面，提供股东数据同步和统计展示",
+        "responsibilities": "渲染进程页面组件，数据分析和洞察功能的主界面",
+        "path": "src/pages/DataInsights.tsx"
+      }
+    },
+    {
+      "data": {
+        "id": "src-pages-Settings",
+        "label": "Settings.tsx",
+        "type": "file",
+        "dependencies": "window.electronAPI(IPC), Ant Design(UI组件), ClassificationRuleEditor(组件)",
+        "outputs": "Settings 页面组件 - 设置页面，提供应用配置和分类规则管理",
+        "responsibilities": "渲染进程页面组件，应用设置和配置管理的主界面",
+        "path": "src/pages/Settings.tsx"
+      }
+    },
+    {
+      "data": {
+        "id": "src-services",
+        "label": "Services - IPC通信封装层",
+        "type": "directory",
+        "dependencies": "window.electronAPI(IPC), types(类型定义)",
+        "outputs": "向hooks和components层提供业务服务函数，隔离IPC调用细节",
+        "responsibilities": "封装IPC通信调用，提供类型安全的服务接口，处理数据转换和错误处理",
+        "path": "src/services"
+      }
+    },
+    {
+      "data": {
+        "id": "src-services-favoriteStockService",
+        "label": "favoriteStockService.ts",
+        "type": "file",
+        "dependencies": "window.electronAPI(IPC), types(类型定义)",
+        "outputs": "markFavoriteStatus() - 为股票列表标记收藏状态的服务函数",
+        "responsibilities": "渲染进程服务层，封装收藏状态的标记逻辑，为股票数据添加isFavorite字段",
+        "path": "src/services/favoriteStockService.ts"
+      }
+    },
+    {
+      "data": {
+        "id": "src-services-stockListSync",
+        "label": "stockListSync.ts",
+        "type": "file",
+        "dependencies": "window.electronAPI(IPC)",
+        "outputs": "StockListSyncService 类 - 股票列表同步服务，提供同步状态管理和进度回调",
+        "responsibilities": "渲染进程服务层，封装股票列表同步的业务逻辑，管理同步状态和进度",
+        "path": "src/services/stockListSync.ts"
+      }
+    },
+    {
+      "data": {
+        "id": "src-services-stockService",
+        "label": "stockService.ts",
+        "type": "file",
+        "dependencies": "window.electronAPI(IPC), favoriteStockService(收藏服务), types(类型定义)",
+        "outputs": "getAnnouncementsGrouped(), getAllStocks() - 股票数据获取服务函数",
+        "responsibilities": "渲染进程服务层，封装股票相关的IPC调用，提供数据获取和处理的统一接口",
+        "path": "src/services/stockService.ts"
+      }
+    },
+    {
+      "data": {
+        "id": "src-types",
+        "label": "Types - 类型定义层",
+        "type": "directory",
+        "dependencies": "无（类型定义）",
+        "outputs": "向其他层提供类型定义，确保类型安全和代码一致性",
+        "responsibilities": "定义TypeScript类型和接口，提供类型安全和代码提示",
+        "path": "src/types"
+      }
+    },
+    {
+      "data": {
+        "id": "src-types-stock",
+        "label": "stock.ts",
+        "type": "file",
+        "dependencies": "无（类型定义）",
+        "outputs": "Stock, StockGroup, StockFilter 等类型定义 - 股票相关的TypeScript类型",
+        "responsibilities": "渲染进程类型定义层，定义股票、筛选条件等数据结构，提供类型安全",
+        "path": "src/types/stock.ts"
+      }
+    },
+    {
+      "data": {
+        "id": "src-utils",
+        "label": "Utils - 工具函数层",
+        "type": "directory",
+        "dependencies": "无（纯函数）或仅依赖标准库",
+        "outputs": "向其他层提供工具函数，提高代码复用性",
+        "responsibilities": "提供可复用的纯函数工具，不依赖业务逻辑和状态",
+        "path": "src/utils"
+      }
+    },
+    {
+      "data": {
+        "id": "src-utils-announcementClassifier.example",
+        "label": "announcementClassifier.example.ts",
+        "type": "file",
+        "dependencies": "announcementClassifier(分类工具)",
+        "outputs": "无（示例代码文件）",
+        "responsibilities": "渲染进程工具层示例文件，展示announcementClassifier的使用方法",
+        "path": "src/utils/announcementClassifier.example.ts"
+      }
+    },
+    {
+      "data": {
+        "id": "src-utils-announcementClassifier",
+        "label": "announcementClassifier.ts",
+        "type": "file",
+        "dependencies": "无（纯函数工具）",
+        "outputs": "classifyAnnouncement(), getCategoryColor(), getCategoryIcon() - 公告分类工具函数",
+        "responsibilities": "渲染进程工具层，提供公告标题的智能分类功能，基于规则匹配进行分类",
+        "path": "src/utils/announcementClassifier.ts"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "data": {
+        "id": "electron-electron-core",
+        "source": "electron",
+        "target": "electron-core"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-core-electron-core-shortcuts",
+        "source": "electron-core",
+        "target": "electron-core-shortcuts"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-core-electron-core-tray",
+        "source": "electron-core",
+        "target": "electron-core-tray"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-core-electron-core-window",
+        "source": "electron-core",
+        "target": "electron-core-window"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-electron-database",
+        "source": "electron",
+        "target": "electron-database"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-database-electron-database-connection",
+        "source": "electron-database",
+        "target": "electron-database-connection"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-database-electron-database-index",
+        "source": "electron-database",
+        "target": "electron-database-index"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-database-electron-database-migrations",
+        "source": "electron-database",
+        "target": "electron-database-migrations"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-database-electron-database-syncFlags",
+        "source": "electron-database",
+        "target": "electron-database-syncFlags"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-electron-db",
+        "source": "electron",
+        "target": "electron-db"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-electron-di",
+        "source": "electron",
+        "target": "electron-di"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-di-electron-di-container",
+        "source": "electron-di",
+        "target": "electron-di-container"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-di-electron-di-index",
+        "source": "electron-di",
+        "target": "electron-di-index"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-di-electron-di-serviceRegistry",
+        "source": "electron-di",
+        "target": "electron-di-serviceRegistry"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-electron-ipc",
+        "source": "electron",
+        "target": "electron-ipc"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-ipc-electron-ipc-announcement",
+        "source": "electron-ipc",
+        "target": "electron-ipc-announcement"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-ipc-electron-ipc-classification",
+        "source": "electron-ipc",
+        "target": "electron-ipc-classification"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-ipc-electron-ipc-database",
+        "source": "electron-ipc",
+        "target": "electron-ipc-database"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-ipc-electron-ipc-favorite",
+        "source": "electron-ipc",
+        "target": "electron-ipc-favorite"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-ipc-electron-ipc-holder",
+        "source": "electron-ipc",
+        "target": "electron-ipc-holder"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-ipc-electron-ipc-index",
+        "source": "electron-ipc",
+        "target": "electron-ipc-index"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-ipc-electron-ipc-middleware",
+        "source": "electron-ipc",
+        "target": "electron-ipc-middleware"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-ipc-middleware-electron-ipc-middleware-errorHandler",
+        "source": "electron-ipc-middleware",
+        "target": "electron-ipc-middleware-errorHandler"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-ipc-middleware-electron-ipc-middleware-index",
+        "source": "electron-ipc-middleware",
+        "target": "electron-ipc-middleware-index"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-ipc-electron-ipc-stock",
+        "source": "electron-ipc",
+        "target": "electron-ipc-stock"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-ipc-electron-ipc-system",
+        "source": "electron-ipc",
+        "target": "electron-ipc-system"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-ipc-electron-ipc-updater",
+        "source": "electron-ipc",
+        "target": "electron-ipc-updater"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-electron-main",
+        "source": "electron",
+        "target": "electron-main"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-electron-preload",
+        "source": "electron",
+        "target": "electron-preload"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-electron-repositories",
+        "source": "electron",
+        "target": "electron-repositories"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-repositories-electron-repositories-base",
+        "source": "electron-repositories",
+        "target": "electron-repositories-base"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-repositories-base-electron-repositories-base-BaseRepository",
+        "source": "electron-repositories-base",
+        "target": "electron-repositories-base-BaseRepository"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-repositories-electron-repositories-implementations",
+        "source": "electron-repositories",
+        "target": "electron-repositories-implementations"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-repositories-implementations-electron-repositories-implementations-AnnouncementRepository",
+        "source": "electron-repositories-implementations",
+        "target": "electron-repositories-implementations-AnnouncementRepository"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-repositories-implementations-electron-repositories-implementations-ClassificationRepository",
+        "source": "electron-repositories-implementations",
+        "target": "electron-repositories-implementations-ClassificationRepository"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-repositories-implementations-electron-repositories-implementations-FavoriteRepository",
+        "source": "electron-repositories-implementations",
+        "target": "electron-repositories-implementations-FavoriteRepository"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-repositories-implementations-electron-repositories-implementations-HolderRepository",
+        "source": "electron-repositories-implementations",
+        "target": "electron-repositories-implementations-HolderRepository"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-repositories-implementations-electron-repositories-implementations-StockDetailRepository",
+        "source": "electron-repositories-implementations",
+        "target": "electron-repositories-implementations-StockDetailRepository"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-repositories-implementations-electron-repositories-implementations-StockRepository",
+        "source": "electron-repositories-implementations",
+        "target": "electron-repositories-implementations-StockRepository"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-repositories-implementations-electron-repositories-implementations-index",
+        "source": "electron-repositories-implementations",
+        "target": "electron-repositories-implementations-index"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-repositories-electron-repositories-interfaces",
+        "source": "electron-repositories",
+        "target": "electron-repositories-interfaces"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-repositories-interfaces-electron-repositories-interfaces-IAnnouncementRepository",
+        "source": "electron-repositories-interfaces",
+        "target": "electron-repositories-interfaces-IAnnouncementRepository"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-repositories-interfaces-electron-repositories-interfaces-IClassificationRepository",
+        "source": "electron-repositories-interfaces",
+        "target": "electron-repositories-interfaces-IClassificationRepository"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-repositories-interfaces-electron-repositories-interfaces-IFavoriteRepository",
+        "source": "electron-repositories-interfaces",
+        "target": "electron-repositories-interfaces-IFavoriteRepository"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-repositories-interfaces-electron-repositories-interfaces-IHolderRepository",
+        "source": "electron-repositories-interfaces",
+        "target": "electron-repositories-interfaces-IHolderRepository"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-repositories-interfaces-electron-repositories-interfaces-IRepository",
+        "source": "electron-repositories-interfaces",
+        "target": "electron-repositories-interfaces-IRepository"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-repositories-interfaces-electron-repositories-interfaces-IStockDetailRepository",
+        "source": "electron-repositories-interfaces",
+        "target": "electron-repositories-interfaces-IStockDetailRepository"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-repositories-interfaces-electron-repositories-interfaces-IStockRepository",
+        "source": "electron-repositories-interfaces",
+        "target": "electron-repositories-interfaces-IStockRepository"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-repositories-interfaces-electron-repositories-interfaces-index",
+        "source": "electron-repositories-interfaces",
+        "target": "electron-repositories-interfaces-index"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-electron-services",
+        "source": "electron",
+        "target": "electron-services"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-services-electron-services-announcement",
+        "source": "electron-services",
+        "target": "electron-services-announcement"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-services-electron-services-classification",
+        "source": "electron-services",
+        "target": "electron-services-classification"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-services-electron-services-favorite",
+        "source": "electron-services",
+        "target": "electron-services-favorite"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-services-electron-services-holder",
+        "source": "electron-services",
+        "target": "electron-services-holder"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-services-electron-services-interfaces",
+        "source": "electron-services",
+        "target": "electron-services-interfaces"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-services-interfaces-electron-services-interfaces-IAnnouncementService",
+        "source": "electron-services-interfaces",
+        "target": "electron-services-interfaces-IAnnouncementService"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-services-interfaces-electron-services-interfaces-IClassificationService",
+        "source": "electron-services-interfaces",
+        "target": "electron-services-interfaces-IClassificationService"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-services-interfaces-electron-services-interfaces-IFavoriteService",
+        "source": "electron-services-interfaces",
+        "target": "electron-services-interfaces-IFavoriteService"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-services-interfaces-electron-services-interfaces-IHolderService",
+        "source": "electron-services-interfaces",
+        "target": "electron-services-interfaces-IHolderService"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-services-interfaces-electron-services-interfaces-IStockService",
+        "source": "electron-services-interfaces",
+        "target": "electron-services-interfaces-IStockService"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-services-interfaces-electron-services-interfaces-index",
+        "source": "electron-services-interfaces",
+        "target": "electron-services-interfaces-index"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-services-electron-services-stock-detail-sync",
+        "source": "electron-services",
+        "target": "electron-services-stock-detail-sync"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-services-electron-services-stock",
+        "source": "electron-services",
+        "target": "electron-services-stock"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-electron-tushare",
+        "source": "electron",
+        "target": "electron-tushare"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-electron-types",
+        "source": "electron",
+        "target": "electron-types"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-types-electron-types-errors",
+        "source": "electron-types",
+        "target": "electron-types-errors"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-types-electron-types-index",
+        "source": "electron-types",
+        "target": "electron-types-index"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-electron-updater",
+        "source": "electron",
+        "target": "electron-updater"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-updater-electron-updater-index",
+        "source": "electron-updater",
+        "target": "electron-updater-index"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-electron-utils",
+        "source": "electron",
+        "target": "electron-utils"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-utils-electron-utils-announcementClassifier",
+        "source": "electron-utils",
+        "target": "electron-utils-announcementClassifier"
+      }
+    },
+    {
+      "data": {
+        "id": "electron-utils-electron-utils-logger",
+        "source": "electron-utils",
+        "target": "electron-utils-logger"
+      }
+    },
+    {
+      "data": {
+        "id": "src-src-App",
+        "source": "src",
+        "target": "src-App"
+      }
+    },
+    {
+      "data": {
+        "id": "src-src-assets",
+        "source": "src",
+        "target": "src-assets"
+      }
+    },
+    {
+      "data": {
+        "id": "src-src-components",
+        "source": "src",
+        "target": "src-components"
+      }
+    },
+    {
+      "data": {
+        "id": "src-components-src-components-AnnouncementList",
+        "source": "src-components",
+        "target": "src-components-AnnouncementList"
+      }
+    },
+    {
+      "data": {
+        "id": "src-components-src-components-CacheDataIndicator",
+        "source": "src-components",
+        "target": "src-components-CacheDataIndicator"
+      }
+    },
+    {
+      "data": {
+        "id": "src-components-src-components-ClassificationRuleEditor",
+        "source": "src-components",
+        "target": "src-components-ClassificationRuleEditor"
+      }
+    },
+    {
+      "data": {
+        "id": "src-components-src-components-FavoriteButton",
+        "source": "src-components",
+        "target": "src-components-FavoriteButton"
+      }
+    },
+    {
+      "data": {
+        "id": "src-components-src-components-Layout",
+        "source": "src-components",
+        "target": "src-components-Layout"
+      }
+    },
+    {
+      "data": {
+        "id": "src-components-src-components-PDFViewer",
+        "source": "src-components",
+        "target": "src-components-PDFViewer"
+      }
+    },
+    {
+      "data": {
+        "id": "src-components-src-components-PDFWebViewer",
+        "source": "src-components",
+        "target": "src-components-PDFWebViewer"
+      }
+    },
+    {
+      "data": {
+        "id": "src-components-src-components-StockList",
+        "source": "src-components",
+        "target": "src-components-StockList"
+      }
+    },
+    {
+      "data": {
+        "id": "src-components-StockList-src-components-StockList-StockList",
+        "source": "src-components-StockList",
+        "target": "src-components-StockList-StockList"
+      }
+    },
+    {
+      "data": {
+        "id": "src-components-StockList-src-components-StockList-index",
+        "source": "src-components-StockList",
+        "target": "src-components-StockList-index"
+      }
+    },
+    {
+      "data": {
+        "id": "src-components-src-components-StockListSyncIndicator",
+        "source": "src-components",
+        "target": "src-components-StockListSyncIndicator"
+      }
+    },
+    {
+      "data": {
+        "id": "src-components-src-components-UpdateChecker",
+        "source": "src-components",
+        "target": "src-components-UpdateChecker"
+      }
+    },
+    {
+      "data": {
+        "id": "src-src-hooks",
+        "source": "src",
+        "target": "src-hooks"
+      }
+    },
+    {
+      "data": {
+        "id": "src-hooks-src-hooks-useFavoriteStocks",
+        "source": "src-hooks",
+        "target": "src-hooks-useFavoriteStocks"
+      }
+    },
+    {
+      "data": {
+        "id": "src-hooks-src-hooks-useStockFilter",
+        "source": "src-hooks",
+        "target": "src-hooks-useStockFilter"
+      }
+    },
+    {
+      "data": {
+        "id": "src-hooks-src-hooks-useStockList",
+        "source": "src-hooks",
+        "target": "src-hooks-useStockList"
+      }
+    },
+    {
+      "data": {
+        "id": "src-src-main",
+        "source": "src",
+        "target": "src-main"
+      }
+    },
+    {
+      "data": {
+        "id": "src-src-pages",
+        "source": "src",
+        "target": "src-pages"
+      }
+    },
+    {
+      "data": {
+        "id": "src-pages-src-pages-Announcements",
+        "source": "src-pages",
+        "target": "src-pages-Announcements"
+      }
+    },
+    {
+      "data": {
+        "id": "src-pages-src-pages-ArchitectureVisualization",
+        "source": "src-pages",
+        "target": "src-pages-ArchitectureVisualization"
+      }
+    },
+    {
+      "data": {
+        "id": "src-pages-src-pages-DataInsights",
+        "source": "src-pages",
+        "target": "src-pages-DataInsights"
+      }
+    },
+    {
+      "data": {
+        "id": "src-pages-src-pages-Settings",
+        "source": "src-pages",
+        "target": "src-pages-Settings"
+      }
+    },
+    {
+      "data": {
+        "id": "src-src-services",
+        "source": "src",
+        "target": "src-services"
+      }
+    },
+    {
+      "data": {
+        "id": "src-services-src-services-favoriteStockService",
+        "source": "src-services",
+        "target": "src-services-favoriteStockService"
+      }
+    },
+    {
+      "data": {
+        "id": "src-services-src-services-stockListSync",
+        "source": "src-services",
+        "target": "src-services-stockListSync"
+      }
+    },
+    {
+      "data": {
+        "id": "src-services-src-services-stockService",
+        "source": "src-services",
+        "target": "src-services-stockService"
+      }
+    },
+    {
+      "data": {
+        "id": "src-src-types",
+        "source": "src",
+        "target": "src-types"
+      }
+    },
+    {
+      "data": {
+        "id": "src-types-src-types-stock",
+        "source": "src-types",
+        "target": "src-types-stock"
+      }
+    },
+    {
+      "data": {
+        "id": "src-src-utils",
+        "source": "src",
+        "target": "src-utils"
+      }
+    },
+    {
+      "data": {
+        "id": "src-utils-src-utils-announcementClassifier.example",
+        "source": "src-utils",
+        "target": "src-utils-announcementClassifier.example"
+      }
+    },
+    {
+      "data": {
+        "id": "src-utils-src-utils-announcementClassifier",
+        "source": "src-utils",
+        "target": "src-utils-announcementClassifier"
+      }
+    }
+  ]
+}

@@ -11,7 +11,7 @@
 
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { Layout as AntLayout, Menu } from "antd";
-import { NotificationOutlined, FundOutlined, SettingOutlined } from "@ant-design/icons";
+import { NotificationOutlined, FundOutlined, SettingOutlined, ApartmentOutlined } from "@ant-design/icons";
 import type { MenuProps } from "antd";
 import { CacheDataIndicator } from "./CacheDataIndicator";
 
@@ -29,6 +29,11 @@ const leftItems: MenuItem[] = [
 		key: "/data-insights",
 		icon: <FundOutlined />,
 		label: "数据洞察",
+	},
+	{
+		key: "/architecture",
+		icon: <ApartmentOutlined />,
+		label: "架构可视化",
 	},
 ];
 
