@@ -11,7 +11,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import cytoscape, { Core, NodeSingular } from "cytoscape";
-import { Card, Input, Descriptions, Drawer, Space, Button, Select, Typography } from "antd";
+import { Card, Input, Descriptions, Drawer, Space, Button, Select, Typography, Tag } from "antd";
 import { SearchOutlined, ZoomInOutlined, ZoomOutOutlined, FullscreenOutlined } from "@ant-design/icons";
 import cytoscapeData from "../assets/cytoscape-data.json";
 
@@ -404,23 +404,56 @@ export default function ArchitectureVisualization() {
 
 		<Drawer
 			title={
-				<Space vertical size={0}>
-					<Text strong style={{ fontSize: 16 }}>节点详情</Text>
-					<Text type="secondary" style={{ fontSize: 12 }}>
-						{selectedNode?.type === "root"
-							? "🔷 根节点"
-							: selectedNode?.type === "directory"
-								? "📁 目录"
-								: "📄 文件"}
-					</Text>
+				<Space vertical size={4} style={{ width: "100%" }}>
+					<Text strong style={{ fontSize: 18, lineHeight: 1.4 }}>节点详情</Text>
+					{selectedNode && (
+						<Space size="small" wrap style={{ marginTop: 2 }}>
+							<Tag
+								color={
+									selectedNode.type === "root"
+										? "orange"
+										: selectedNode.type === "directory"
+											? "green"
+											: "blue"
+								}
+								style={{ margin: 0, fontSize: 12, padding: "2px 8px", borderRadius: 4 }}
+							>
+								{selectedNode.type === "root"
+									? "🔷 根节点"
+									: selectedNode.type === "directory"
+										? "📁 目录"
+										: "📄 文件"}
+							</Tag>
+							<Tag
+								color="default"
+								style={{
+									margin: 0,
+									fontSize: 11,
+									padding: "2px 8px",
+									borderRadius: 4,
+									fontFamily: "monospace",
+									backgroundColor: "#f5f5f5",
+									borderColor: "#d9d9d9",
+								}}
+							>
+								ID: {selectedNode.id}
+							</Tag>
+						</Space>
+					)}
 				</Space>
 			}
 			placement="right"
 			open={drawerVisible}
 			onClose={() => setDrawerVisible(false)}
+			closable={false}
 			styles={{ 
 				body: { padding: "16px" },
-				wrapper: { width: "428px" }
+				wrapper: { width: "428px" },
+				header: { 
+					padding: "16px 24px",
+					borderBottom: "1px solid #f0f0f0",
+					backgroundColor: "#fafafa"
+				}
 			}}
 		>
 			{selectedNode && (
@@ -494,31 +527,6 @@ export default function ArchitectureVisualization() {
 							</Text>
 						</Card>
 					)}
-
-					{/* 统计信息 */}
-					<Card
-						size="small"
-						title={
-							<Space>
-								<span style={{ fontSize: 16 }}>📊</span>
-								<Text strong>统计信息</Text>
-							</Space>
-						}
-						styles={{ header: { backgroundColor: "#f5f3ff", borderBottom: "2px solid #8b5cf6" } }}
-					>
-						<Descriptions column={1} size="small">
-							<Descriptions.Item label="节点ID">
-								<Text code style={{ fontSize: 12 }}>{selectedNode.id}</Text>
-							</Descriptions.Item>
-							<Descriptions.Item label="节点类型">
-								{selectedNode.type === "root"
-									? "根节点"
-									: selectedNode.type === "directory"
-										? "目录"
-										: "文件"}
-							</Descriptions.Item>
-						</Descriptions>
-					</Card>
 				</Space>
 			)}
 		</Drawer>
