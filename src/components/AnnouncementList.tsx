@@ -348,7 +348,7 @@ export function AnnouncementList() {
 					/>
 					{/* 独立的分页组件 */}
 					{filteredAnnouncements.length > expandedRows.pageSize && (
-						<div style={{ marginTop: 16, textAlign: "center" }}>
+						<div className="expanded-row-pagination" style={{ marginTop: 16, textAlign: "center" }}>
 							<Pagination
 								current={currentPage}
 								pageSize={expandedRows.pageSize}
@@ -647,28 +647,17 @@ export function AnnouncementList() {
 
 				{/* 自定义分页 */}
 				{!loading && filteredStockGroups.length > 0 && (
-					<div
-						style={{
-							marginTop: 16,
-							display: "flex",
-							justifyContent: "space-between",
-							alignItems: "center",
-							padding: "16px 0",
-							borderTop: "1px solid #f0f0f0",
-						}}
-					>
-						<AntText type="secondary">
-							显示第 <AntText strong>{page}</AntText> 页 共 <AntText strong>{Math.ceil(total / PAGE_SIZE)}</AntText> 页 (总计{" "}
-							<AntText strong>{total.toLocaleString()}</AntText> 只股票)
-						</AntText>
-						<div style={{ display: "flex", gap: 8 }}>
-							<Button onClick={prevPage} disabled={page === 1}>
-								上一页
-							</Button>
-							<Button onClick={nextPage} disabled={page >= Math.ceil(total / PAGE_SIZE)}>
-								下一页
-							</Button>
-						</div>
+					<div className="expanded-row-pagination" style={{ marginTop: 16, textAlign: "center" }}>
+						<Pagination
+							current={page}
+							pageSize={PAGE_SIZE}
+							total={total}
+							size="small"
+							showSizeChanger={false}
+							showTotal={(total) => `共 ${total.toLocaleString()} 只股票`}
+							onChange={goToPage}
+							showQuickJumper
+						/>
 					</div>
 				)}
 			</Card>

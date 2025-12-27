@@ -995,10 +995,21 @@
         "id": "src-hooks-useAnnouncementFilter",
         "label": "useAnnouncementFilter.ts",
         "type": "file",
-        "dependencies": "useStockFilter(hook), useDebounce(hook), types(类型定义)",
+        "dependencies": "useStockFilter(hook), types(类型定义)",
         "outputs": "useAnnouncementFilter Hook - 统一管理公告列表的所有筛选条件（包括防抖搜索）",
         "responsibilities": "渲染进程业务逻辑Hook，整合所有筛选条件，提供统一的筛选接口",
         "path": "src/hooks/useAnnouncementFilter.ts"
+      }
+    },
+    {
+      "data": {
+        "id": "src-hooks-useExpandedRows",
+        "label": "useExpandedRows.ts",
+        "type": "file",
+        "dependencies": "useState, useCallback, window.electronAPI(IPC), Ant Design App(消息提示)",
+        "outputs": "useExpandedRows Hook - 管理表格展开行的状态和数据加载",
+        "responsibilities": "渲染进程业务逻辑Hook，封装展开行的状态管理、数据加载和分页逻辑",
+        "path": "src/hooks/useExpandedRows.ts"
       }
     },
     {
@@ -1910,6 +1921,14 @@
         "id": "hierarchy-src-hooks-src-hooks-useAnnouncementFilter",
         "source": "src-hooks",
         "target": "src-hooks-useAnnouncementFilter",
+        "type": "hierarchy"
+      }
+    },
+    {
+      "data": {
+        "id": "hierarchy-src-hooks-src-hooks-useExpandedRows",
+        "source": "src-hooks",
+        "target": "src-hooks-useExpandedRows",
         "type": "hierarchy"
       }
     },

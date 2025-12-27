@@ -137,14 +137,53 @@ body {
 
 /* 总数显示文字 */
 .ant-pagination-total-text {
-	position: absolute !important;
-	left: 50% !important;
-	transform: translateX(-50%) !important;
 	color: #595959 !important;
 	font-size: 13px !important;
 	font-weight: 500 !important;
 	white-space: nowrap !important;
+	margin-right: 8px !important;
+}
+
+/* 仅在表格底部分页中使用绝对定位 */
+.ant-table-pagination.ant-pagination .ant-pagination-total-text {
+	position: absolute !important;
+	left: 50% !important;
+	transform: translateX(-50%) !important;
 	pointer-events: none !important;
+	margin-right: 0 !important;
+}
+
+/* 展开行内的分页组件样式优化 */
+.expanded-row-pagination .ant-pagination {
+	position: relative !important;
+	display: flex !important;
+	justify-content: center !important;
+	align-items: center !important;
+	flex-wrap: wrap !important;
+	gap: 8px !important;
+	padding: 8px 0 !important;
+	background-color: transparent !important;
+	border: none !important;
+	margin: 0 !important;
+}
+
+.expanded-row-pagination .ant-pagination-total-text {
+	position: static !important;
+	transform: none !important;
+	margin-right: 8px !important;
+	pointer-events: auto !important;
+}
+
+.expanded-row-pagination .ant-pagination-item,
+.expanded-row-pagination .ant-pagination-prev,
+.expanded-row-pagination .ant-pagination-next,
+.expanded-row-pagination .ant-pagination-jump-prev,
+.expanded-row-pagination .ant-pagination-jump-next {
+	margin: 0 2px !important;
+}
+
+.expanded-row-pagination .ant-pagination-options {
+	margin-left: 8px !important;
 }
 
 /* 禁用状态 */

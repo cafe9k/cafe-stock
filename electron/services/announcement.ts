@@ -356,8 +356,8 @@ export async function getFavoriteStocksAnnouncementsGroupedFromAPI(
 		}
 	}
 
-	// 按股票聚合公告数据
-	const groupedData = aggregateAnnouncementsByStock(favoriteStockInfos, announcements);
+	// 按股票聚合公告数据（关注股票模式：即使没有公告也要显示股票）
+	const groupedData = aggregateAnnouncementsByStock(favoriteStockInfos, announcements, true);
 
 	const total = groupedData.length;
 	const offset = (page - 1) * pageSize;
@@ -368,8 +368,11 @@ export async function getFavoriteStocksAnnouncementsGroupedFromAPI(
 
 /**
  * 按股票聚合公告数据（通用函数）
+ * @param stocks 股票列表
+ * @param announcements 公告列表
+ * @param includeStocksWithoutAnnouncements 是否包含没有公告的股票（用于关注股票模式）
  */
-function aggregateAnnouncementsByStock(stocks: any[], announcements: any[]): GroupedAnnouncement[] {
+function aggregateAnnouncementsByStock(stocks: any[], announcements: any[], includeStocksWithoutAnnouncements: boolean = false): GroupedAnnouncement[] {
 	// 批量获取市值数据
 	const tsCodes = stocks.map((s: any) => s.ts_code);
 	const marketValues = stockDetailRepository.batchGetLatestMarketValues(tsCodes);
@@ -411,16 +414,19 @@ function aggregateAnnouncementsByStock(stocks: any[], announcements: any[]): Gro
 	// 转换为数组并计算聚合信息
 	const groupedData = Array.from(stockMap.values())
 		.map((stock) => {
-			if (stock.announcements.length === 0) {
+			// 如果没有公告且不允许包含没有公告的股票，则跳过
+			if (stock.announcements.length === 0 && !includeStocksWithoutAnnouncements) {
 				return null;
 			}
 
-			// 按日期和时间排序
-			stock.announcements.sort((a, b) => {
-				const dateCompare = (b.ann_date || "").localeCompare(a.ann_date || "");
-				if (dateCompare !== 0) return dateCompare;
-				return (b.pub_time || "").localeCompare(a.pub_time || "");
-			});
+			// 按日期和时间排序（如果有公告）
+			if (stock.announcements.length > 0) {
+				stock.announcements.sort((a, b) => {
+					const dateCompare = (b.ann_date || "").localeCompare(a.ann_date || "");
+					if (dateCompare !== 0) return dateCompare;
+					return (b.pub_time || "").localeCompare(a.pub_time || "");
+				});
+			}
 
 			// 计算公告分类统计
 			const categoryStats: Record<string, number> = {};
@@ -429,8 +435,8 @@ function aggregateAnnouncementsByStock(stocks: any[], announcements: any[]): Gro
 				categoryStats[category] = (categoryStats[category] || 0) + 1;
 			});
 
-			const latestAnn = stock.announcements[0];
-			return {
+				const latestAnn = stock.announcements.length > 0 ? stock.announcements[0] : null;
+			const result: GroupedAnnouncement = {
 				ts_code: stock.ts_code,
 				name: stock.stock_name,
 				industry: stock.industry,
@@ -447,20 +453,36 @@ function aggregateAnnouncementsByStock(stocks: any[], announcements: any[]): Gro
 				totalCount: stock.announcements.length,
 				// 添加分类统计
 				category_stats: categoryStats,
-				// 添加最新公告信息
-				latest_ann_date: latestAnn.ann_date,
-				latest_ann_time: latestAnn.pub_time,
-				latest_ann_title: latestAnn.title,
-				// 添加市值信息（亿元）
-				total_mv: stock.total_mv,
+				// 添加最新公告信息（如果没有公告则为 undefined）
+				latest_ann_date: latestAnn?.ann_date,
+				latest_ann_time: latestAnn?.pub_time,
+				latest_ann_title: latestAnn?.title,
 			};
+			
+			// 添加市值信息（如果类型定义支持）
+			if (stock.total_mv !== null && stock.total_mv !== undefined) {
+				(result as any).total_mv = stock.total_mv;
+			}
+			
+			return result;
 		})
 		.filter((item) => item !== null) as GroupedAnnouncement[];
 
-	// 按最新公告日期排序
+	// 按最新公告日期排序（没有公告的股票排在最后）
 	groupedData.sort((a, b) => {
 		const dateA = a.announcements[0]?.ann_date || "";
 		const dateB = b.announcements[0]?.ann_date || "";
+		
+		// 如果两个股票都没有公告，按名称排序
+		if (!dateA && !dateB) {
+			return (a.name || "").localeCompare(b.name || "");
+		}
+		
+		// 如果只有一个有公告，有公告的排在前面
+		if (!dateA) return 1;
+		if (!dateB) return -1;
+		
+		// 都有公告，按日期倒序排序
 		const dateCompare = dateB.localeCompare(dateA);
 		if (dateCompare !== 0) return dateCompare;
 		return (a.name || "").localeCompare(b.name || "");
