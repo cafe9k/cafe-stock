@@ -10,7 +10,7 @@
  */
 
 import { useEffect, useState, useMemo } from "react";
-import { Table, Card, Tag, Typography, Badge, Space, Button, Input, Select, App, InputNumber, Descriptions, Divider } from "antd";
+import { Table, Card, Tag, Typography, Badge, Space, Button, Input, Select, App, InputNumber, Descriptions, Divider, Pagination } from "antd";
 import { FileTextOutlined, ReloadOutlined, SearchOutlined, HistoryOutlined, StarOutlined, StarFilled, ClockCircleOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import { StockList } from "./StockList/index";
@@ -269,6 +269,11 @@ export function AnnouncementList() {
 				? allAnnouncements.filter((ann) => ann.category && filter.selectedCategories.includes(ann.category))
 				: allAnnouncements;
 
+		// 计算当前页的数据
+		const startIndex = (currentPage - 1) * expandedRows.pageSize;
+		const endIndex = startIndex + expandedRows.pageSize;
+		const currentPageData = filteredAnnouncements.slice(startIndex, endIndex);
+
 		return (
 			<div style={{ padding: "16px", backgroundColor: "#fafafa" }}>
 				{/* 公司基本信息 */}
@@ -323,33 +328,12 @@ export function AnnouncementList() {
 				{/* 公告列表 */}
 				<div>
 					<AntText strong style={{ fontSize: 14, marginBottom: 8, display: "block" }}>
-						最新公告
+						最新公告 {filteredAnnouncements.length > 0 && `(共 ${filteredAnnouncements.length} 条)`}
 					</AntText>
 					<Table
 						columns={nestedColumns}
-						dataSource={filteredAnnouncements}
-						pagination={
-							filteredAnnouncements.length > expandedRows.pageSize
-								? {
-										current: currentPage,
-										pageSize: expandedRows.pageSize,
-										total: filteredAnnouncements.length,
-										size: "small",
-										showSizeChanger: false,
-										showTotal: (total) => `共 ${total} 条公告`,
-										onChange: (page) => {
-											expandedRows.setExpandedPage(record.ts_code, page);
-										},
-										style: {
-											marginTop: 12,
-											marginBottom: 0,
-											paddingBottom: 8,
-										},
-										showQuickJumper: true,
-										position: ["bottomCenter"] as any,
-								  }
-								: false
-						}
+						dataSource={currentPageData}
+						pagination={false}
 						loading={loading}
 						size="small"
 						showHeader={false}
@@ -362,6 +346,23 @@ export function AnnouncementList() {
 							style: { cursor: "pointer" },
 						})}
 					/>
+					{/* 独立的分页组件 */}
+					{filteredAnnouncements.length > expandedRows.pageSize && (
+						<div style={{ marginTop: 16, textAlign: "center" }}>
+							<Pagination
+								current={currentPage}
+								pageSize={expandedRows.pageSize}
+								total={filteredAnnouncements.length}
+								size="small"
+								showSizeChanger={false}
+								showTotal={(total) => `共 ${total} 条公告`}
+								onChange={(page) => {
+									expandedRows.setExpandedPage(record.ts_code, page);
+								}}
+								showQuickJumper
+							/>
+						</div>
+					)}
 				</div>
 			</div>
 		);
@@ -391,10 +392,60 @@ export function AnnouncementList() {
 					}
 				`}
 			</style>
-			{/* 操作栏 - 所有控件在同一行 */}
+			{/* 搜索和筛选功能合并为一行 */}
 			<div style={{ marginBottom: 16 }}>
-				<Space style={{ width: "100%" }} align="start" wrap size={[8, 8]}>
-					{/* 关注筛选 - 最重要的筛选条件，放在最左边 */}
+				<Space wrap size={[8, 8]} style={{ width: "100%" }} align="center">
+					{/* 快速搜索 */}
+					<AntText strong>快速搜索：</AntText>
+					<Search
+						placeholder="根据关键字搜索股票或公告"
+						allowClear
+						enterButton={<SearchOutlined />}
+						onSearch={handleSearch}
+						onChange={(e) => {
+							filter.setSearchKeyword(e.target.value);
+							// 如果清空输入框，立即执行搜索（不使用防抖）
+							if (!e.target.value) {
+								filter.clearSearchKeyword();
+							}
+						}}
+						style={{ width: 340 }}
+						value={filter.searchKeyword}
+					/>
+					{/* 搜索历史列表 */}
+					{searchHistory.length > 0 && (
+						<>
+							<AntText type="secondary" style={{ marginLeft: 8 }}>
+								最近搜索：
+							</AntText>
+							<div
+								style={{
+									display: "flex",
+									gap: 8,
+									overflowX: "auto",
+									overflowY: "hidden",
+									maxWidth: "calc(100vw - 700px)",
+									scrollbarWidth: "thin",
+									WebkitOverflowScrolling: "touch",
+								}}
+							>
+								{searchHistory.map((keyword) => (
+									<Tag
+										key={keyword}
+										closable
+										onClose={(e) => handleRemoveSearchHistory(keyword, e)}
+										onClick={() => handleUseSearchHistory(keyword)}
+										style={{ cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0 }}
+										color={filter.searchKeyword === keyword ? "blue" : "default"}
+									>
+										{keyword}
+									</Tag>
+								))}
+							</div>
+						</>
+					)}
+
+					{/* 关注筛选 */}
 					<Button
 						type={filter.showFavoriteOnly ? "primary" : "default"}
 						icon={filter.showFavoriteOnly ? <StarFilled /> : <StarOutlined />}
@@ -403,7 +454,7 @@ export function AnnouncementList() {
 						{filter.showFavoriteOnly ? "仅关注" : "关注"}
 					</Button>
 
-					{/* 市场选择 - 第二重要的筛选条件 */}
+					{/* 市场选择 */}
 					<Select
 						value={filter.selectedMarket}
 						onChange={filter.setSelectedMarket}
@@ -468,64 +519,10 @@ export function AnnouncementList() {
 						]}
 					/>
 
-					{/* 刷新按钮 - 操作按钮放在最右边 */}
+					{/* 刷新按钮 */}
 					<Button icon={<ReloadOutlined />} onClick={handleRefresh} loading={loading}>
 						刷新
 					</Button>
-				</Space>
-			</div>
-
-			{/* 搜索（独立一行） */}
-			<div style={{ marginBottom: 16 }}>
-				<Space wrap size={[8, 8]} style={{ width: "100%" }} align="center">
-					<AntText strong>快速搜索：</AntText>
-					<Search
-						placeholder="根据关键字搜索股票或公告"
-						allowClear
-						enterButton={<SearchOutlined />}
-						onSearch={handleSearch}
-						onChange={(e) => {
-							filter.setSearchKeyword(e.target.value);
-							// 如果清空输入框，立即执行搜索（不使用防抖）
-							if (!e.target.value) {
-								filter.clearSearchKeyword();
-							}
-						}}
-						style={{ width: 340 }}
-						value={filter.searchKeyword}
-					/>
-					{/* 搜索历史列表 */}
-					{searchHistory.length > 0 && (
-						<>
-							<AntText type="secondary" style={{ marginLeft: 8 }}>
-								最近搜索：
-							</AntText>
-							<div
-								style={{
-									display: "flex",
-									gap: 8,
-									overflowX: "auto",
-									overflowY: "hidden",
-									maxWidth: "calc(100vw - 700px)",
-									scrollbarWidth: "thin",
-									WebkitOverflowScrolling: "touch",
-								}}
-							>
-								{searchHistory.map((keyword) => (
-									<Tag
-										key={keyword}
-										closable
-										onClose={(e) => handleRemoveSearchHistory(keyword, e)}
-										onClick={() => handleUseSearchHistory(keyword)}
-										style={{ cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0 }}
-										color={filter.searchKeyword === keyword ? "blue" : "default"}
-									>
-										{keyword}
-									</Tag>
-								))}
-							</div>
-						</>
-					)}
 				</Space>
 			</div>
 
