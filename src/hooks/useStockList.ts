@@ -123,7 +123,8 @@ export function useStockList<T extends StockGroup = StockGroup>(options: UseStoc
 						effectiveFilter?.market,
 						forceRefresh,
 						effectiveFilter?.searchKeyword,
-						effectiveFilter?.categories
+						effectiveFilter?.categories,
+						effectiveFilter?.marketCapRange
 					)) as StockListQueryResult<T>;
 				}
 

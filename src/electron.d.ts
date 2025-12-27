@@ -56,7 +56,8 @@ export interface ElectronAPI {
 		market?: string,
 		forceRefresh?: boolean,
 		searchKeyword?: string,
-		categories?: string[]
+		categories?: string[],
+		marketCapRange?: { min?: number; max?: number }
 	) => Promise<{
 		items: Array<{
 			ts_code: string;

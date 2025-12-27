@@ -23,7 +23,8 @@ export async function getAnnouncementsGrouped(
 	market?: string,
 	forceRefresh?: boolean,
 	searchKeyword?: string,
-	categories?: string[]
+	categories?: string[],
+	marketCapRange?: { min?: number; max?: number }
 ): Promise<StockListQueryResult<StockGroup>> {
 	if (!window.electronAPI) {
 		throw new Error("Electron API not available");
@@ -36,7 +37,8 @@ export async function getAnnouncementsGrouped(
 		market,
 		forceRefresh,
 		searchKeyword,
-		categories
+		categories,
+		marketCapRange
 	);
 	// 后端已经在分页前对所有数据进行了排序，这里不需要再次排序
 	const items = await markFavoriteStatus(result.items);
