@@ -1,8 +1,8 @@
 /**
- * INPUT: 无（接口定义）
- * OUTPUT: IRepository<T> 泛型接口 - 定义所有Repository的通用操作契约
- * POS: Repository模式的基础接口，规范数据访问层的标准操作（CRUD）
- * 
+ * 依赖: 无（接口定义）
+ * 输出: IRepository<T> 泛型接口 - 定义所有Repository的通用操作契约
+ * 职责: Repository模式的基础接口，规范数据访问层的标准操作（CRUD）
+ *
  * ⚠️ 更新提醒：修改此文件后，请更新 electron/repositories/README.md
  */
 
@@ -46,4 +46,3 @@ export interface IRepository<T> {
 	 */
 	count?(): number;
 }
-

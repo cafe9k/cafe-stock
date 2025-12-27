@@ -1,8 +1,8 @@
 /**
- * INPUT: 无（接口定义）
- * OUTPUT: IStockRepository 接口 - 定义股票数据访问操作的契约
- * POS: 股票Repository接口，规范股票数据访问层的标准操作
- * 
+ * 依赖: 无（接口定义）
+ * 输出: IStockRepository 接口 - 定义股票数据访问操作的契约
+ * 职责: 股票Repository接口，规范股票数据访问层的标准操作
+ *
  * ⚠️ 更新提醒：修改此文件后，请更新 electron/repositories/README.md
  */
 
@@ -41,4 +41,3 @@ export interface IStockRepository extends IRepository<Stock> {
 		lastSyncTime: string | null;
 	};
 }
-

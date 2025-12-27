@@ -1,8 +1,8 @@
 /**
- * INPUT: 无（接口定义）
- * OUTPUT: IFavoriteService 接口规范 - 定义收藏服务的契约
- * POS: 服务层接口定义，规范收藏服务的对外API
- * 
+ * 依赖: 无（接口定义）
+ * 输出: IFavoriteService 接口规范 - 定义收藏服务的契约
+ * 职责: 服务层接口定义，规范收藏服务的对外API
+ *
  * ⚠️ 更新提醒：修改此文件后，请更新 electron/services/README.md
  */
 
@@ -17,4 +17,3 @@ export interface IFavoriteService {
 	 */
 	removeFavoriteStock(tsCode: string): boolean;
 }
-

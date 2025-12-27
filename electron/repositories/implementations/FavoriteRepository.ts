@@ -1,8 +1,8 @@
 /**
- * INPUT: Database(better-sqlite3), IFavoriteRepository(接口), BaseRepository(基类)
- * OUTPUT: FavoriteRepository 类 - 提供收藏数据的CRUD操作（addFavoriteStock, removeFavoriteStock等）
- * POS: 收藏数据访问层实现，封装用户收藏表的数据库操作
- * 
+ * 依赖: Database(better-sqlite3), IFavoriteRepository(接口), BaseRepository(基类)
+ * 输出: FavoriteRepository 类 - 提供收藏数据的CRUD操作（addFavoriteStock, removeFavoriteStock等）
+ * 职责: 收藏数据访问层实现，封装用户收藏表的数据库操作
+ *
  * ⚠️ 更新提醒：修改此文件后，请同步更新：
  *    1. 本文件开头的 INPUT/OUTPUT/POS 注释
  *    2. electron/repositories/README.md 中的文件列表
@@ -91,4 +91,3 @@ export class FavoriteRepository extends BaseRepository implements IFavoriteRepos
 		}
 	}
 }
-

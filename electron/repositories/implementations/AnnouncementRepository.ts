@@ -1,8 +1,8 @@
 /**
- * INPUT: Database(better-sqlite3), IAnnouncementRepository(接口), BaseRepository(基类), ClassificationRepository(分类), announcementClassifier(分类器)
- * OUTPUT: AnnouncementRepository 类 - 提供公告数据的CRUD和查询操作（upsertAnnouncements, getAnnouncementsByStock等）
- * POS: 公告数据访问层实现，封装公告表的数据库操作和智能分类逻辑
- * 
+ * 依赖: Database(better-sqlite3), IAnnouncementRepository(接口), BaseRepository(基类), ClassificationRepository(分类), announcementClassifier(分类器)
+ * 输出: AnnouncementRepository 类 - 提供公告数据的CRUD和查询操作（upsertAnnouncements, getAnnouncementsByStock等）
+ * 职责: 公告数据访问层实现，封装公告表的数据库操作和智能分类逻辑
+ *
  * ⚠️ 更新提醒：修改此文件后，请同步更新：
  *    1. 本文件开头的 INPUT/OUTPUT/POS 注释
  *    2. electron/repositories/README.md 中的文件列表
@@ -88,13 +88,7 @@ export class AnnouncementRepository extends BaseRepository implements IAnnouncem
 	/**
 	 * 根据日期范围获取公告
 	 */
-	getAnnouncementsByDateRange(
-		startDate: string,
-		endDate: string,
-		tsCode?: string,
-		categories?: string[],
-		limit: number = 200
-	): any[] {
+	getAnnouncementsByDateRange(startDate: string, endDate: string, tsCode?: string, categories?: string[], limit: number = 200): any[] {
 		let query = "SELECT * FROM announcements WHERE ann_date >= ? AND ann_date <= ?";
 		const params: any[] = [startDate, endDate];
 
@@ -141,7 +135,7 @@ export class AnnouncementRepository extends BaseRepository implements IAnnouncem
 	isAnnouncementRangeSynced(tsCode: string | null, startDate: string, endDate: string): boolean {
 		// 获取今天的日期（YYYYMMDD格式）
 		const today = this.formatDateToYYYYMMDD(new Date());
-		
+
 		// 如果结束日期是今天或未来，扩展为今天+2天
 		let adjustedEndDate = endDate;
 		if (endDate >= today) {
@@ -198,10 +192,10 @@ export class AnnouncementRepository extends BaseRepository implements IAnnouncem
 	 */
 	recordAnnouncementSyncRange(tsCode: string | null, startDate: string, endDate: string): void {
 		const now = this.getCurrentTimestamp();
-		
+
 		// 获取今天的日期（YYYYMMDD格式）
 		const today = this.formatDateToYYYYMMDD(new Date());
-		
+
 		// 如果结束日期是今天或未来，扩展为今天+2天
 		let adjustedEndDate = endDate;
 		if (endDate >= today) {
@@ -214,17 +208,21 @@ export class AnnouncementRepository extends BaseRepository implements IAnnouncem
 		// 插入新范围
 		if (tsCode) {
 			this.db
-				.prepare(`
+				.prepare(
+					`
 				INSERT INTO announcement_sync_ranges (ts_code, start_date, end_date, synced_at)
 				VALUES (?, ?, ?, ?)
-			`)
+			`
+				)
 				.run(tsCode, startDate, adjustedEndDate, now);
 		} else {
 			this.db
-				.prepare(`
+				.prepare(
+					`
 				INSERT INTO announcement_sync_ranges (ts_code, start_date, end_date, synced_at)
 				VALUES (NULL, ?, ?, ?)
-			`)
+			`
+				)
 				.run(startDate, adjustedEndDate, now);
 		}
 
@@ -235,11 +233,7 @@ export class AnnouncementRepository extends BaseRepository implements IAnnouncem
 	/**
 	 * 获取需要同步的时间段（排除已同步的部分）
 	 */
-	getUnsyncedAnnouncementRanges(
-		tsCode: string | null,
-		startDate: string,
-		endDate: string
-	): Array<{ start_date: string; end_date: string }> {
+	getUnsyncedAnnouncementRanges(tsCode: string | null, startDate: string, endDate: string): Array<{ start_date: string; end_date: string }> {
 		let query: string;
 		let params: any[];
 
@@ -366,9 +360,7 @@ export class AnnouncementRepository extends BaseRepository implements IAnnouncem
 
 					// 批量分类并更新
 					for (const ann of announcements) {
-						const category = useDbRules
-							? classifyAnnouncementWithRules(ann.title || "", rules)
-							: classifyAnnouncement(ann.title || "");
+						const category = useDbRules ? classifyAnnouncementWithRules(ann.title || "", rules) : classifyAnnouncement(ann.title || "");
 						updateStmt.run(category, ann.id);
 					}
 
@@ -472,6 +464,4 @@ export class AnnouncementRepository extends BaseRepository implements IAnnouncem
 			}
 		});
 	}
-
 }
-

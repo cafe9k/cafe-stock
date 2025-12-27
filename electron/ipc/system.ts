@@ -1,8 +1,8 @@
 /**
- * INPUT: ipcMain(Electron), Notification(通知), shell(系统shell), updater(更新器), errorHandler(错误处理)
- * OUTPUT: registerSystemHandlers() - 注册系统相关的IPC处理器（show-notification, get-app-version等）
- * POS: IPC通信层系统处理器，提供系统级功能（通知、版本、外部链接等）
- * 
+ * 依赖: ipcMain(Electron), Notification(通知), shell(系统shell), updater(更新器), errorHandler(错误处理)
+ * 输出: registerSystemHandlers() - 注册系统相关的IPC处理器（show-notification, get-app-version等）
+ * 职责: IPC通信层系统处理器，提供系统级功能（通知、版本、外部链接等）
+ *
  * ⚠️ 更新提醒：修改此文件后，请同步更新：
  *    1. 本文件开头的 INPUT/OUTPUT/POS 注释
  *    2. electron/ipc/README.md 中的文件列表
@@ -54,4 +54,3 @@ export function registerSystemHandlers(): void {
 		}, "open-external")
 	);
 }
-

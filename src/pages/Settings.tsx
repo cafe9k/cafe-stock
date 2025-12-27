@@ -1,7 +1,7 @@
 /**
- * INPUT: window.electronAPI(IPC), Ant Design(UI组件), ClassificationRuleEditor(组件)
- * OUTPUT: Settings 页面组件 - 设置页面，提供应用配置和分类规则管理
- * POS: 渲染进程页面组件，应用设置和配置管理的主界面
+ * 依赖: window.electronAPI(IPC), Ant Design(UI组件), ClassificationRuleEditor(组件)
+ * 输出: Settings 页面组件 - 设置页面，提供应用配置和分类规则管理
+ * 职责: 渲染进程页面组件，应用设置和配置管理的主界面
  *
  * ⚠️ 更新提醒：修改此文件后，请同步更新：
  *    1. 本文件开头的 INPUT/OUTPUT/POS 注释

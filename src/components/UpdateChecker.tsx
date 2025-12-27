@@ -1,8 +1,8 @@
 /**
- * INPUT: window.electron(IPC更新接口), Ant Design(UI组件)
- * OUTPUT: UpdateChecker 组件 - 自动更新检查器，提供版本检查和更新下载功能
- * POS: 渲染进程UI组件，负责应用自动更新的用户界面和交互
- * 
+ * 依赖: window.electron(IPC更新接口), Ant Design(UI组件)
+ * 输出: UpdateChecker 组件 - 自动更新检查器，提供版本检查和更新下载功能
+ * 职责: 渲染进程UI组件，负责应用自动更新的用户界面和交互
+ *
  * ⚠️ 更新提醒：修改此文件后，请同步更新：
  *    1. 本文件开头的 INPUT/OUTPUT/POS 注释
  *    2. src/components/README.md 中的文件列表

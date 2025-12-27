@@ -1,8 +1,8 @@
 /**
- * INPUT: 无（接口定义）
- * OUTPUT: IAnnouncementRepository 接口 - 定义公告数据访问操作的契约
- * POS: 公告Repository接口，规范公告数据访问层的标准操作
- * 
+ * 依赖: 无（接口定义）
+ * 输出: IAnnouncementRepository 接口 - 定义公告数据访问操作的契约
+ * 职责: 公告Repository接口，规范公告数据访问层的标准操作
+ *
  * ⚠️ 更新提醒：修改此文件后，请更新 electron/repositories/README.md
  */
 
@@ -26,13 +26,7 @@ export interface IAnnouncementRepository extends IRepository<Announcement> {
 	/**
 	 * 根据日期范围获取公告
 	 */
-	getAnnouncementsByDateRange(
-		startDate: string,
-		endDate: string,
-		tsCode?: string,
-		categories?: string[],
-		limit?: number
-	): any[];
+	getAnnouncementsByDateRange(startDate: string, endDate: string, tsCode?: string, categories?: string[], limit?: number): any[];
 
 	/**
 	 * 搜索公告标题
@@ -52,11 +46,7 @@ export interface IAnnouncementRepository extends IRepository<Announcement> {
 	/**
 	 * 获取需要同步的时间段（排除已同步的部分）
 	 */
-	getUnsyncedAnnouncementRanges(
-		tsCode: string | null,
-		startDate: string,
-		endDate: string
-	): Array<{ start_date: string; end_date: string }>;
+	getUnsyncedAnnouncementRanges(tsCode: string | null, startDate: string, endDate: string): Array<{ start_date: string; end_date: string }>;
 
 	/**
 	 * 统计公告数量
@@ -83,4 +73,3 @@ export interface IAnnouncementRepository extends IRepository<Announcement> {
 	 */
 	getAnnouncementsByCategory(category: string, limit?: number): any[];
 }
-

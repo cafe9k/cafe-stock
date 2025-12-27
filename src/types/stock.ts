@@ -1,8 +1,8 @@
 /**
- * INPUT: 无（类型定义）
- * OUTPUT: Stock, StockGroup, StockFilter 等类型定义 - 股票相关的TypeScript类型
- * POS: 渲染进程类型定义层，定义股票、筛选条件等数据结构，提供类型安全
- * 
+ * 依赖: 无（类型定义）
+ * 输出: Stock, StockGroup, StockFilter 等类型定义 - 股票相关的TypeScript类型
+ * 职责: 渲染进程类型定义层，定义股票、筛选条件等数据结构，提供类型安全
+ *
  * ⚠️ 更新提醒：修改此文件后，请更新 src/types/README.md
  */
 export interface Stock {

@@ -1,8 +1,8 @@
 /**
- * INPUT: dayjs(日期库), types(类型定义)
- * OUTPUT: useStockFilter Hook - 提供股票筛选条件的状态管理（市场、关键词、日期范围等）
- * POS: 渲染进程业务逻辑Hook，封装股票筛选的状态管理和逻辑处理
- * 
+ * 依赖: dayjs(日期库), types(类型定义)
+ * 输出: useStockFilter Hook - 提供股票筛选条件的状态管理（市场、关键词、日期范围等）
+ * 职责: 渲染进程业务逻辑Hook，封装股票筛选的状态管理和逻辑处理
+ *
  * ⚠️ 更新提醒：修改此文件后，请同步更新：
  *    1. 本文件开头的 INPUT/OUTPUT/POS 注释
  *    2. src/hooks/README.md 中的文件列表
@@ -41,10 +41,7 @@ export function useStockFilter(initialFilter?: Partial<StockFilter>) {
 	};
 
 	const [dateRange, setDateRange] = useState<[string, string]>(initialFilter?.dateRange || getDefaultDateRange());
-	const [dateRangeDisplay, setDateRangeDisplay] = useState<DateRange>([
-		dayjs().subtract(7, "day"),
-		dayjs(),
-	]);
+	const [dateRangeDisplay, setDateRangeDisplay] = useState<DateRange>([dayjs().subtract(7, "day"), dayjs()]);
 
 	// 快速日期选择
 	const [quickSelectValue, setQuickSelectValue] = useState<QuickDateOption>("week");
@@ -172,4 +169,3 @@ export function useStockFilter(initialFilter?: Partial<StockFilter>) {
 		resetFilter,
 	};
 }
-

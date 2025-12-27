@@ -1,8 +1,8 @@
 /**
- * INPUT: window.electron(IPC分类接口), Ant Design(UI组件)
- * OUTPUT: ClassificationRuleEditor 组件 - 分类规则编辑器，提供分类规则的CRUD管理界面
- * POS: 渲染进程UI组件，负责公告分类规则的可视化编辑和管理
- * 
+ * 依赖: window.electron(IPC分类接口), Ant Design(UI组件)
+ * 输出: ClassificationRuleEditor 组件 - 分类规则编辑器，提供分类规则的CRUD管理界面
+ * 职责: 渲染进程UI组件，负责公告分类规则的可视化编辑和管理
+ *
  * ⚠️ 更新提醒：修改此文件后，请同步更新：
  *    1. 本文件开头的 INPUT/OUTPUT/POS 注释
  *    2. src/components/README.md 中的文件列表
@@ -10,27 +10,8 @@
  */
 
 import { useState, useEffect } from "react";
-import { 
-	Collapse, 
-	Tag, 
-	Input, 
-	Button, 
-	Space, 
-	Switch, 
-	Popconfirm, 
-	message, 
-	Spin,
-	Typography,
-	Tooltip
-} from "antd";
-import { 
-	PlusOutlined, 
-	ArrowUpOutlined, 
-	ArrowDownOutlined,
-	SaveOutlined,
-	ReloadOutlined,
-	ThunderboltOutlined
-} from "@ant-design/icons";
+import { Collapse, Tag, Input, Button, Space, Switch, Popconfirm, message, Spin, Typography, Tooltip } from "antd";
+import { PlusOutlined, ArrowUpOutlined, ArrowDownOutlined, SaveOutlined, ReloadOutlined, ThunderboltOutlined } from "@ant-design/icons";
 import type { ClassificationCategory, ClassificationRuleItem } from "../electron";
 
 const { Panel } = Collapse;
@@ -68,14 +49,14 @@ export function ClassificationRuleEditor({}: ClassificationRuleEditorProps) {
 		try {
 			const [categoriesResult, rulesResult] = await Promise.all([
 				window.electronAPI.getClassificationCategories(),
-				window.electronAPI.getClassificationRules()
+				window.electronAPI.getClassificationRules(),
 			]);
 
 			if (categoriesResult.success && rulesResult.success) {
 				// 将规则按分类组织
-				const categoriesWithRules: CategoryWithRules[] = categoriesResult.categories.map(cat => ({
+				const categoriesWithRules: CategoryWithRules[] = categoriesResult.categories.map((cat) => ({
 					...cat,
-					rules: rulesResult.rules.filter(rule => rule.category_key === cat.category_key)
+					rules: rulesResult.rules.filter((rule) => rule.category_key === cat.category_key),
 				}));
 
 				// 按优先级排序
@@ -156,11 +137,8 @@ export function ClassificationRuleEditor({}: ClassificationRuleEditorProps) {
 	};
 
 	const handleMovePriority = async (category: CategoryWithRules, direction: "up" | "down") => {
-		const currentIndex = categories.findIndex(c => c.id === category.id);
-		if (
-			(direction === "up" && currentIndex === 0) ||
-			(direction === "down" && currentIndex === categories.length - 1)
-		) {
+		const currentIndex = categories.findIndex((c) => c.id === category.id);
+		if ((direction === "up" && currentIndex === 0) || (direction === "down" && currentIndex === categories.length - 1)) {
 			return;
 		}
 
@@ -168,10 +146,7 @@ export function ClassificationRuleEditor({}: ClassificationRuleEditorProps) {
 		const targetCategory = categories[targetIndex];
 
 		// 交换优先级
-		await Promise.all([
-			handleUpdatePriority(category.id, targetCategory.priority),
-			handleUpdatePriority(targetCategory.id, category.priority)
-		]);
+		await Promise.all([handleUpdatePriority(category.id, targetCategory.priority), handleUpdatePriority(targetCategory.id, category.priority)]);
 	};
 
 	const handleResetToDefault = async () => {
@@ -225,10 +200,7 @@ export function ClassificationRuleEditor({}: ClassificationRuleEditorProps) {
 						共 {categories.length} 个分类，{categories.reduce((sum, cat) => sum + cat.rules.length, 0)} 条规则
 					</Text>
 					<Space>
-						<Button 
-							icon={<ReloadOutlined />} 
-							onClick={loadRules}
-						>
+						<Button icon={<ReloadOutlined />} onClick={loadRules}>
 							刷新
 						</Button>
 						<Popconfirm
@@ -238,10 +210,7 @@ export function ClassificationRuleEditor({}: ClassificationRuleEditorProps) {
 							okText="确定"
 							cancelText="取消"
 						>
-							<Button 
-								icon={<SaveOutlined />}
-								loading={saving}
-							>
+							<Button icon={<SaveOutlined />} loading={saving}>
 								重置为默认
 							</Button>
 						</Popconfirm>
@@ -252,11 +221,7 @@ export function ClassificationRuleEditor({}: ClassificationRuleEditorProps) {
 							okText="确定"
 							cancelText="取消"
 						>
-							<Button 
-								type="primary"
-								icon={<ThunderboltOutlined />}
-								loading={reprocessing}
-							>
+							<Button type="primary" icon={<ThunderboltOutlined />} loading={reprocessing}>
 								重新打标所有公告
 							</Button>
 						</Popconfirm>
@@ -265,7 +230,9 @@ export function ClassificationRuleEditor({}: ClassificationRuleEditorProps) {
 
 				{reprocessing && (
 					<div style={{ padding: "12px", background: "#f0f2f5", borderRadius: "4px" }}>
-						<Text>重新打标进度: {reprocessProgress.processed} / {reprocessProgress.total} ({reprocessProgress.percentage}%)</Text>
+						<Text>
+							重新打标进度: {reprocessProgress.processed} / {reprocessProgress.total} ({reprocessProgress.percentage}%)
+						</Text>
 					</div>
 				)}
 
@@ -279,9 +246,7 @@ export function ClassificationRuleEditor({}: ClassificationRuleEditorProps) {
 										<Text strong style={{ color: category.enabled ? undefined : "#999" }}>
 											{category.icon} {category.category_name}
 										</Text>
-										<Tag color={category.color}>
-											{category.rules.length} 个关键词
-										</Tag>
+										<Tag color={category.color}>{category.rules.length} 个关键词</Tag>
 										<Text type="secondary" style={{ fontSize: "12px" }}>
 											优先级: {category.priority}
 										</Text>
@@ -344,11 +309,7 @@ export function ClassificationRuleEditor({}: ClassificationRuleEditorProps) {
 												onChange={(e) => setNewKeywords({ ...newKeywords, [category.category_key]: e.target.value })}
 												onPressEnter={() => handleAddKeyword(category.category_key)}
 											/>
-											<Button
-												type="primary"
-												icon={<PlusOutlined />}
-												onClick={() => handleAddKeyword(category.category_key)}
-											>
+											<Button type="primary" icon={<PlusOutlined />} onClick={() => handleAddKeyword(category.category_key)}>
 												添加
 											</Button>
 										</Space.Compact>
@@ -362,4 +323,3 @@ export function ClassificationRuleEditor({}: ClassificationRuleEditorProps) {
 		</div>
 	);
 }
-

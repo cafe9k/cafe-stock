@@ -1,8 +1,8 @@
 /**
- * INPUT: FavoriteButton(组件), useStockList(hook), types(类型定义), announcementClassifier(分类工具)
- * OUTPUT: StockList 组件 - 通用股票列表组件，提供搜索、筛选、分页、收藏等功能
- * POS: 渲染进程UI组件，封装股票列表的通用展示逻辑，可复用于多个页面
- * 
+ * 依赖: FavoriteButton(组件), useStockList(hook), types(类型定义), announcementClassifier(分类工具)
+ * 输出: StockList 组件 - 通用股票列表组件，提供搜索、筛选、分页、收藏等功能
+ * 职责: 渲染进程UI组件，封装股票列表的通用展示逻辑，可复用于多个页面
+ *
  * ⚠️ 更新提醒：修改此文件后，请同步更新：
  *    1. 本文件开头的 INPUT/OUTPUT/POS 注释
  *    2. src/components/README.md 中的文件列表
@@ -403,16 +403,16 @@ function StockListComponent<T extends Stock | StockGroup = Stock | StockGroup>({
 								<Tooltip
 									title={
 										<div>
-											<div style={{ marginBottom: 8, fontWeight: 'bold' }}>其他分类：</div>
+											<div style={{ marginBottom: 8, fontWeight: "bold" }}>其他分类：</div>
 											{hiddenCategories.map(([cat, cnt]) => (
-												<div key={cat} style={{ padding: '2px 0' }}>
+												<div key={cat} style={{ padding: "2px 0" }}>
 													{cat}: {String(cnt)} 条
 												</div>
 											))}
 										</div>
 									}
 								>
-									<Tag style={{ cursor: 'help', margin: 2 }}>+{hiddenCategories.length}...</Tag>
+									<Tag style={{ cursor: "help", margin: 2 }}>+{hiddenCategories.length}...</Tag>
 								</Tooltip>
 							)}
 						</Space>
@@ -462,18 +462,16 @@ function StockListComponent<T extends Stock | StockGroup = Stock | StockGroup>({
 					const stockGroup = record as any;
 					const date = stockGroup.latest_ann_date;
 					const time = stockGroup.latest_ann_time;
-					
+
 					if (!date) return <AntText>-</AntText>;
-					
+
 					const formattedDate = date.replace(/(\d{4})(\d{2})(\d{2})/, "$1-$2-$3");
 					const formattedTime = time ? time.substring(0, 5) : "";
-					
+
 					return (
 						<div style={{ fontFamily: "monospace" }}>
 							<div style={{ fontSize: 13 }}>{formattedDate}</div>
-							{formattedTime && (
-								<div style={{ fontSize: 12, color: "#999" }}>{formattedTime}</div>
-							)}
+							{formattedTime && <div style={{ fontSize: 12, color: "#999" }}>{formattedTime}</div>}
 						</div>
 					);
 				},
@@ -538,14 +536,14 @@ function StockListComponent<T extends Stock | StockGroup = Stock | StockGroup>({
 							current: page,
 							total,
 							pageSize,
-						onChange: onPageChange,
-						showSizeChanger: true,
-						showTotal: (total) => {
-							const totalPages = Math.ceil(total / pageSize);
-							return `显示第 ${page} 页 共 ${totalPages} 页 (总计 ${total} 条记录)`;
-						},
+							onChange: onPageChange,
+							showSizeChanger: true,
+							showTotal: (total) => {
+								const totalPages = Math.ceil(total / pageSize);
+								return `显示第 ${page} 页 共 ${totalPages} 页 (总计 ${total} 条记录)`;
+							},
 							pageSizeOptions: ["10", "20", "50", "100"],
-							style: { 
+							style: {
 								marginTop: 16,
 								marginBottom: 8,
 								textAlign: "center",

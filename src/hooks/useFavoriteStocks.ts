@@ -1,8 +1,8 @@
 /**
- * INPUT: window.electronAPI(IPC), Ant Design App(消息提示)
- * OUTPUT: useFavoriteStocks Hook - 提供收藏股票的状态管理和操作方法
- * POS: 渲染进程业务逻辑Hook，封装股票收藏的状态管理和IPC调用
- * 
+ * 依赖: window.electronAPI(IPC), Ant Design App(消息提示)
+ * 输出: useFavoriteStocks Hook - 提供收藏股票的状态管理和操作方法
+ * 职责: 渲染进程业务逻辑Hook，封装股票收藏的状态管理和IPC调用
+ *
  * ⚠️ 更新提醒：修改此文件后，请同步更新：
  *    1. 本文件开头的 INPUT/OUTPUT/POS 注释
  *    2. src/hooks/README.md 中的文件列表
@@ -95,4 +95,3 @@ export function useFavoriteStocks() {
 		refresh: loadFavorites,
 	};
 }
-

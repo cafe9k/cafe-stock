@@ -1,8 +1,8 @@
 /**
- * INPUT: window.electronAPI(IPC), favoriteStockService(收藏服务), types(类型定义)
- * OUTPUT: getAnnouncementsGrouped(), getAllStocks() - 股票数据获取服务函数
- * POS: 渲染进程服务层，封装股票相关的IPC调用，提供数据获取和处理的统一接口
- * 
+ * 依赖: window.electronAPI(IPC), favoriteStockService(收藏服务), types(类型定义)
+ * 输出: getAnnouncementsGrouped(), getAllStocks() - 股票数据获取服务函数
+ * 职责: 渲染进程服务层，封装股票相关的IPC调用，提供数据获取和处理的统一接口
+ *
  * ⚠️ 更新提醒：修改此文件后，请同步更新：
  *    1. 本文件开头的 INPUT/OUTPUT/POS 注释
  *    2. src/services/README.md 中的文件列表
@@ -28,7 +28,16 @@ export async function getAnnouncementsGrouped(
 	if (!window.electronAPI) {
 		throw new Error("Electron API not available");
 	}
-	const result = await window.electronAPI.getAnnouncementsGrouped(page, pageSize, startDate, endDate, market, forceRefresh, searchKeyword, categories);
+	const result = await window.electronAPI.getAnnouncementsGrouped(
+		page,
+		pageSize,
+		startDate,
+		endDate,
+		market,
+		forceRefresh,
+		searchKeyword,
+		categories
+	);
 	// 后端已经在分页前对所有数据进行了排序，这里不需要再次排序
 	const items = await markFavoriteStatus(result.items);
 	return {
@@ -95,10 +104,9 @@ export async function getFavoriteStocksDetail(): Promise<Stock[]> {
 
 	// 获取所有股票列表
 	const allStocks = await window.electronAPI.getAllStocks();
-	
+
 	// 根据收藏的股票代码过滤
 	const stocksData = allStocks.filter((stock) => favoriteCodes.includes(stock.ts_code));
 
 	return await markFavoriteStatus(stocksData);
 }
-

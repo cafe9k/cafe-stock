@@ -1,8 +1,8 @@
 /**
- * INPUT: ipcMain(Electron), BrowserWindow(窗口), app(Electron应用), fs(文件系统), http(HTTP服务器)
- * OUTPUT: registerDatabaseHandlers() - 注册数据库相关的IPC处理器（get-db-connection-info, export-db等）
- * POS: IPC通信层数据库处理器，提供数据库管理、导出、HTTP服务等功能
- * 
+ * 依赖: ipcMain(Electron), BrowserWindow(窗口), app(Electron应用), fs(文件系统), http(HTTP服务器)
+ * 输出: registerDatabaseHandlers() - 注册数据库相关的IPC处理器（get-db-connection-info, export-db等）
+ * 职责: IPC通信层数据库处理器，提供数据库管理、导出、HTTP服务等功能
+ *
  * ⚠️ 更新提醒：修改此文件后，请同步更新：
  *    1. 本文件开头的 INPUT/OUTPUT/POS 注释
  *    2. electron/ipc/README.md 中的文件列表
@@ -437,9 +437,11 @@ export function registerDatabaseHandlers(mainWindow: BrowserWindow | null): void
 			}>;
 
 			// 获取表的创建 SQL
-			const createSql = db.prepare(`SELECT sql FROM sqlite_master WHERE type='table' AND name=?`).get(tableName) as {
-				sql: string | null;
-			} | undefined;
+			const createSql = db.prepare(`SELECT sql FROM sqlite_master WHERE type='table' AND name=?`).get(tableName) as
+				| {
+						sql: string | null;
+				  }
+				| undefined;
 
 			return {
 				success: true,
@@ -612,4 +614,3 @@ export function cleanupDatabaseResources(): void {
 		sqliteHttpServer = null;
 	}
 }
-

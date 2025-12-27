@@ -1,8 +1,8 @@
 /**
- * INPUT: window.electron(IPC同步接口), Ant Design(UI组件)
- * OUTPUT: StockListSyncIndicator 组件 - 股票列表同步指示器，显示同步进度和状态
- * POS: 渲染进程UI组件，提供股票数据同步的可视化反馈
- * 
+ * 依赖: window.electron(IPC同步接口), Ant Design(UI组件)
+ * 输出: StockListSyncIndicator 组件 - 股票列表同步指示器，显示同步进度和状态
+ * 职责: 渲染进程UI组件，提供股票数据同步的可视化反馈
+ *
  * ⚠️ 更新提醒：修改此文件后，请同步更新：
  *    1. 本文件开头的 INPUT/OUTPUT/POS 注释
  *    2. src/components/README.md 中的文件列表
@@ -86,7 +86,10 @@ export function StockListSyncIndicator({ visible, progress }: StockListSyncIndic
 						<Title level={4} style={{ margin: 0 }}>
 							股票列表同步
 						</Title>
-						<Text type={isError ? "danger" : isCompleted ? "success" : "secondary"} style={{ fontSize: 14, marginTop: 8, display: "block" }}>
+						<Text
+							type={isError ? "danger" : isCompleted ? "success" : "secondary"}
+							style={{ fontSize: 14, marginTop: 8, display: "block" }}
+						>
 							{getStatusText()}
 						</Text>
 					</div>
@@ -122,4 +125,3 @@ export function StockListSyncIndicator({ visible, progress }: StockListSyncIndic
 		</div>
 	);
 }
-

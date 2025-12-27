@@ -1,8 +1,8 @@
 /**
- * INPUT: Database(better-sqlite3), IClassificationRepository(接口), BaseRepository(基类), announcementClassifier(分类工具)
- * OUTPUT: ClassificationRepository 类 - 提供分类规则的CRUD操作（getAllRules, updateRule等）
- * POS: 分类规则数据访问层实现，封装公告分类规则表的数据库操作
- * 
+ * 依赖: Database(better-sqlite3), IClassificationRepository(接口), BaseRepository(基类), announcementClassifier(分类工具)
+ * 输出: ClassificationRepository 类 - 提供分类规则的CRUD操作（getAllRules, updateRule等）
+ * 职责: 分类规则数据访问层实现，封装公告分类规则表的数据库操作
+ *
  * ⚠️ 更新提醒：修改此文件后，请同步更新：
  *    1. 本文件开头的 INPUT/OUTPUT/POS 注释
  *    2. electron/repositories/README.md 中的文件列表
@@ -12,12 +12,7 @@
 import Database from "better-sqlite3";
 import { IClassificationRepository } from "../interfaces/IClassificationRepository.js";
 import { BaseRepository } from "../base/BaseRepository.js";
-import {
-	getCategoryColor,
-	getCategoryIcon,
-	DEFAULT_CLASSIFICATION_RULES,
-	AnnouncementCategory,
-} from "../../utils/announcementClassifier.js";
+import { getCategoryColor, getCategoryIcon, DEFAULT_CLASSIFICATION_RULES, AnnouncementCategory } from "../../utils/announcementClassifier.js";
 
 /**
  * 分类仓储实现类
@@ -146,10 +141,12 @@ export class ClassificationRepository extends BaseRepository implements IClassif
 	addClassificationRule(categoryKey: string, keyword: string): number | bigint {
 		const now = this.getCurrentTimestamp();
 		const result = this.db
-			.prepare(`
+			.prepare(
+				`
 			INSERT INTO classification_rules (category_key, keyword, enabled, created_at, updated_at)
 			VALUES (?, ?, 1, ?, ?)
-		`)
+		`
+			)
 			.run(categoryKey, keyword, now, now);
 		return result.lastInsertRowid;
 	}
@@ -160,11 +157,13 @@ export class ClassificationRepository extends BaseRepository implements IClassif
 	updateClassificationRule(id: number, keyword: string, enabled: boolean): number {
 		const now = this.getCurrentTimestamp();
 		const result = this.db
-			.prepare(`
+			.prepare(
+				`
 			UPDATE classification_rules 
 			SET keyword = ?, enabled = ?, updated_at = ?
 			WHERE id = ?
-		`)
+		`
+			)
 			.run(keyword, enabled ? 1 : 0, now, id);
 		return result.changes;
 	}
@@ -249,4 +248,3 @@ export class ClassificationRepository extends BaseRepository implements IClassif
 		}));
 	}
 }
-

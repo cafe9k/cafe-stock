@@ -1,8 +1,8 @@
 /**
- * INPUT: react-pdf(PDF库), Ant Design(UI组件), window.electron(IPC获取PDF)
- * OUTPUT: PDFViewer 组件 - PDF查看器组件，提供PDF文件的预览和下载功能
- * POS: 渲染进程UI组件，负责公告PDF文件的展示和交互
- * 
+ * 依赖: react-pdf(PDF库), Ant Design(UI组件), window.electron(IPC获取PDF)
+ * 输出: PDFViewer 组件 - PDF查看器组件，提供PDF文件的预览和下载功能
+ * 职责: 渲染进程UI组件，负责公告PDF文件的展示和交互
+ *
  * ⚠️ 更新提醒：修改此文件后，请同步更新：
  *    1. 本文件开头的 INPUT/OUTPUT/POS 注释
  *    2. src/components/README.md 中的文件列表
@@ -73,7 +73,7 @@ export function PDFViewer({ open, onClose, pdfUrl, title = "PDF 预览" }: PDFVi
 			console.log(`[PDF Download] 文件名: ${title}`);
 
 			const response = await fetch(pdfUrl);
-			
+
 			// 记录响应状态
 			console.log(`[PDF Download] HTTP状态: ${response.status}, 内容类型: ${response.headers.get("content-type")}`);
 			console.log(`[PDF Download] 响应耗时: ${Date.now() - startTime}ms`);
@@ -89,7 +89,7 @@ export function PDFViewer({ open, onClose, pdfUrl, title = "PDF 预览" }: PDFVi
 			link.click();
 			document.body.removeChild(link);
 			window.URL.revokeObjectURL(url);
-			
+
 			// 记录下载完成
 			console.log(`[PDF Download] 下载完成, 总耗时: ${Date.now() - startTime}ms`);
 			message.success("下载成功");

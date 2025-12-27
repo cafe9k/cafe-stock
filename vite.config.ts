@@ -72,7 +72,7 @@ export default defineConfig({
 						sourcemap: false,
 						rollupOptions: {
 							external: ["electron"],
-							output: {
+							输出: {
 								format: "cjs",
 								entryFileNames: "preload.cjs",
 							},
@@ -92,7 +92,7 @@ export default defineConfig({
 		cssCodeSplit: true,
 		chunkSizeWarningLimit: 1000,
 		rollupOptions: {
-			output: {
+			输出: {
 				manualChunks: {
 					// 将 React 相关库打包到一起
 					"react-vendor": ["react", "react-dom", "react-router-dom"],

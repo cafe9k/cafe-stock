@@ -1,8 +1,8 @@
 /**
- * INPUT: 无（纯函数工具）
- * OUTPUT: classifyAnnouncement(), getCategoryColor(), getCategoryIcon() - 公告分类工具函数
- * POS: 渲染进程工具层，提供公告标题的智能分类功能，基于规则匹配进行分类
- * 
+ * 依赖: 无（纯函数工具）
+ * 输出: classifyAnnouncement(), getCategoryColor(), getCategoryIcon() - 公告分类工具函数
+ * 职责: 渲染进程工具层，提供公告标题的智能分类功能，基于规则匹配进行分类
+ *
  * ⚠️ 更新提醒：修改此文件后，请同步更新：
  *    1. 本文件开头的 INPUT/OUTPUT/POS 注释
  *    2. src/utils/README.md 中的文件列表
@@ -311,14 +311,11 @@ export const DEFAULT_CLASSIFICATION_RULES = CLASSIFICATION_RULES;
  * @param customRules 自定义规则（可选，不传则使用默认规则）
  * @returns 公告分类
  */
-export function classifyAnnouncementWithRules(
-	title: string,
-	customRules?: ClassificationRule[]
-): AnnouncementCategory {
+export function classifyAnnouncementWithRules(title: string, customRules?: ClassificationRule[]): AnnouncementCategory {
 	if (!title) return AnnouncementCategory.OTHER;
 
 	const rules = customRules || CLASSIFICATION_RULES;
-	
+
 	// 按优先级排序后匹配
 	const sortedRules = [...rules].sort((a, b) => a.priority - b.priority);
 

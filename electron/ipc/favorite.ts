@@ -1,8 +1,8 @@
 /**
- * INPUT: ipcMain(Electron), favoriteService(服务层)
- * OUTPUT: registerFavoriteHandlers() - 注册收藏相关的IPC处理器（add-favorite-stock, remove-favorite-stock等）
- * POS: IPC通信层收藏处理器，连接渲染进程与主进程的收藏业务逻辑
- * 
+ * 依赖: ipcMain(Electron), favoriteService(服务层)
+ * 输出: registerFavoriteHandlers() - 注册收藏相关的IPC处理器（add-favorite-stock, remove-favorite-stock等）
+ * 职责: IPC通信层收藏处理器，连接渲染进程与主进程的收藏业务逻辑
+ *
  * ⚠️ 更新提醒：修改此文件后，请同步更新：
  *    1. 本文件开头的 INPUT/OUTPUT/POS 注释
  *    2. electron/ipc/README.md 中的文件列表
@@ -75,4 +75,3 @@ export function registerFavoriteHandlers(): void {
 		}
 	});
 }
-

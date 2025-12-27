@@ -1,8 +1,8 @@
 /**
- * INPUT: stockService(服务层), types(类型定义), Ant Design App(消息提示)
- * OUTPUT: useStockList Hook - 提供股票列表数据获取、分页、筛选的状态管理
- * POS: 渲染进程业务逻辑Hook，封装股票列表的数据获取和状态管理逻辑
- * 
+ * 依赖: stockService(服务层), types(类型定义), Ant Design App(消息提示)
+ * 输出: useStockList Hook - 提供股票列表数据获取、分页、筛选的状态管理
+ * 职责: 渲染进程业务逻辑Hook，封装股票列表的数据获取和状态管理逻辑
+ *
  * ⚠️ 更新提醒：修改此文件后，请同步更新：
  *    1. 本文件开头的 INPUT/OUTPUT/POS 注释
  *    2. src/hooks/README.md 中的文件列表
@@ -34,21 +34,14 @@ function isFilterEqual(filter1?: StockFilter, filter2?: StockFilter): boolean {
 	const dateRange1 = filter1.dateRange;
 	const dateRange2 = filter2.dateRange;
 	const dateRangeEqual =
-		(!dateRange1 && !dateRange2) ||
-		(dateRange1 &&
-			dateRange2 &&
-			dateRange1[0] === dateRange2[0] &&
-			dateRange1[1] === dateRange2[1]);
+		(!dateRange1 && !dateRange2) || (dateRange1 && dateRange2 && dateRange1[0] === dateRange2[0] && dateRange1[1] === dateRange2[1]);
 
 	// 比较 marketCapRange
 	const marketCapRange1 = filter1.marketCapRange;
 	const marketCapRange2 = filter2.marketCapRange;
 	const marketCapRangeEqual =
 		(!marketCapRange1 && !marketCapRange2) ||
-		(marketCapRange1 &&
-			marketCapRange2 &&
-			marketCapRange1.min === marketCapRange2.min &&
-			marketCapRange1.max === marketCapRange2.max);
+		(marketCapRange1 && marketCapRange2 && marketCapRange1.min === marketCapRange2.min && marketCapRange1.max === marketCapRange2.max);
 
 	// 比较 categories
 	const categories1 = filter1.categories;
@@ -57,8 +50,7 @@ function isFilterEqual(filter1?: StockFilter, filter2?: StockFilter): boolean {
 	if (!categories1 && !categories2) {
 		categoriesEqual = true;
 	} else if (categories1 && categories2) {
-		categoriesEqual = categories1.length === categories2.length && 
-			categories1.every((cat, idx) => cat === categories2[idx]);
+		categoriesEqual = categories1.length === categories2.length && categories1.every((cat, idx) => cat === categories2[idx]);
 	} else {
 		categoriesEqual = false;
 	}
@@ -71,7 +63,7 @@ function isFilterEqual(filter1?: StockFilter, filter2?: StockFilter): boolean {
 		marketCapRangeEqual &&
 		categoriesEqual
 	);
-	
+
 	return result;
 }
 
@@ -223,4 +215,3 @@ export function useStockList<T extends StockGroup = StockGroup>(options: UseStoc
 		nextPage,
 	};
 }
-

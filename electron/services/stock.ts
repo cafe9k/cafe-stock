@@ -1,8 +1,8 @@
 /**
- * INPUT: TushareClient(API), StockRepository(基础), StockDetailRepository(详情), stock-detail-sync(同步引擎)
- * OUTPUT: syncStocksIfNeeded(), syncAllStocks() - 股票数据同步接口
- * POS: 股票数据服务核心，管理股票列表与详情的增量同步协调
- * 
+ * 依赖: TushareClient(API), StockRepository(基础), StockDetailRepository(详情), stock-detail-sync(同步引擎)
+ * 输出: syncStocksIfNeeded(), syncAllStocks() - 股票数据同步接口
+ * 职责: 股票数据服务核心，管理股票列表与详情的增量同步协调
+ *
  * ⚠️ 更新提醒：修改此文件后，请同步更新：
  *    1. 本文件开头的 INPUT/OUTPUT/POS 注释
  *    2. electron/services/README.md 中的文件列表

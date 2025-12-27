@@ -1,8 +1,8 @@
 /**
- * INPUT: FavoriteRepository(数据访问)
- * OUTPUT: addFavoriteStock(), removeFavoriteStock(), getAllFavoriteStocks() - 收藏管理CRUD接口
- * POS: 用户收藏服务，提供股票收藏的业务逻辑封装
- * 
+ * 依赖: FavoriteRepository(数据访问)
+ * 输出: addFavoriteStock(), removeFavoriteStock(), getAllFavoriteStocks() - 收藏管理CRUD接口
+ * 职责: 用户收藏服务，提供股票收藏的业务逻辑封装
+ *
  * ⚠️ 更新提醒：修改此文件后，请同步更新：
  *    1. 本文件开头的 INPUT/OUTPUT/POS 注释
  *    2. electron/services/README.md 中的文件列表
@@ -49,4 +49,3 @@ export function getAllFavoriteStocks(): string[] {
 export function countFavoriteStocks(): number {
 	return favoriteRepository.countFavoriteStocks();
 }
-

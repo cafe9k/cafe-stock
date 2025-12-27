@@ -1,8 +1,8 @@
 /**
- * INPUT: useFavoriteStocks(hook), window.electron(IPC), Ant Design(UI组件)
- * OUTPUT: FavoriteButton 组件 - 收藏按钮组件，提供股票收藏/取消收藏功能
- * POS: 渲染进程UI组件，封装股票收藏功能的交互逻辑，可复用于多个场景
- * 
+ * 依赖: useFavoriteStocks(hook), window.electron(IPC), Ant Design(UI组件)
+ * 输出: FavoriteButton 组件 - 收藏按钮组件，提供股票收藏/取消收藏功能
+ * 职责: 渲染进程UI组件，封装股票收藏功能的交互逻辑，可复用于多个场景
+ *
  * ⚠️ 更新提醒：修改此文件后，请同步更新：
  *    1. 本文件开头的 INPUT/OUTPUT/POS 注释
  *    2. src/components/README.md 中的文件列表
@@ -85,4 +85,3 @@ function FavoriteButtonComponent({ tsCode, isFavorite = false, onChange, size = 
 
 // 使用 memo 优化性能，避免不必要的重渲染
 export const FavoriteButton = memo(FavoriteButtonComponent);
-

@@ -1,8 +1,8 @@
 /**
- * INPUT: Database(better-sqlite3), IStockDetailRepository(接口), BaseRepository(基类)
- * OUTPUT: StockDetailRepository 类 - 提供股票详情数据的CRUD操作（upsertDailyBasic, getDailyBasic等）
- * POS: 股票详情数据访问层实现，封装股票日线指标表的数据库操作
- * 
+ * 依赖: Database(better-sqlite3), IStockDetailRepository(接口), BaseRepository(基类)
+ * 输出: StockDetailRepository 类 - 提供股票详情数据的CRUD操作（upsertDailyBasic, getDailyBasic等）
+ * 职责: 股票详情数据访问层实现，封装股票日线指标表的数据库操作
+ *
  * ⚠️ 更新提醒：修改此文件后，请同步更新：
  *    1. 本文件开头的 INPUT/OUTPUT/POS 注释
  *    2. electron/repositories/README.md 中的文件列表
@@ -207,4 +207,3 @@ export class StockDetailRepository extends BaseRepository implements IStockDetai
 		return result;
 	}
 }
-

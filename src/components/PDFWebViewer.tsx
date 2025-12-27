@@ -1,8 +1,8 @@
 /**
- * INPUT: Electron webview API, Ant Design(UI组件), window.electron(IPC获取PDF)
- * OUTPUT: PDFWebViewer 组件 - WebView版PDF查看器，使用Electron原生webview展示PDF
- * POS: 渲染进程UI组件，提供基于webview的PDF查看方案（备选方案）
- * 
+ * 依赖: Electron webview API, Ant Design(UI组件), window.electron(IPC获取PDF)
+ * 输出: PDFWebViewer 组件 - WebView版PDF查看器，使用Electron原生webview展示PDF
+ * 职责: 渲染进程UI组件，提供基于webview的PDF查看方案（备选方案）
+ *
  * ⚠️ 更新提醒：修改此文件后，请同步更新：
  *    1. 本文件开头的 INPUT/OUTPUT/POS 注释
  *    2. src/components/README.md 中的文件列表

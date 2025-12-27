@@ -1,7 +1,7 @@
 /**
- * INPUT: window.electronAPI(IPC), Ant Design(UI组件), types(类型定义)
- * OUTPUT: DataInsights 页面组件 - 数据洞察页面，提供股东数据同步和统计展示
- * POS: 渲染进程页面组件，数据分析和洞察功能的主界面
+ * 依赖: window.electronAPI(IPC), Ant Design(UI组件), types(类型定义)
+ * 输出: DataInsights 页面组件 - 数据洞察页面，提供股东数据同步和统计展示
+ * 职责: 渲染进程页面组件，数据分析和洞察功能的主界面
  *
  * ⚠️ 更新提醒：修改此文件后，请同步更新：
  *    1. 本文件开头的 INPUT/OUTPUT/POS 注释

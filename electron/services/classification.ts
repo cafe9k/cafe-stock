@@ -1,8 +1,8 @@
 /**
- * INPUT: announcementClassifier(分类工具)
- * OUTPUT: classifyAnnouncementTitle(), classifyAnnouncementsBatch() - 分类规则管理接口
- * POS: 公告分类规则服务，管理公告的智能分类逻辑
- * 
+ * 依赖: announcementClassifier(分类工具)
+ * 输出: classifyAnnouncementTitle(), classifyAnnouncementsBatch() - 分类规则管理接口
+ * 职责: 公告分类规则服务，管理公告的智能分类逻辑
+ *
  * ⚠️ 更新提醒：修改此文件后，请同步更新：
  *    1. 本文件开头的 INPUT/OUTPUT/POS 注释
  *    2. electron/services/README.md 中的文件列表
@@ -27,4 +27,3 @@ export function classifyAnnouncementsBatch(announcements: Array<{ title: string 
 		category: classifyAnnouncement(ann.title),
 	}));
 }
-

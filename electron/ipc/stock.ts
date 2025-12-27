@@ -1,8 +1,8 @@
 /**
- * INPUT: ipcMain(Electron), stockService(服务层), StockRepository(数据访问), StockDetailRepository(详情数据)
- * OUTPUT: registerStockHandlers() - 注册股票相关的IPC处理器（get-all-stocks, sync-stocks等）
- * POS: IPC通信层股票处理器，连接渲染进程与主进程的股票业务逻辑
- * 
+ * 依赖: ipcMain(Electron), stockService(服务层), StockRepository(数据访问), StockDetailRepository(详情数据)
+ * 输出: registerStockHandlers() - 注册股票相关的IPC处理器（get-all-stocks, sync-stocks等）
+ * 职责: IPC通信层股票处理器，连接渲染进程与主进程的股票业务逻辑
+ *
  * ⚠️ 更新提醒：修改此文件后，请同步更新：
  *    1. 本文件开头的 INPUT/OUTPUT/POS 注释
  *    2. electron/ipc/README.md 中的文件列表
@@ -59,16 +59,18 @@ export function registerStockHandlers(mainWindow: BrowserWindow | null): void {
 			const result = await stockService.syncAllStocks((progress) => {
 				mainWindow?.webContents.send("stock-list-sync-progress", progress);
 			});
-			
+
 			// 自动触发详情同步
 			if (result.success) {
-				stockService.syncStockDetails(true, (progress) => {
-					mainWindow?.webContents.send("stock-details-sync-progress", progress);
-				}).catch((err) => {
-					console.error("Auto sync stock details failed:", err);
-				});
+				stockService
+					.syncStockDetails(true, (progress) => {
+						mainWindow?.webContents.send("stock-details-sync-progress", progress);
+					})
+					.catch((err) => {
+						console.error("Auto sync stock details failed:", err);
+					});
 			}
-			
+
 			return result;
 		} catch (error: any) {
 			console.error("Failed to sync all stocks:", error);
@@ -178,18 +180,14 @@ export function registerStockHandlers(mainWindow: BrowserWindow | null): void {
 			const stockSyncInfo = stockRepository.getStockListSyncInfo();
 
 			// 获取同步标志位信息
-			const syncFlags = getDb()
-				.prepare("SELECT sync_type, last_sync_date, updated_at FROM sync_flags ORDER BY sync_type")
-				.all() as Array<{
-					sync_type: string;
-					last_sync_date: string;
-					updated_at: string;
-				}>;
+			const syncFlags = getDb().prepare("SELECT sync_type, last_sync_date, updated_at FROM sync_flags ORDER BY sync_type").all() as Array<{
+				sync_type: string;
+				last_sync_date: string;
+				updated_at: string;
+			}>;
 
 			// 统计十大股东记录总数
-			const top10HoldersRecordRow = getDb()
-				.prepare("SELECT COUNT(*) as count FROM top10_holders")
-				.get() as { count: number };
+			const top10HoldersRecordRow = getDb().prepare("SELECT COUNT(*) as count FROM top10_holders").get() as { count: number };
 			const top10HoldersRecordCount = top10HoldersRecordRow.count;
 
 			return {
@@ -261,4 +259,3 @@ export function registerStockHandlers(mainWindow: BrowserWindow | null): void {
 		}
 	});
 }
-

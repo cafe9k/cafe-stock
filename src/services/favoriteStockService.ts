@@ -1,8 +1,8 @@
 /**
- * INPUT: window.electronAPI(IPC), types(类型定义)
- * OUTPUT: markFavoriteStatus() - 为股票列表标记收藏状态的服务函数
- * POS: 渲染进程服务层，封装收藏状态的标记逻辑，为股票数据添加isFavorite字段
- * 
+ * 依赖: window.electronAPI(IPC), types(类型定义)
+ * 输出: markFavoriteStatus() - 为股票列表标记收藏状态的服务函数
+ * 职责: 渲染进程服务层，封装收藏状态的标记逻辑，为股票数据添加isFavorite字段
+ *
  * ⚠️ 更新提醒：修改此文件后，请同步更新：
  *    1. 本文件开头的 INPUT/OUTPUT/POS 注释
  *    2. src/services/README.md 中的文件列表
@@ -32,4 +32,3 @@ export async function markFavoriteStatus<T extends Stock | StockGroup>(items: T[
 		return items;
 	}
 }
-

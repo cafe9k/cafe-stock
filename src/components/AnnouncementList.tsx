@@ -1,8 +1,8 @@
 /**
- * INPUT: useStockList(hook), useStockFilter(hook), StockList(组件), announcementClassifier(分类工具), window.electron(IPC)
- * OUTPUT: AnnouncementList 组件 - 公告列表展示组件，提供搜索、筛选、分页、PDF查看等功能
- * POS: 渲染进程核心UI组件，负责公告数据的展示和交互，是用户与公告数据的主要界面
- * 
+ * 依赖: useStockList(hook), useStockFilter(hook), StockList(组件), announcementClassifier(分类工具), window.electron(IPC)
+ * 输出: AnnouncementList 组件 - 公告列表展示组件，提供搜索、筛选、分页、PDF查看等功能
+ * 职责: 渲染进程核心UI组件，负责公告数据的展示和交互，是用户与公告数据的主要界面
+ *
  * ⚠️ 更新提醒：修改此文件后，请同步更新：
  *    1. 本文件开头的 INPUT/OUTPUT/POS 注释
  *    2. src/components/README.md 中的文件列表
@@ -11,15 +11,7 @@
 
 import { useEffect, useState, useMemo, useRef } from "react";
 import { Table, Card, Tag, Typography, Badge, Space, Button, Input, Select, App, InputNumber, Descriptions, Divider } from "antd";
-import {
-	FileTextOutlined,
-	ReloadOutlined,
-	SearchOutlined,
-	HistoryOutlined,
-	StarOutlined,
-	StarFilled,
-	ClockCircleOutlined,
-} from "@ant-design/icons";
+import { FileTextOutlined, ReloadOutlined, SearchOutlined, HistoryOutlined, StarOutlined, StarFilled, ClockCircleOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import { StockList } from "./StockList/index";
 import { useStockList } from "../hooks/useStockList";
@@ -58,7 +50,7 @@ export function AnnouncementList() {
 	const [loadingExpanded, setLoadingExpanded] = useState<Record<string, boolean>>({});
 	const [showFavoriteOnly, setShowFavoriteOnly] = useState(false);
 	const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-	
+
 	// 市值筛选状态
 	const [marketCapFilter, setMarketCapFilter] = useState<string>("all"); // all | < 30 | < 50 | < 100 | custom
 	const [customMarketCapMin, setCustomMarketCapMin] = useState<number | null>(null);
@@ -95,7 +87,7 @@ export function AnnouncementList() {
 	// 构建完整的筛选条件
 	const currentFilter = useMemo<StockFilter>(() => {
 		const baseFilter = filter.getFilter();
-		
+
 		// 构建市值筛选范围
 		let marketCapRange: { min?: number; max?: number } | undefined;
 		if (marketCapFilter === "< 30") {
@@ -110,7 +102,7 @@ export function AnnouncementList() {
 				max: customMarketCapMax ?? undefined,
 			};
 		}
-		
+
 		return {
 			...baseFilter,
 			searchKeyword: debouncedSearchKeyword.trim() || undefined,
@@ -127,7 +119,7 @@ export function AnnouncementList() {
 		setExpandedData({});
 		setCompanyInfoData({});
 		setExpandedPageMap({});
-		
+
 		// 更新筛选条件并重新加载（会自动重置到第一页）
 		updateFilter(currentFilter);
 		// eslint-disable-next-line react-hooks/exhaustive-deps
@@ -139,7 +131,7 @@ export function AnnouncementList() {
 		currentFilter.dateRange?.[1],
 		currentFilter.marketCapRange?.min,
 		currentFilter.marketCapRange?.max,
-		currentFilter.categories?.join(','), // 监听分类数组变化
+		currentFilter.categories?.join(","), // 监听分类数组变化
 	]);
 
 	// 当分类筛选变化时，重置所有展开行的分页到第一页
@@ -170,7 +162,7 @@ export function AnnouncementList() {
 					currentFilter.dateRange?.[0],
 					currentFilter.dateRange?.[1]
 				);
-				
+
 				setExpandedData((prev) => ({ ...prev, [record.ts_code]: announcements }));
 				// 初始化分页为第1页
 				setExpandedPageMap((prev) => ({ ...prev, [record.ts_code]: 1 }));
@@ -209,19 +201,19 @@ export function AnnouncementList() {
 		setSearchKeyword(trimmedValue);
 		// 立即更新防抖搜索关键词（跳过防抖）
 		setDebouncedSearchKeyword(trimmedValue);
-		
+
 		// 清除防抖定时器，避免重复触发
 		if (debounceTimerRef.current) {
 			clearTimeout(debounceTimerRef.current);
 		}
-		
+
 		// 保存到搜索历史（非空且不重复）
 		if (trimmedValue && !searchHistory.includes(trimmedValue)) {
 			const newHistory = [trimmedValue, ...searchHistory].slice(0, MAX_SEARCH_HISTORY);
 			setSearchHistory(newHistory);
 			localStorage.setItem(SEARCH_HISTORY_STORAGE_KEY, JSON.stringify(newHistory));
 		}
-		
+
 		// 筛选条件变化会触发 useEffect 自动更新
 	};
 
@@ -290,12 +282,12 @@ export function AnnouncementList() {
 				});
 
 				// 直接在系统默认浏览器中打开
-			const openResult = await window.electronAPI.openExternal(result.url);
-			if (openResult.success) {
-				message.success("已在浏览器中打开公告");
-			} else {
-				message.error((openResult as any).error || "打开浏览器失败");
-			}
+				const openResult = await window.electronAPI.openExternal(result.url);
+				if (openResult.success) {
+					message.success("已在浏览器中打开公告");
+				} else {
+					message.error((openResult as any).error || "打开浏览器失败");
+				}
 			} else {
 				message.warning(result.message || "该公告暂无 PDF 文件");
 			}
@@ -327,7 +319,6 @@ export function AnnouncementList() {
 		};
 	}, [page, searchKeyword, refresh]);
 
-
 	// 嵌套表格列定义
 	const nestedColumns: ColumnsType<Announcement> = [
 		{
@@ -339,7 +330,7 @@ export function AnnouncementList() {
 				const category = record.category;
 				const color = category ? getCategoryColor(category as AnnouncementCategory) : "default";
 				const icon = category ? getCategoryIcon(category as AnnouncementCategory) : "📄";
-				
+
 				return (
 					<div style={{ display: "flex", alignItems: "center", gap: 8 }}>
 						<FileTextOutlined style={{ color: "#1890ff", fontSize: 12 }} />
@@ -382,18 +373,10 @@ export function AnnouncementList() {
 					<>
 						<Card size="small" style={{ marginBottom: 16 }}>
 							<Descriptions title="公司基本信息" bordered size="small" column={2}>
-								{companyInfo.chairman && (
-									<Descriptions.Item label="法人代表">{companyInfo.chairman}</Descriptions.Item>
-								)}
-								{companyInfo.manager && (
-									<Descriptions.Item label="总经理">{companyInfo.manager}</Descriptions.Item>
-								)}
-								{companyInfo.secretary && (
-									<Descriptions.Item label="董秘">{companyInfo.secretary}</Descriptions.Item>
-								)}
-								{companyInfo.reg_capital && (
-									<Descriptions.Item label="注册资本">{companyInfo.reg_capital}</Descriptions.Item>
-								)}
+								{companyInfo.chairman && <Descriptions.Item label="法人代表">{companyInfo.chairman}</Descriptions.Item>}
+								{companyInfo.manager && <Descriptions.Item label="总经理">{companyInfo.manager}</Descriptions.Item>}
+								{companyInfo.secretary && <Descriptions.Item label="董秘">{companyInfo.secretary}</Descriptions.Item>}
+								{companyInfo.reg_capital && <Descriptions.Item label="注册资本">{companyInfo.reg_capital}</Descriptions.Item>}
 								{companyInfo.setup_date && (
 									<Descriptions.Item label="成立日期">
 										{companyInfo.setup_date.replace(/(\d{4})(\d{2})(\d{2})/, "$1-$2-$3")}
@@ -469,11 +452,7 @@ export function AnnouncementList() {
 						showHeader={false}
 						rowKey={(record) => `${record.ts_code}-${record.ann_date}-${record.title}`}
 						locale={{
-							emptyText: loading
-								? "加载中..."
-								: selectedCategories.length > 0
-								? "没有符合所选分类的公告"
-								: "暂无公告",
+							emptyText: loading ? "加载中..." : selectedCategories.length > 0 ? "没有符合所选分类的公告" : "暂无公告",
 						}}
 						onRow={(record) => ({
 							onClick: () => handlePdfPreview(record),
@@ -509,89 +488,89 @@ export function AnnouncementList() {
 					}
 				`}
 			</style>
-		{/* 操作栏 - 所有控件在同一行 */}
-		<div style={{ marginBottom: 16 }}>
-			<Space style={{ width: "100%" }} align="start" wrap size={[8, 8]}>
-				{/* 关注筛选 - 最重要的筛选条件，放在最左边 */}
-				<Button
-					type={showFavoriteOnly ? "primary" : "default"}
-					icon={showFavoriteOnly ? <StarFilled /> : <StarOutlined />}
-					onClick={handleToggleFavoriteFilter}
-				>
-					{showFavoriteOnly ? "仅关注" : "关注"}
-				</Button>
+			{/* 操作栏 - 所有控件在同一行 */}
+			<div style={{ marginBottom: 16 }}>
+				<Space style={{ width: "100%" }} align="start" wrap size={[8, 8]}>
+					{/* 关注筛选 - 最重要的筛选条件，放在最左边 */}
+					<Button
+						type={showFavoriteOnly ? "primary" : "default"}
+						icon={showFavoriteOnly ? <StarFilled /> : <StarOutlined />}
+						onClick={handleToggleFavoriteFilter}
+					>
+						{showFavoriteOnly ? "仅关注" : "关注"}
+					</Button>
 
-				{/* 市场选择 - 第二重要的筛选条件 */}
-				<Select
-					value={filter.selectedMarket}
-					onChange={filter.setSelectedMarket}
-					style={{ width: 110 }}
-					options={[
-						{ value: "all", label: "全部市场" },
-						{ value: "主板", label: "主板" },
-						{ value: "创业板", label: "创业板" },
-						{ value: "科创板", label: "科创板" },
-						{ value: "CDR", label: "CDR" },
-					]}
-				/>
+					{/* 市场选择 - 第二重要的筛选条件 */}
+					<Select
+						value={filter.selectedMarket}
+						onChange={filter.setSelectedMarket}
+						style={{ width: 110 }}
+						options={[
+							{ value: "all", label: "全部市场" },
+							{ value: "主板", label: "主板" },
+							{ value: "创业板", label: "创业板" },
+							{ value: "科创板", label: "科创板" },
+							{ value: "CDR", label: "CDR" },
+						]}
+					/>
 
-				{/* 市值筛选 */}
-				<Select
-					value={marketCapFilter}
-					onChange={setMarketCapFilter}
-					style={{ width: 120 }}
-					options={[
-						{ value: "all", label: "全部市值" },
-						{ value: "< 30", label: "< 30亿" },
-						{ value: "< 50", label: "< 50亿" },
-						{ value: "< 100", label: "< 100亿" },
-						{ value: "custom", label: "自定义" },
-					]}
-				/>
-				{marketCapFilter === "custom" && (
-					<>
-						<InputNumber
-							placeholder="最小值（亿）"
-							value={customMarketCapMin}
-							onChange={(value) => setCustomMarketCapMin(value)}
-							style={{ width: 110 }}
-							min={0}
-							precision={2}
-						/>
-						<span>-</span>
-						<InputNumber
-							placeholder="最大值（亿）"
-							value={customMarketCapMax}
-							onChange={(value) => setCustomMarketCapMax(value)}
-							style={{ width: 110 }}
-							min={0}
-							precision={2}
-						/>
-					</>
-				)}
+					{/* 市值筛选 */}
+					<Select
+						value={marketCapFilter}
+						onChange={setMarketCapFilter}
+						style={{ width: 120 }}
+						options={[
+							{ value: "all", label: "全部市值" },
+							{ value: "< 30", label: "< 30亿" },
+							{ value: "< 50", label: "< 50亿" },
+							{ value: "< 100", label: "< 100亿" },
+							{ value: "custom", label: "自定义" },
+						]}
+					/>
+					{marketCapFilter === "custom" && (
+						<>
+							<InputNumber
+								placeholder="最小值（亿）"
+								value={customMarketCapMin}
+								onChange={(value) => setCustomMarketCapMin(value)}
+								style={{ width: 110 }}
+								min={0}
+								precision={2}
+							/>
+							<span>-</span>
+							<InputNumber
+								placeholder="最大值（亿）"
+								value={customMarketCapMax}
+								onChange={(value) => setCustomMarketCapMax(value)}
+								style={{ width: 110 }}
+								min={0}
+								precision={2}
+							/>
+						</>
+					)}
 
-				{/* 时间选择 */}
-				<Select
-					value={filter.quickSelectValue}
-					onChange={filter.handleQuickSelect}
-					style={{ width: 120 }}
-					suffixIcon={<ClockCircleOutlined />}
-					options={[
-						{ value: "today", label: "今天" },
-						{ value: "tomorrow", label: "明天" },
-						{ value: "yesterday", label: "昨天" },
-						{ value: "week", label: "最近一周" },
-						{ value: "month", label: "最近一个月" },
-						{ value: "quarter", label: "最近三个月" },
-					]}
-				/>
+					{/* 时间选择 */}
+					<Select
+						value={filter.quickSelectValue}
+						onChange={filter.handleQuickSelect}
+						style={{ width: 120 }}
+						suffixIcon={<ClockCircleOutlined />}
+						options={[
+							{ value: "today", label: "今天" },
+							{ value: "tomorrow", label: "明天" },
+							{ value: "yesterday", label: "昨天" },
+							{ value: "week", label: "最近一周" },
+							{ value: "month", label: "最近一个月" },
+							{ value: "quarter", label: "最近三个月" },
+						]}
+					/>
 
-				{/* 刷新按钮 - 操作按钮放在最右边 */}
-				<Button icon={<ReloadOutlined />} onClick={handleRefresh} loading={loading}>
-					刷新
-				</Button>
-			</Space>
-		</div>
+					{/* 刷新按钮 - 操作按钮放在最右边 */}
+					<Button icon={<ReloadOutlined />} onClick={handleRefresh} loading={loading}>
+						刷新
+					</Button>
+				</Space>
+			</div>
 
 			{/* 搜索（独立一行） */}
 			<div style={{ marginBottom: 16 }}>
@@ -618,7 +597,9 @@ export function AnnouncementList() {
 					{/* 搜索历史列表 */}
 					{searchHistory.length > 0 && (
 						<>
-							<AntText type="secondary" style={{ marginLeft: 8 }}>最近搜索：</AntText>
+							<AntText type="secondary" style={{ marginLeft: 8 }}>
+								最近搜索：
+							</AntText>
 							<div
 								style={{
 									display: "flex",
@@ -670,7 +651,9 @@ export function AnnouncementList() {
 							}
 						`}
 					</style>
-					<AntText strong style={{ flexShrink: 0, whiteSpace: "nowrap" }}>分类筛选：</AntText>
+					<AntText strong style={{ flexShrink: 0, whiteSpace: "nowrap" }}>
+						分类筛选：
+					</AntText>
 					<div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
 						<Button
 							size="small"
@@ -757,7 +740,15 @@ export function AnnouncementList() {
 					showPagination={false}
 					scroll={{ x: 850 }}
 					size="small"
-					emptyText={loading ? "加载中..." : searchKeyword ? "没有找到匹配的股票" : selectedCategories.length > 0 ? "没有符合所选分类的股票" : "暂无数据"}
+					emptyText={
+						loading
+							? "加载中..."
+							: searchKeyword
+							? "没有找到匹配的股票"
+							: selectedCategories.length > 0
+							? "没有符合所选分类的股票"
+							: "暂无数据"
+					}
 				/>
 
 				{/* 自定义分页 */}
@@ -772,12 +763,10 @@ export function AnnouncementList() {
 							borderTop: "1px solid #f0f0f0",
 						}}
 					>
-					<AntText type="secondary">
-						显示第 <AntText strong>{page}</AntText> 页
-						{" "}
-						共 <AntText strong>{Math.ceil(total / PAGE_SIZE)}</AntText> 页 (总计{" "}
-						<AntText strong>{total.toLocaleString()}</AntText> 只股票)
-					</AntText>
+						<AntText type="secondary">
+							显示第 <AntText strong>{page}</AntText> 页 共 <AntText strong>{Math.ceil(total / PAGE_SIZE)}</AntText> 页 (总计{" "}
+							<AntText strong>{total.toLocaleString()}</AntText> 只股票)
+						</AntText>
 						<div style={{ display: "flex", gap: 8 }}>
 							<Button onClick={prevPage} disabled={page === 1}>
 								上一页
@@ -789,7 +778,6 @@ export function AnnouncementList() {
 					</div>
 				)}
 			</Card>
-
 		</div>
 	);
 }

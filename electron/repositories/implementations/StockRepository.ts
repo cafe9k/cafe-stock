@@ -1,8 +1,8 @@
 /**
- * INPUT: Database(better-sqlite3), IStockRepository(接口), BaseRepository(基类)
- * OUTPUT: StockRepository 类 - 提供股票数据的CRUD操作（upsertStocks, findById, findAll等）
- * POS: 股票数据访问层实现，封装股票表的数据库操作，隔离业务逻辑与数据持久化
- * 
+ * 依赖: Database(better-sqlite3), IStockRepository(接口), BaseRepository(基类)
+ * 输出: StockRepository 类 - 提供股票数据的CRUD操作（upsertStocks, findById, findAll等）
+ * 职责: 股票数据访问层实现，封装股票表的数据库操作，隔离业务逻辑与数据持久化
+ *
  * ⚠️ 更新提醒：修改此文件后，请同步更新：
  *    1. 本文件开头的 INPUT/OUTPUT/POS 注释
  *    2. electron/repositories/README.md 中的文件列表
@@ -131,4 +131,3 @@ export class StockRepository extends BaseRepository implements IStockRepository 
 		};
 	}
 }
-

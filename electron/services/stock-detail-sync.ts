@@ -1,8 +1,8 @@
 /**
- * INPUT: TushareClient(API), StockDetailRepository(数据), syncFlagManager(状态管理)
- * OUTPUT: syncStockDetailsWithResume(), getStockDetailsSyncProgress() - 断点续传同步接口
- * POS: 股票详情同步工具，实现增量更新、断点续传和进度管理的低级别同步引擎
- * 
+ * 依赖: TushareClient(API), StockDetailRepository(数据), syncFlagManager(状态管理)
+ * 输出: syncStockDetailsWithResume(), getStockDetailsSyncProgress() - 断点续传同步接口
+ * 职责: 股票详情同步工具，实现增量更新、断点续传和进度管理的低级别同步引擎
+ *
  * ⚠️ 更新提醒：修改此文件后，请同步更新：
  *    1. 本文件开头的 INPUT/OUTPUT/POS 注释
  *    2. electron/services/README.md 中的文件列表
@@ -98,11 +98,14 @@ export async function syncStockDetailsWithResume(
 
 		// 尝试恢复断点续传进度
 		let resumeProgress: ResumeProgress | null = null;
-		
+
 		if (!forceSync) {
 			resumeProgress = syncFlagManager.getResumeProgress(SYNC_TYPE);
 			if (resumeProgress) {
-				log.info("StockDetail", `发现断点续传进度: 阶段1完成=${resumeProgress.dailyBasicCompleted}, 已同步公司=${resumeProgress.syncedCompanies.length}`);
+				log.info(
+					"StockDetail",
+					`发现断点续传进度: 阶段1完成=${resumeProgress.dailyBasicCompleted}, 已同步公司=${resumeProgress.syncedCompanies.length}`
+				);
 			}
 		}
 
@@ -309,4 +312,3 @@ export function getStockDetailsSyncProgress(): {
 		lastSyncDate: lastSync,
 	};
 }
-

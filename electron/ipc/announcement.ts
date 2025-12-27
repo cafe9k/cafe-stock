@@ -1,8 +1,8 @@
 /**
- * INPUT: ipcMain(Electron), announcementService(服务层), classificationService(分类服务), AnnouncementRepository(数据访问)
- * OUTPUT: registerAnnouncementHandlers() - 注册公告相关的IPC处理器（get-announcements, sync-announcements等）
- * POS: IPC通信层公告处理器，连接渲染进程与主进程的公告业务逻辑
- * 
+ * 依赖: ipcMain(Electron), announcementService(服务层), classificationService(分类服务), AnnouncementRepository(数据访问)
+ * 输出: registerAnnouncementHandlers() - 注册公告相关的IPC处理器（get-announcements, sync-announcements等）
+ * 职责: IPC通信层公告处理器，连接渲染进程与主进程的公告业务逻辑
+ *
  * ⚠️ 更新提醒：修改此文件后，请同步更新：
  *    1. 本文件开头的 INPUT/OUTPUT/POS 注释
  *    2. electron/ipc/README.md 中的文件列表
@@ -30,7 +30,7 @@ function adjustEndDateForFutureAnnouncements(endDate: string): string {
 	const month = String(today.getMonth() + 1).padStart(2, "0");
 	const day = String(today.getDate()).padStart(2, "0");
 	const todayStr = `${year}${month}${day}`;
-	
+
 	// 如果结束日期是今天或未来，扩展为今天+2天
 	if (endDate >= todayStr) {
 		const futureDate = new Date();
@@ -40,7 +40,7 @@ function adjustEndDateForFutureAnnouncements(endDate: string): string {
 		const futureDay = String(futureDate.getDate()).padStart(2, "0");
 		return `${futureYear}${futureMonth}${futureDay}`;
 	}
-	
+
 	return endDate;
 }
 
@@ -51,14 +51,37 @@ export function registerAnnouncementHandlers(): void {
 	// 获取按股票聚合的公告列表
 	ipcMain.handle(
 		"get-announcements-grouped",
-		async (_event, page: number, pageSize: number, startDate?: string, endDate?: string, market?: string, forceRefresh?: boolean, searchKeyword?: string, categories?: string[], marketCapRange?: { min?: number; max?: number }) => {
+		async (
+			_event,
+			page: number,
+			pageSize: number,
+			startDate?: string,
+			endDate?: string,
+			market?: string,
+			forceRefresh?: boolean,
+			searchKeyword?: string,
+			categories?: string[],
+			marketCapRange?: { min?: number; max?: number }
+		) => {
 			try {
 				log.debug(
 					"IPC",
-					`get-announcements-grouped: page=${page}, pageSize=${pageSize}, dateRange=${startDate}-${endDate}, market=${market}, forceRefresh=${forceRefresh}, searchKeyword=${searchKeyword}, categories=${categories?.join(",")}, marketCapRange=${JSON.stringify(marketCapRange)}`
+					`get-announcements-grouped: page=${page}, pageSize=${pageSize}, dateRange=${startDate}-${endDate}, market=${market}, forceRefresh=${forceRefresh}, searchKeyword=${searchKeyword}, categories=${categories?.join(
+						","
+					)}, marketCapRange=${JSON.stringify(marketCapRange)}`
 				);
 
-				const result = await announcementService.getAnnouncementsGroupedFromAPI(page, pageSize, startDate, endDate, market, forceRefresh, searchKeyword, categories, marketCapRange);
+				const result = await announcementService.getAnnouncementsGroupedFromAPI(
+					page,
+					pageSize,
+					startDate,
+					endDate,
+					market,
+					forceRefresh,
+					searchKeyword,
+					categories,
+					marketCapRange
+				);
 
 				log.debug("IPC", `get-announcements-grouped: page=${page}, items=${result.items.length}, total=${result.total}`);
 
@@ -111,14 +134,7 @@ export function registerAnnouncementHandlers(): void {
 				);
 
 				// 使用新的搜索方法，同时匹配股票和公告
-				const result = await announcementService.searchStocksAndAnnouncementsFromDB(
-					keyword,
-					page,
-					pageSize,
-					startDate,
-					endDate,
-					market
-				);
+				const result = await announcementService.searchStocksAndAnnouncementsFromDB(keyword, page, pageSize, startDate, endDate, market);
 
 				log.debug("IPC", `search-announcements-grouped: page=${page}, items=${result.items.length}, total=${result.total}`);
 
@@ -304,9 +320,14 @@ export function registerAnnouncementHandlers(): void {
 			log.info("IPC", `sync-announcements-range: tsCode=${tsCode}, dateRange=${startDate}-${adjustedEndDate} (原始: ${endDate})`);
 
 			// 从 API 获取公告
-			const announcements = await TushareClient.getAnnouncementsComplete(tsCode || undefined, startDate, adjustedEndDate, (message, current, total) => {
-				log.debug("IPC", message);
-			});
+			const announcements = await TushareClient.getAnnouncementsComplete(
+				tsCode || undefined,
+				startDate,
+				adjustedEndDate,
+				(message, current, total) => {
+					log.debug("IPC", message);
+				}
+			);
 
 			// 保存到数据库
 			if (announcements.length > 0) {
@@ -326,4 +347,3 @@ export function registerAnnouncementHandlers(): void {
 		}
 	});
 }
-

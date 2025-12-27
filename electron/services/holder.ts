@@ -1,8 +1,8 @@
 /**
- * INPUT: TushareClient(API), HolderRepository(数据), StockRepository(股票)
- * OUTPUT: syncAllTop10Holders(), pauseSync(), resumeSync(), stopSync() - 股东数据同步接口
- * POS: 股东信息服务，负责十大股东和流通股东的增量数据同步
- * 
+ * 依赖: TushareClient(API), HolderRepository(数据), StockRepository(股票)
+ * 输出: syncAllTop10Holders(), pauseSync(), resumeSync(), stopSync() - 股东数据同步接口
+ * 职责: 股东信息服务，负责十大股东和流通股东的增量数据同步
+ *
  * ⚠️ 更新提醒：修改此文件后，请同步更新：
  *    1. 本文件开头的 INPUT/OUTPUT/POS 注释
  *    2. electron/services/README.md 中的文件列表
@@ -27,10 +27,7 @@ let isPausedHolders = false;
 /**
  * 同步所有股票的十大股东数据
  */
-export async function syncAllTop10Holders(
-	mainWindow: BrowserWindow | null,
-	onProgress?: (progress: SyncProgress) => void
-): Promise<SyncResult> {
+export async function syncAllTop10Holders(mainWindow: BrowserWindow | null, onProgress?: (progress: SyncProgress) => void): Promise<SyncResult> {
 	if (isSyncingHolders) {
 		return { success: false, status: "skipped", message: "同步正在进行中" };
 	}
@@ -249,4 +246,3 @@ export async function syncStockTop10Holders(tsCode: string): Promise<{ status: s
 		};
 	}
 }
-

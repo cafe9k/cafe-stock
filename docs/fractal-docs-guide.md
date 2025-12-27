@@ -32,10 +32,10 @@ bash scripts/install-git-hooks.sh
 
 ```typescript
 /**
- * INPUT: [依赖的外部模块/API/数据源]
- * OUTPUT: [对外提供的函数/类/接口]
- * POS: [在系统中的角色定位]
- * 
+ * 依赖: [依赖的外部模块/API/数据源]
+ * 输出: [对外提供的函数/类/接口]
+ * 职责: [在系统中的角色定位]
+ *
  * ⚠️ 更新提醒：修改此文件后，请同步更新：
  *    1. 本文件开头的 INPUT/OUTPUT/POS 注释
  *    2. 所在目录的 README.md 中的文件列表
@@ -47,15 +47,17 @@ bash scripts/install-git-hooks.sh
 
 每个代码目录应包含 `README.md`，至少包含：
 
-1. **架构定位（3行）**：
-   - 职责：[模块的核心职责]
-   - 依赖：[依赖的其他模块]
-   - 输出：[对外提供的能力]
+1. **架构定位（3 行）**：
+
+    - 职责：[模块的核心职责]
+    - 依赖：[依赖的其他模块]
+    - 输出：[对外提供的能力]
 
 2. **自指声明**：
-   ```
-   ⚠️ **自指声明**：一旦本文件夹有文件新增/删除/重命名，请立即更新本 README
-   ```
+
+    ```
+    ⚠️ **自指声明**：一旦本文件夹有文件新增/删除/重命名，请立即更新本 README
+    ```
 
 3. **文件清单**：列出所有文件及功能说明
 
@@ -99,9 +101,9 @@ bash scripts/install-git-hooks.sh
 
 ### 工作原理
 
-- 每次 `git commit` 前自动运行验证工具
-- 如果文档不符合规范，提交会被阻止
-- 查看详细报告：`cat fractal-docs-validation-report.txt`
+-   每次 `git commit` 前自动运行验证工具
+-   如果文档不符合规范，提交会被阻止
+-   查看详细报告：`cat fractal-docs-validation-report.txt`
 
 ### 跳过检查
 
@@ -126,23 +128,26 @@ rm .git/hooks/pre-commit
 ### 检查项
 
 1. **文件注释头检查**：
-   - 检查所有 `.ts/.tsx` 文件是否包含 INPUT/OUTPUT/POS
-   - 检查是否包含更新提醒
+
+    - 检查所有 `.ts/.tsx` 文件是否包含 INPUT/OUTPUT/POS
+    - 检查是否包含更新提醒
 
 2. **目录 README 检查**：
-   - 检查每个目录是否有 README.md
-   - 检查 README.md 是否包含自指声明
-   - 检查 README.md 是否包含架构定位
+
+    - 检查每个目录是否有 README.md
+    - 检查 README.md 是否包含自指声明
+    - 检查 README.md 是否包含架构定位
 
 3. **错误处理**：
-   - 捕获文件读取错误
-   - 生成详细的错误报告
+    - 捕获文件读取错误
+    - 生成详细的错误报告
 
 ### 报告格式
 
 验证工具会生成：
-- 控制台输出（实时反馈）
-- `fractal-docs-validation-report.txt`（详细报告）
+
+-   控制台输出（实时反馈）
+-   `fractal-docs-validation-report.txt`（详细报告）
 
 ---
 
@@ -150,18 +155,18 @@ rm .git/hooks/pre-commit
 
 ### Electron 主进程
 
-- ✅ `electron/services/` - 业务逻辑层
-- ✅ `electron/repositories/` - 数据访问层
-- ✅ `electron/ipc/` - IPC通信层
+-   ✅ `electron/services/` - 业务逻辑层
+-   ✅ `electron/repositories/` - 数据访问层
+-   ✅ `electron/ipc/` - IPC 通信层
 
 ### React 渲染进程
 
-- ✅ `src/components/` - UI组件层
-- ✅ `src/hooks/` - Hook层
-- ✅ `src/pages/` - 页面层
-- ✅ `src/services/` - IPC通信封装层
-- ✅ `src/types/` - 类型定义层
-- ✅ `src/utils/` - 工具函数层
+-   ✅ `src/components/` - UI 组件层
+-   ✅ `src/hooks/` - Hook 层
+-   ✅ `src/pages/` - 页面层
+-   ✅ `src/services/` - IPC 通信封装层
+-   ✅ `src/types/` - 类型定义层
+-   ✅ `src/utils/` - 工具函数层
 
 ---
 
@@ -195,4 +200,3 @@ A: 查看 `scripts/validate-fractal-docs.cjs` 中的 `targetDirs` 配置。
 ---
 
 **最后更新**：2025-12-26
-

@@ -1,8 +1,8 @@
 /**
- * INPUT: TushareClient(API), AnnouncementRepository(数据), StockRepository(股票), FavoriteRepository(收藏), announcementClassifier(分类器)
- * OUTPUT: syncAnnouncements(), getGroupedAnnouncements() - 公告同步与聚合查询接口
- * POS: 公告业务核心，连接API与数据层，负责智能分类和PDF下载管理
- * 
+ * 依赖: TushareClient(API), AnnouncementRepository(数据), StockRepository(股票), FavoriteRepository(收藏), announcementClassifier(分类器)
+ * 输出: syncAnnouncements(), getGroupedAnnouncements() - 公告同步与聚合查询接口
+ * 职责: 公告业务核心，连接API与数据层，负责智能分类和PDF下载管理
+ *
  * ⚠️ 更新提醒：修改此文件后，请同步更新：
  *    1. 本文件开头的 INPUT/OUTPUT/POS 注释
  *    2. electron/services/README.md 中的文件列表
@@ -35,7 +35,7 @@ function adjustEndDateForFutureAnnouncements(endDate: string): string {
 	const month = String(today.getMonth() + 1).padStart(2, "0");
 	const day = String(today.getDate()).padStart(2, "0");
 	const todayStr = `${year}${month}${day}`;
-	
+
 	// 如果结束日期是今天或未来，扩展为今天+2天
 	if (endDate >= todayStr) {
 		const futureDate = new Date();
@@ -45,7 +45,7 @@ function adjustEndDateForFutureAnnouncements(endDate: string): string {
 		const futureDay = String(futureDate.getDate()).padStart(2, "0");
 		return `${futureYear}${futureMonth}${futureDay}`;
 	}
-	
+
 	return endDate;
 }
 
@@ -95,7 +95,7 @@ export async function getAnnouncementsGroupedFromAPI(
 		if (startDate && endDate) {
 			// 调整结束日期：如果结束日期是今天或未来，扩展为今天+2天
 			const adjustedEndDate = adjustEndDateForFutureAnnouncements(endDate);
-			
+
 			// 如果有日期范围，使用完整获取方式确保覆盖整个日期范围
 			log.debug("Announcement", `使用完整获取方式获取公告: ${startDate} - ${adjustedEndDate} (原始: ${endDate})`);
 			announcements = await TushareClient.getAnnouncementsComplete(
@@ -143,9 +143,7 @@ export async function getAnnouncementsGroupedFromAPI(
 			}
 			// 搜索公告标题
 			if (stock.announcements && Array.isArray(stock.announcements)) {
-				return stock.announcements.some((ann: any) => 
-					ann.title && ann.title.toLowerCase().includes(keyword)
-				);
+				return stock.announcements.some((ann: any) => ann.title && ann.title.toLowerCase().includes(keyword));
 			}
 			return false;
 		});
@@ -171,7 +169,7 @@ export async function getAnnouncementsGroupedFromAPI(
 			if (stock.total_mv === undefined || stock.total_mv === null) {
 				return true; // 保留没有市值数据的股票
 			}
-			
+
 			// 应用市值范围筛选
 			if (min !== undefined && stock.total_mv < min) return false;
 			if (max !== undefined && stock.total_mv > max) return false;
@@ -235,13 +233,7 @@ export async function searchStocksAndAnnouncementsFromDB(
 	// 6. 获取这些股票在指定时间范围内的公告
 	let announcements: any[] = [];
 	if (startDate && endDate) {
-		announcements = announcementRepository.getAnnouncementsByDateRange(
-			startDate,
-			endDate,
-			undefined,
-			categories,
-			10000
-		);
+		announcements = announcementRepository.getAnnouncementsByDateRange(startDate, endDate, undefined, categories, 10000);
 		// 只保留相关股票的公告
 		announcements = announcements.filter((ann: any) => stockCodesSet.has(ann.ts_code));
 	}
@@ -356,7 +348,7 @@ export async function getFavoriteStocksAnnouncementsGroupedFromAPI(
 		if (announcements.length > 0) {
 			log.info("Announcement", `保存 ${announcements.length} 条关注股票公告到数据库`);
 			announcementRepository.upsertAnnouncements(announcements);
-			
+
 			// 记录已同步的时间范围（使用原始日期，recordAnnouncementSyncRange 内部会调整）
 			if (startDate && endDate) {
 				announcementRepository.recordAnnouncementSyncRange(null, startDate, endDate);
@@ -381,7 +373,7 @@ function aggregateAnnouncementsByStock(stocks: any[], announcements: any[]): Gro
 	// 批量获取市值数据
 	const tsCodes = stocks.map((s: any) => s.ts_code);
 	const marketValues = stockDetailRepository.batchGetLatestMarketValues(tsCodes);
-	
+
 	// 按股票聚合公告数据
 	const stockMap = new Map<
 		string,
@@ -476,4 +468,3 @@ function aggregateAnnouncementsByStock(stocks: any[], announcements: any[]): Gro
 
 	return groupedData;
 }
-

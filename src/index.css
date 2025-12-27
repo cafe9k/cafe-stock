@@ -107,11 +107,11 @@ body {
 	text-align: center !important;
 }
 
-.ant-pagination-options-quick-jumper input:hover {
+.ant-pagination-options-quick-jumper 依赖:hover {
 	border-color: #1890ff !important;
 }
 
-.ant-pagination-options-quick-jumper input:focus {
+.ant-pagination-options-quick-jumper 依赖:focus {
 	border-color: #1890ff !important;
 	box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.1) !important;
 }
