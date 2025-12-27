@@ -1,5 +1,5 @@
 /**
- * 依赖: cytoscape(图形库), cytoscapeData(生成的数据), Ant Design(UI组件)
+ * 依赖: cytoscape(图形库), cytoscapeData(生成的数据), Ant Design(UI组件) [../assets/cytoscape-data.json]
  * 输出: ArchitectureVisualization 页面组件 - 架构可视化页面
  * 职责: 使用Cytoscape.js可视化项目的文件和文件夹依赖关系
  *
@@ -97,19 +97,42 @@ export default function ArchitectureVisualization() {
 					color: "#1e40af",
 				},
 			},
-				{
-					selector: "edge",
-					style: {
-						width: 1,
-						"line-color": "#d1d5db",
-						"target-arrow-color": "#d1d5db",
-						"target-arrow-shape": "triangle",
-						"curve-style": "bezier",
-						opacity: 0.5,
-					},
+			{
+				selector: "edge",
+				style: {
+					width: 1,
+					"line-color": "#d1d5db",
+					"target-arrow-color": "#d1d5db",
+					"target-arrow-shape": "triangle",
+					"curve-style": "bezier",
+					opacity: 0.5,
 				},
-				{
-					selector: "node:selected",
+			},
+			{
+				selector: 'edge[type="hierarchy"]',
+				style: {
+					width: 1,
+					"line-color": "#d1d5db",
+					"target-arrow-color": "#d1d5db",
+					"target-arrow-shape": "triangle",
+					"curve-style": "bezier",
+					opacity: 0.5,
+				},
+			},
+			{
+				selector: 'edge[type="dependency"]',
+				style: {
+					width: 2,
+					"line-color": "#3b82f6",
+					"target-arrow-color": "#3b82f6",
+					"target-arrow-shape": "vee",
+					"curve-style": "bezier",
+					"line-style": "dashed",
+					opacity: 0.7,
+				},
+			},
+			{
+				selector: "node:selected",
 					style: {
 						"border-width": 4,
 						"border-color": "#ef4444",
@@ -367,6 +390,59 @@ export default function ArchitectureVisualization() {
 							}}
 						/>
 						<Text style={{ fontSize: 11 }}>文件</Text>
+					</Space>
+					<div style={{ height: 1, backgroundColor: "#e5e7eb", margin: "4px 0" }} />
+					<Space size="small">
+						<div style={{ display: "flex", alignItems: "center" }}>
+							<div
+								style={{
+									width: 20,
+									height: 2,
+									backgroundColor: "#d1d5db",
+									position: "relative",
+								}}
+							>
+								<div
+									style={{
+										position: "absolute",
+										right: -4,
+										top: -3,
+										width: 0,
+										height: 0,
+										borderLeft: "4px solid #d1d5db",
+										borderTop: "4px solid transparent",
+										borderBottom: "4px solid transparent",
+									}}
+								/>
+							</div>
+						</div>
+						<Text style={{ fontSize: 11 }}>包含关系</Text>
+					</Space>
+					<Space size="small">
+						<div style={{ display: "flex", alignItems: "center" }}>
+							<div
+								style={{
+									width: 20,
+									height: 0,
+									borderTop: "2px dashed #3b82f6",
+									position: "relative",
+								}}
+							>
+								<div
+									style={{
+										position: "absolute",
+										right: -4,
+										top: -4,
+										width: 0,
+										height: 0,
+										borderLeft: "4px solid #3b82f6",
+										borderTop: "4px solid transparent",
+										borderBottom: "4px solid transparent",
+									}}
+								/>
+							</div>
+						</div>
+						<Text style={{ fontSize: 11 }}>依赖关系</Text>
 					</Space>
 				</Space>
 				</div>

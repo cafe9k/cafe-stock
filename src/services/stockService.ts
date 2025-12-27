@@ -1,5 +1,5 @@
 /**
- * 依赖: window.electronAPI(IPC), favoriteStockService(收藏服务), types(类型定义)
+ * 依赖: window.electronAPI(IPC), favoriteStockService(收藏服务), types(类型定义) [../types/stock.ts, ./favoriteStockService.ts]
  * 输出: getAnnouncementsGrouped(), getAllStocks() - 股票数据获取服务函数
  * 职责: 渲染进程服务层，封装股票相关的IPC调用，提供数据获取和处理的统一接口
  *

@@ -5,28 +5,45 @@ globs: src/**/*.{ts,tsx}
 
 # React & TypeScript 开发规范
 
-- **组件定义**:
-  - 所有组件必须使用 **函数式组件 (Functional Components)**。
-  - 组件文件名使用 `PascalCase` (如 `StockList.tsx`)。
-  - 必须显式定义 Props 接口，禁止使用 `any`。
+-   **组件定义**:
 
-- **Hooks**:
-  - 自定义 Hooks 必须以 `use` 开头。
-  - 确保 `useEffect` 的依赖项数组完整。
+    -   所有组件必须使用 **函数式组件 (Functional Components)**。
+    -   组件文件名使用 `PascalCase` (如 `StockList.tsx`)。
+    -   必须显式定义 Props 接口，禁止使用 `any`。
 
-- **TypeScript**:
-  - 优先使用 `interface` 定义对象结构，使用 `type` 定义联合类型。
-  - 避免非空断言 (`!`)，使用可选链 (`?.`) 或类型守卫。
+-   **Hooks**:
 
-- **示例**:
-  ```tsx
-  interface StockItemProps {
-    id: string;
-    name: string;
-    quantity: number;
-  }
+    -   自定义 Hooks 必须以 `use` 开头。
+    -   确保 `useEffect` 的依赖项数组完整。
 
-  export const StockItem = ({ id, name, quantity }: StockItemProps) => {
-    return <div>{name}: {quantity}</div>;
-  };
-  ```
+-   **TypeScript**:
+
+    -   优先使用 `interface` 定义对象结构，使用 `type` 定义联合类型。
+    -   避免非空断言 (`!`)，使用可选链 (`?.`) 或类型守卫。
+
+-   **文件头部注释**:
+
+    -   每个 TS/TSX 文件必须包含标准头部注释，包含依赖、输出、职责三部分。
+    -   **依赖字段格式**: 描述性文本后可用方括号列出项目内文件依赖的相对路径。
+    -   **格式**: `依赖: 外部库/服务描述 [相对路径1, 相对路径2]`
+    -   **示例**: `依赖: window.electronAPI(IPC), types(类型定义) [../types/stock.ts, ./favoriteStockService.ts]`
+    -   相对路径从当前文件出发，指向被依赖的文件。
+    -   只需列出项目内的直接文件依赖，外部库依赖仅作描述。
+
+-   **示例**:
+
+    ```tsx
+    interface StockItemProps {
+    	id: string;
+    	name: string;
+    	quantity: number;
+    }
+
+    export const StockItem = ({ id, name, quantity }: StockItemProps) => {
+    	return (
+    		<div>
+    			{name}: {quantity}
+    		</div>
+    	);
+    };
+    ```

@@ -940,7 +940,7 @@
         "id": "src-components-StockList-StockList",
         "label": "StockList.tsx",
         "type": "file",
-        "dependencies": "FavoriteButton(组件), useStockList(hook), types(类型定义), announcementClassifier(分类工具)",
+        "dependencies": "FavoriteButton(组件), useStockList(hook), types(类型定义), announcementClassifier(分类工具) [../../types/stock.ts, ../FavoriteButton.tsx, ../../hooks/useStockList.ts, ../../utils/announcementClassifier.ts]",
         "outputs": "StockList 组件 - 通用股票列表组件，提供搜索、筛选、分页、收藏等功能",
         "responsibilities": "渲染进程UI组件，封装股票列表的通用展示逻辑，可复用于多个页面",
         "path": "src/components/StockList/StockList.tsx"
@@ -1061,7 +1061,7 @@
         "id": "src-pages-ArchitectureVisualization",
         "label": "ArchitectureVisualization.tsx",
         "type": "file",
-        "dependencies": "cytoscape(图形库), cytoscapeData(生成的数据), Ant Design(UI组件)",
+        "dependencies": "cytoscape(图形库), cytoscapeData(生成的数据), Ant Design(UI组件) [../assets/cytoscape-data.json]",
         "outputs": "ArchitectureVisualization 页面组件 - 架构可视化页面",
         "responsibilities": "使用Cytoscape.js可视化项目的文件和文件夹依赖关系",
         "path": "src/pages/ArchitectureVisualization.tsx"
@@ -1127,7 +1127,7 @@
         "id": "src-services-stockService",
         "label": "stockService.ts",
         "type": "file",
-        "dependencies": "window.electronAPI(IPC), favoriteStockService(收藏服务), types(类型定义)",
+        "dependencies": "window.electronAPI(IPC), favoriteStockService(收藏服务), types(类型定义) [../types/stock.ts, ./favoriteStockService.ts]",
         "outputs": "getAnnouncementsGrouped(), getAllStocks() - 股票数据获取服务函数",
         "responsibilities": "渲染进程服务层，封装股票相关的IPC调用，提供数据获取和处理的统一接口",
         "path": "src/services/stockService.ts"
@@ -1192,744 +1192,898 @@
   "edges": [
     {
       "data": {
-        "id": "electron-electron-core",
+        "id": "hierarchy-electron-electron-core",
         "source": "electron",
-        "target": "electron-core"
+        "target": "electron-core",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "electron-core-electron-core-shortcuts",
+        "id": "hierarchy-electron-core-electron-core-shortcuts",
         "source": "electron-core",
-        "target": "electron-core-shortcuts"
+        "target": "electron-core-shortcuts",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "electron-core-electron-core-tray",
+        "id": "hierarchy-electron-core-electron-core-tray",
         "source": "electron-core",
-        "target": "electron-core-tray"
+        "target": "electron-core-tray",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "electron-core-electron-core-window",
+        "id": "hierarchy-electron-core-electron-core-window",
         "source": "electron-core",
-        "target": "electron-core-window"
+        "target": "electron-core-window",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "electron-electron-database",
+        "id": "hierarchy-electron-electron-database",
         "source": "electron",
-        "target": "electron-database"
+        "target": "electron-database",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "electron-database-electron-database-connection",
+        "id": "hierarchy-electron-database-electron-database-connection",
         "source": "electron-database",
-        "target": "electron-database-connection"
+        "target": "electron-database-connection",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "electron-database-electron-database-index",
+        "id": "hierarchy-electron-database-electron-database-index",
         "source": "electron-database",
-        "target": "electron-database-index"
+        "target": "electron-database-index",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "electron-database-electron-database-migrations",
+        "id": "hierarchy-electron-database-electron-database-migrations",
         "source": "electron-database",
-        "target": "electron-database-migrations"
+        "target": "electron-database-migrations",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "electron-database-electron-database-syncFlags",
+        "id": "hierarchy-electron-database-electron-database-syncFlags",
         "source": "electron-database",
-        "target": "electron-database-syncFlags"
+        "target": "electron-database-syncFlags",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "electron-electron-db",
+        "id": "hierarchy-electron-electron-db",
         "source": "electron",
-        "target": "electron-db"
+        "target": "electron-db",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "electron-electron-di",
+        "id": "hierarchy-electron-electron-di",
         "source": "electron",
-        "target": "electron-di"
+        "target": "electron-di",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "electron-di-electron-di-container",
+        "id": "hierarchy-electron-di-electron-di-container",
         "source": "electron-di",
-        "target": "electron-di-container"
+        "target": "electron-di-container",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "electron-di-electron-di-index",
+        "id": "hierarchy-electron-di-electron-di-index",
         "source": "electron-di",
-        "target": "electron-di-index"
+        "target": "electron-di-index",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "electron-di-electron-di-serviceRegistry",
+        "id": "hierarchy-electron-di-electron-di-serviceRegistry",
         "source": "electron-di",
-        "target": "electron-di-serviceRegistry"
+        "target": "electron-di-serviceRegistry",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "electron-electron-ipc",
+        "id": "hierarchy-electron-electron-ipc",
         "source": "electron",
-        "target": "electron-ipc"
+        "target": "electron-ipc",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "electron-ipc-electron-ipc-announcement",
+        "id": "hierarchy-electron-ipc-electron-ipc-announcement",
         "source": "electron-ipc",
-        "target": "electron-ipc-announcement"
+        "target": "electron-ipc-announcement",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "electron-ipc-electron-ipc-classification",
+        "id": "hierarchy-electron-ipc-electron-ipc-classification",
         "source": "electron-ipc",
-        "target": "electron-ipc-classification"
+        "target": "electron-ipc-classification",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "electron-ipc-electron-ipc-database",
+        "id": "hierarchy-electron-ipc-electron-ipc-database",
         "source": "electron-ipc",
-        "target": "electron-ipc-database"
+        "target": "electron-ipc-database",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "electron-ipc-electron-ipc-favorite",
+        "id": "hierarchy-electron-ipc-electron-ipc-favorite",
         "source": "electron-ipc",
-        "target": "electron-ipc-favorite"
+        "target": "electron-ipc-favorite",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "electron-ipc-electron-ipc-holder",
+        "id": "hierarchy-electron-ipc-electron-ipc-holder",
         "source": "electron-ipc",
-        "target": "electron-ipc-holder"
+        "target": "electron-ipc-holder",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "electron-ipc-electron-ipc-index",
+        "id": "hierarchy-electron-ipc-electron-ipc-index",
         "source": "electron-ipc",
-        "target": "electron-ipc-index"
+        "target": "electron-ipc-index",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "electron-ipc-electron-ipc-middleware",
+        "id": "hierarchy-electron-ipc-electron-ipc-middleware",
         "source": "electron-ipc",
-        "target": "electron-ipc-middleware"
+        "target": "electron-ipc-middleware",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "electron-ipc-middleware-electron-ipc-middleware-errorHandler",
+        "id": "hierarchy-electron-ipc-middleware-electron-ipc-middleware-errorHandler",
         "source": "electron-ipc-middleware",
-        "target": "electron-ipc-middleware-errorHandler"
+        "target": "electron-ipc-middleware-errorHandler",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "electron-ipc-middleware-electron-ipc-middleware-index",
+        "id": "hierarchy-electron-ipc-middleware-electron-ipc-middleware-index",
         "source": "electron-ipc-middleware",
-        "target": "electron-ipc-middleware-index"
+        "target": "electron-ipc-middleware-index",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "electron-ipc-electron-ipc-stock",
+        "id": "hierarchy-electron-ipc-electron-ipc-stock",
         "source": "electron-ipc",
-        "target": "electron-ipc-stock"
+        "target": "electron-ipc-stock",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "electron-ipc-electron-ipc-system",
+        "id": "hierarchy-electron-ipc-electron-ipc-system",
         "source": "electron-ipc",
-        "target": "electron-ipc-system"
+        "target": "electron-ipc-system",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "electron-ipc-electron-ipc-updater",
+        "id": "hierarchy-electron-ipc-electron-ipc-updater",
         "source": "electron-ipc",
-        "target": "electron-ipc-updater"
+        "target": "electron-ipc-updater",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "electron-electron-main",
+        "id": "hierarchy-electron-electron-main",
         "source": "electron",
-        "target": "electron-main"
+        "target": "electron-main",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "electron-electron-preload",
+        "id": "hierarchy-electron-electron-preload",
         "source": "electron",
-        "target": "electron-preload"
+        "target": "electron-preload",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "electron-electron-repositories",
+        "id": "hierarchy-electron-electron-repositories",
         "source": "electron",
-        "target": "electron-repositories"
+        "target": "electron-repositories",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "electron-repositories-electron-repositories-base",
+        "id": "hierarchy-electron-repositories-electron-repositories-base",
         "source": "electron-repositories",
-        "target": "electron-repositories-base"
+        "target": "electron-repositories-base",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "electron-repositories-base-electron-repositories-base-BaseRepository",
+        "id": "hierarchy-electron-repositories-base-electron-repositories-base-BaseRepository",
         "source": "electron-repositories-base",
-        "target": "electron-repositories-base-BaseRepository"
+        "target": "electron-repositories-base-BaseRepository",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "electron-repositories-electron-repositories-implementations",
+        "id": "hierarchy-electron-repositories-electron-repositories-implementations",
         "source": "electron-repositories",
-        "target": "electron-repositories-implementations"
+        "target": "electron-repositories-implementations",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "electron-repositories-implementations-electron-repositories-implementations-AnnouncementRepository",
+        "id": "hierarchy-electron-repositories-implementations-electron-repositories-implementations-AnnouncementRepository",
         "source": "electron-repositories-implementations",
-        "target": "electron-repositories-implementations-AnnouncementRepository"
+        "target": "electron-repositories-implementations-AnnouncementRepository",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "electron-repositories-implementations-electron-repositories-implementations-ClassificationRepository",
+        "id": "hierarchy-electron-repositories-implementations-electron-repositories-implementations-ClassificationRepository",
         "source": "electron-repositories-implementations",
-        "target": "electron-repositories-implementations-ClassificationRepository"
+        "target": "electron-repositories-implementations-ClassificationRepository",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "electron-repositories-implementations-electron-repositories-implementations-FavoriteRepository",
+        "id": "hierarchy-electron-repositories-implementations-electron-repositories-implementations-FavoriteRepository",
         "source": "electron-repositories-implementations",
-        "target": "electron-repositories-implementations-FavoriteRepository"
+        "target": "electron-repositories-implementations-FavoriteRepository",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "electron-repositories-implementations-electron-repositories-implementations-HolderRepository",
+        "id": "hierarchy-electron-repositories-implementations-electron-repositories-implementations-HolderRepository",
         "source": "electron-repositories-implementations",
-        "target": "electron-repositories-implementations-HolderRepository"
+        "target": "electron-repositories-implementations-HolderRepository",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "electron-repositories-implementations-electron-repositories-implementations-StockDetailRepository",
+        "id": "hierarchy-electron-repositories-implementations-electron-repositories-implementations-StockDetailRepository",
         "source": "electron-repositories-implementations",
-        "target": "electron-repositories-implementations-StockDetailRepository"
+        "target": "electron-repositories-implementations-StockDetailRepository",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "electron-repositories-implementations-electron-repositories-implementations-StockRepository",
+        "id": "hierarchy-electron-repositories-implementations-electron-repositories-implementations-StockRepository",
         "source": "electron-repositories-implementations",
-        "target": "electron-repositories-implementations-StockRepository"
+        "target": "electron-repositories-implementations-StockRepository",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "electron-repositories-implementations-electron-repositories-implementations-index",
+        "id": "hierarchy-electron-repositories-implementations-electron-repositories-implementations-index",
         "source": "electron-repositories-implementations",
-        "target": "electron-repositories-implementations-index"
+        "target": "electron-repositories-implementations-index",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "electron-repositories-electron-repositories-interfaces",
+        "id": "hierarchy-electron-repositories-electron-repositories-interfaces",
         "source": "electron-repositories",
-        "target": "electron-repositories-interfaces"
+        "target": "electron-repositories-interfaces",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "electron-repositories-interfaces-electron-repositories-interfaces-IAnnouncementRepository",
+        "id": "hierarchy-electron-repositories-interfaces-electron-repositories-interfaces-IAnnouncementRepository",
         "source": "electron-repositories-interfaces",
-        "target": "electron-repositories-interfaces-IAnnouncementRepository"
+        "target": "electron-repositories-interfaces-IAnnouncementRepository",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "electron-repositories-interfaces-electron-repositories-interfaces-IClassificationRepository",
+        "id": "hierarchy-electron-repositories-interfaces-electron-repositories-interfaces-IClassificationRepository",
         "source": "electron-repositories-interfaces",
-        "target": "electron-repositories-interfaces-IClassificationRepository"
+        "target": "electron-repositories-interfaces-IClassificationRepository",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "electron-repositories-interfaces-electron-repositories-interfaces-IFavoriteRepository",
+        "id": "hierarchy-electron-repositories-interfaces-electron-repositories-interfaces-IFavoriteRepository",
         "source": "electron-repositories-interfaces",
-        "target": "electron-repositories-interfaces-IFavoriteRepository"
+        "target": "electron-repositories-interfaces-IFavoriteRepository",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "electron-repositories-interfaces-electron-repositories-interfaces-IHolderRepository",
+        "id": "hierarchy-electron-repositories-interfaces-electron-repositories-interfaces-IHolderRepository",
         "source": "electron-repositories-interfaces",
-        "target": "electron-repositories-interfaces-IHolderRepository"
+        "target": "electron-repositories-interfaces-IHolderRepository",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "electron-repositories-interfaces-electron-repositories-interfaces-IRepository",
+        "id": "hierarchy-electron-repositories-interfaces-electron-repositories-interfaces-IRepository",
         "source": "electron-repositories-interfaces",
-        "target": "electron-repositories-interfaces-IRepository"
+        "target": "electron-repositories-interfaces-IRepository",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "electron-repositories-interfaces-electron-repositories-interfaces-IStockDetailRepository",
+        "id": "hierarchy-electron-repositories-interfaces-electron-repositories-interfaces-IStockDetailRepository",
         "source": "electron-repositories-interfaces",
-        "target": "electron-repositories-interfaces-IStockDetailRepository"
+        "target": "electron-repositories-interfaces-IStockDetailRepository",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "electron-repositories-interfaces-electron-repositories-interfaces-IStockRepository",
+        "id": "hierarchy-electron-repositories-interfaces-electron-repositories-interfaces-IStockRepository",
         "source": "electron-repositories-interfaces",
-        "target": "electron-repositories-interfaces-IStockRepository"
+        "target": "electron-repositories-interfaces-IStockRepository",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "electron-repositories-interfaces-electron-repositories-interfaces-index",
+        "id": "hierarchy-electron-repositories-interfaces-electron-repositories-interfaces-index",
         "source": "electron-repositories-interfaces",
-        "target": "electron-repositories-interfaces-index"
+        "target": "electron-repositories-interfaces-index",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "electron-electron-services",
+        "id": "hierarchy-electron-electron-services",
         "source": "electron",
-        "target": "electron-services"
+        "target": "electron-services",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "electron-services-electron-services-announcement",
+        "id": "hierarchy-electron-services-electron-services-announcement",
         "source": "electron-services",
-        "target": "electron-services-announcement"
+        "target": "electron-services-announcement",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "electron-services-electron-services-classification",
+        "id": "hierarchy-electron-services-electron-services-classification",
         "source": "electron-services",
-        "target": "electron-services-classification"
+        "target": "electron-services-classification",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "electron-services-electron-services-favorite",
+        "id": "hierarchy-electron-services-electron-services-favorite",
         "source": "electron-services",
-        "target": "electron-services-favorite"
+        "target": "electron-services-favorite",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "electron-services-electron-services-holder",
+        "id": "hierarchy-electron-services-electron-services-holder",
         "source": "electron-services",
-        "target": "electron-services-holder"
+        "target": "electron-services-holder",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "electron-services-electron-services-interfaces",
+        "id": "hierarchy-electron-services-electron-services-interfaces",
         "source": "electron-services",
-        "target": "electron-services-interfaces"
+        "target": "electron-services-interfaces",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "electron-services-interfaces-electron-services-interfaces-IAnnouncementService",
+        "id": "hierarchy-electron-services-interfaces-electron-services-interfaces-IAnnouncementService",
         "source": "electron-services-interfaces",
-        "target": "electron-services-interfaces-IAnnouncementService"
+        "target": "electron-services-interfaces-IAnnouncementService",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "electron-services-interfaces-electron-services-interfaces-IClassificationService",
+        "id": "hierarchy-electron-services-interfaces-electron-services-interfaces-IClassificationService",
         "source": "electron-services-interfaces",
-        "target": "electron-services-interfaces-IClassificationService"
+        "target": "electron-services-interfaces-IClassificationService",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "electron-services-interfaces-electron-services-interfaces-IFavoriteService",
+        "id": "hierarchy-electron-services-interfaces-electron-services-interfaces-IFavoriteService",
         "source": "electron-services-interfaces",
-        "target": "electron-services-interfaces-IFavoriteService"
+        "target": "electron-services-interfaces-IFavoriteService",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "electron-services-interfaces-electron-services-interfaces-IHolderService",
+        "id": "hierarchy-electron-services-interfaces-electron-services-interfaces-IHolderService",
         "source": "electron-services-interfaces",
-        "target": "electron-services-interfaces-IHolderService"
+        "target": "electron-services-interfaces-IHolderService",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "electron-services-interfaces-electron-services-interfaces-IStockService",
+        "id": "hierarchy-electron-services-interfaces-electron-services-interfaces-IStockService",
         "source": "electron-services-interfaces",
-        "target": "electron-services-interfaces-IStockService"
+        "target": "electron-services-interfaces-IStockService",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "electron-services-interfaces-electron-services-interfaces-index",
+        "id": "hierarchy-electron-services-interfaces-electron-services-interfaces-index",
         "source": "electron-services-interfaces",
-        "target": "electron-services-interfaces-index"
+        "target": "electron-services-interfaces-index",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "electron-services-electron-services-stock-detail-sync",
+        "id": "hierarchy-electron-services-electron-services-stock-detail-sync",
         "source": "electron-services",
-        "target": "electron-services-stock-detail-sync"
+        "target": "electron-services-stock-detail-sync",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "electron-services-electron-services-stock",
+        "id": "hierarchy-electron-services-electron-services-stock",
         "source": "electron-services",
-        "target": "electron-services-stock"
+        "target": "electron-services-stock",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "electron-electron-tushare",
+        "id": "hierarchy-electron-electron-tushare",
         "source": "electron",
-        "target": "electron-tushare"
+        "target": "electron-tushare",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "electron-electron-types",
+        "id": "hierarchy-electron-electron-types",
         "source": "electron",
-        "target": "electron-types"
+        "target": "electron-types",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "electron-types-electron-types-errors",
+        "id": "hierarchy-electron-types-electron-types-errors",
         "source": "electron-types",
-        "target": "electron-types-errors"
+        "target": "electron-types-errors",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "electron-types-electron-types-index",
+        "id": "hierarchy-electron-types-electron-types-index",
         "source": "electron-types",
-        "target": "electron-types-index"
+        "target": "electron-types-index",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "electron-electron-updater",
+        "id": "hierarchy-electron-electron-updater",
         "source": "electron",
-        "target": "electron-updater"
+        "target": "electron-updater",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "electron-updater-electron-updater-index",
+        "id": "hierarchy-electron-updater-electron-updater-index",
         "source": "electron-updater",
-        "target": "electron-updater-index"
+        "target": "electron-updater-index",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "electron-electron-utils",
+        "id": "hierarchy-electron-electron-utils",
         "source": "electron",
-        "target": "electron-utils"
+        "target": "electron-utils",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "electron-utils-electron-utils-announcementClassifier",
+        "id": "hierarchy-electron-utils-electron-utils-announcementClassifier",
         "source": "electron-utils",
-        "target": "electron-utils-announcementClassifier"
+        "target": "electron-utils-announcementClassifier",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "electron-utils-electron-utils-logger",
+        "id": "hierarchy-electron-utils-electron-utils-logger",
         "source": "electron-utils",
-        "target": "electron-utils-logger"
+        "target": "electron-utils-logger",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "src-src-App",
+        "id": "hierarchy-src-src-App",
         "source": "src",
-        "target": "src-App"
+        "target": "src-App",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "src-src-assets",
+        "id": "hierarchy-src-src-assets",
         "source": "src",
-        "target": "src-assets"
+        "target": "src-assets",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "src-src-components",
+        "id": "hierarchy-src-src-components",
         "source": "src",
-        "target": "src-components"
+        "target": "src-components",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "src-components-src-components-AnnouncementList",
+        "id": "hierarchy-src-components-src-components-AnnouncementList",
         "source": "src-components",
-        "target": "src-components-AnnouncementList"
+        "target": "src-components-AnnouncementList",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "src-components-src-components-CacheDataIndicator",
+        "id": "hierarchy-src-components-src-components-CacheDataIndicator",
         "source": "src-components",
-        "target": "src-components-CacheDataIndicator"
+        "target": "src-components-CacheDataIndicator",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "src-components-src-components-ClassificationRuleEditor",
+        "id": "hierarchy-src-components-src-components-ClassificationRuleEditor",
         "source": "src-components",
-        "target": "src-components-ClassificationRuleEditor"
+        "target": "src-components-ClassificationRuleEditor",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "src-components-src-components-FavoriteButton",
+        "id": "hierarchy-src-components-src-components-FavoriteButton",
         "source": "src-components",
-        "target": "src-components-FavoriteButton"
+        "target": "src-components-FavoriteButton",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "src-components-src-components-Layout",
+        "id": "hierarchy-src-components-src-components-Layout",
         "source": "src-components",
-        "target": "src-components-Layout"
+        "target": "src-components-Layout",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "src-components-src-components-PDFViewer",
+        "id": "hierarchy-src-components-src-components-PDFViewer",
         "source": "src-components",
-        "target": "src-components-PDFViewer"
+        "target": "src-components-PDFViewer",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "src-components-src-components-PDFWebViewer",
+        "id": "hierarchy-src-components-src-components-PDFWebViewer",
         "source": "src-components",
-        "target": "src-components-PDFWebViewer"
+        "target": "src-components-PDFWebViewer",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "src-components-src-components-StockList",
+        "id": "hierarchy-src-components-src-components-StockList",
         "source": "src-components",
-        "target": "src-components-StockList"
+        "target": "src-components-StockList",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "src-components-StockList-src-components-StockList-StockList",
+        "id": "hierarchy-src-components-StockList-src-components-StockList-StockList",
         "source": "src-components-StockList",
-        "target": "src-components-StockList-StockList"
+        "target": "src-components-StockList-StockList",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "src-components-StockList-src-components-StockList-index",
+        "id": "hierarchy-src-components-StockList-src-components-StockList-index",
         "source": "src-components-StockList",
-        "target": "src-components-StockList-index"
+        "target": "src-components-StockList-index",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "src-components-src-components-StockListSyncIndicator",
+        "id": "hierarchy-src-components-src-components-StockListSyncIndicator",
         "source": "src-components",
-        "target": "src-components-StockListSyncIndicator"
+        "target": "src-components-StockListSyncIndicator",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "src-components-src-components-UpdateChecker",
+        "id": "hierarchy-src-components-src-components-UpdateChecker",
         "source": "src-components",
-        "target": "src-components-UpdateChecker"
+        "target": "src-components-UpdateChecker",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "src-src-hooks",
+        "id": "hierarchy-src-src-hooks",
         "source": "src",
-        "target": "src-hooks"
+        "target": "src-hooks",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "src-hooks-src-hooks-useFavoriteStocks",
+        "id": "hierarchy-src-hooks-src-hooks-useFavoriteStocks",
         "source": "src-hooks",
-        "target": "src-hooks-useFavoriteStocks"
+        "target": "src-hooks-useFavoriteStocks",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "src-hooks-src-hooks-useStockFilter",
+        "id": "hierarchy-src-hooks-src-hooks-useStockFilter",
         "source": "src-hooks",
-        "target": "src-hooks-useStockFilter"
+        "target": "src-hooks-useStockFilter",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "src-hooks-src-hooks-useStockList",
+        "id": "hierarchy-src-hooks-src-hooks-useStockList",
         "source": "src-hooks",
-        "target": "src-hooks-useStockList"
+        "target": "src-hooks-useStockList",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "src-src-main",
+        "id": "hierarchy-src-src-main",
         "source": "src",
-        "target": "src-main"
+        "target": "src-main",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "src-src-pages",
+        "id": "hierarchy-src-src-pages",
         "source": "src",
-        "target": "src-pages"
+        "target": "src-pages",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "src-pages-src-pages-Announcements",
+        "id": "hierarchy-src-pages-src-pages-Announcements",
         "source": "src-pages",
-        "target": "src-pages-Announcements"
+        "target": "src-pages-Announcements",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "src-pages-src-pages-ArchitectureVisualization",
+        "id": "hierarchy-src-pages-src-pages-ArchitectureVisualization",
         "source": "src-pages",
-        "target": "src-pages-ArchitectureVisualization"
+        "target": "src-pages-ArchitectureVisualization",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "src-pages-src-pages-DataInsights",
+        "id": "hierarchy-src-pages-src-pages-DataInsights",
         "source": "src-pages",
-        "target": "src-pages-DataInsights"
+        "target": "src-pages-DataInsights",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "src-pages-src-pages-Settings",
+        "id": "hierarchy-src-pages-src-pages-Settings",
         "source": "src-pages",
-        "target": "src-pages-Settings"
+        "target": "src-pages-Settings",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "src-src-services",
+        "id": "hierarchy-src-src-services",
         "source": "src",
-        "target": "src-services"
+        "target": "src-services",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "src-services-src-services-favoriteStockService",
+        "id": "hierarchy-src-services-src-services-favoriteStockService",
         "source": "src-services",
-        "target": "src-services-favoriteStockService"
+        "target": "src-services-favoriteStockService",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "src-services-src-services-stockListSync",
+        "id": "hierarchy-src-services-src-services-stockListSync",
         "source": "src-services",
-        "target": "src-services-stockListSync"
+        "target": "src-services-stockListSync",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "src-services-src-services-stockService",
+        "id": "hierarchy-src-services-src-services-stockService",
         "source": "src-services",
-        "target": "src-services-stockService"
+        "target": "src-services-stockService",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "src-src-types",
+        "id": "hierarchy-src-src-types",
         "source": "src",
-        "target": "src-types"
+        "target": "src-types",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "src-types-src-types-stock",
+        "id": "hierarchy-src-types-src-types-stock",
         "source": "src-types",
-        "target": "src-types-stock"
+        "target": "src-types-stock",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "src-src-utils",
+        "id": "hierarchy-src-src-utils",
         "source": "src",
-        "target": "src-utils"
+        "target": "src-utils",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "src-utils-src-utils-announcementClassifier.example",
+        "id": "hierarchy-src-utils-src-utils-announcementClassifier.example",
         "source": "src-utils",
-        "target": "src-utils-announcementClassifier.example"
+        "target": "src-utils-announcementClassifier.example",
+        "type": "hierarchy"
       }
     },
     {
       "data": {
-        "id": "src-utils-src-utils-announcementClassifier",
+        "id": "hierarchy-src-utils-src-utils-announcementClassifier",
         "source": "src-utils",
-        "target": "src-utils-announcementClassifier"
+        "target": "src-utils-announcementClassifier",
+        "type": "hierarchy"
+      }
+    },
+    {
+      "data": {
+        "id": "dependency-src-components-StockList-StockList-src-types-stock",
+        "source": "src-components-StockList-StockList",
+        "target": "src-types-stock",
+        "type": "dependency"
+      }
+    },
+    {
+      "data": {
+        "id": "dependency-src-components-StockList-StockList-src-components-FavoriteButton",
+        "source": "src-components-StockList-StockList",
+        "target": "src-components-FavoriteButton",
+        "type": "dependency"
+      }
+    },
+    {
+      "data": {
+        "id": "dependency-src-components-StockList-StockList-src-hooks-useStockList",
+        "source": "src-components-StockList-StockList",
+        "target": "src-hooks-useStockList",
+        "type": "dependency"
+      }
+    },
+    {
+      "data": {
+        "id": "dependency-src-components-StockList-StockList-src-utils-announcementClassifier",
+        "source": "src-components-StockList-StockList",
+        "target": "src-utils-announcementClassifier",
+        "type": "dependency"
+      }
+    },
+    {
+      "data": {
+        "id": "dependency-src-services-stockService-src-types-stock",
+        "source": "src-services-stockService",
+        "target": "src-types-stock",
+        "type": "dependency"
+      }
+    },
+    {
+      "data": {
+        "id": "dependency-src-services-stockService-src-services-favoriteStockService",
+        "source": "src-services-stockService",
+        "target": "src-services-favoriteStockService",
+        "type": "dependency"
       }
     }
   ]

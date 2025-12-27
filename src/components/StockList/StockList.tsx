@@ -1,5 +1,5 @@
 /**
- * 依赖: FavoriteButton(组件), useStockList(hook), types(类型定义), announcementClassifier(分类工具)
+ * 依赖: FavoriteButton(组件), useStockList(hook), types(类型定义), announcementClassifier(分类工具) [../../types/stock.ts, ../FavoriteButton.tsx, ../../hooks/useStockList.ts, ../../utils/announcementClassifier.ts]
  * 输出: StockList 组件 - 通用股票列表组件，提供搜索、筛选、分页、收藏等功能
  * 职责: 渲染进程UI组件，封装股票列表的通用展示逻辑，可复用于多个页面
  *

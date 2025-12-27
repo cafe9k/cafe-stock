@@ -19,6 +19,9 @@ const graphData = {
 	edges: [],
 };
 
+// 用于存储文件依赖关系（第一遍扫描收集，第二遍生成边）
+const fileDependencies = [];
+
 // 用于生成唯一ID
 function generateId(filePath) {
 	return filePath.replace(/[\/\\]/g, "-").replace(/\.(ts|tsx)$/, "");
@@ -41,10 +44,26 @@ function extractFileHeader(filePath) {
 		const outputMatch = headerText.match(/\*\s*输出[:：]\s*(.+?)(?:\n|\*)/);
 		const respMatch = headerText.match(/\*\s*职责[:：]\s*(.+?)(?:\n|\*)/);
 
+		// 提取依赖字段中的文件路径列表
+		let dependencyFiles = [];
+		if (depMatch) {
+			const depText = depMatch[1].trim();
+			// 匹配方括号中的内容: [path1, path2, ...]
+			const fileListMatch = depText.match(/\[([^\]]+)\]/);
+			if (fileListMatch) {
+				// 分割路径并清理空格
+				dependencyFiles = fileListMatch[1]
+					.split(",")
+					.map((p) => p.trim())
+					.filter((p) => p.length > 0);
+			}
+		}
+
 		return {
 			dependencies: depMatch ? depMatch[1].trim() : "",
 			outputs: outputMatch ? outputMatch[1].trim() : "",
 			responsibilities: respMatch ? respMatch[1].trim() : "",
+			dependencyFiles: dependencyFiles,
 		};
 	} catch (error) {
 		console.warn(`读取文件失败: ${filePath}`, error.message);
@@ -52,7 +71,24 @@ function extractFileHeader(filePath) {
 			dependencies: "",
 			outputs: "",
 			responsibilities: "",
+			dependencyFiles: [],
 		};
+	}
+}
+
+// 解析相对路径为项目内的绝对路径
+function resolveFileDependency(currentFilePath, relativePath) {
+	try {
+		// 获取当前文件所在目录
+		const currentDir = path.dirname(currentFilePath);
+		// 解析相对路径
+		const absolutePath = path.resolve(currentDir, relativePath);
+		// 转换为相对于项目根目录的路径
+		const projectRelativePath = path.relative(process.cwd(), absolutePath);
+		return projectRelativePath;
+	} catch (error) {
+		console.warn(`路径解析失败: ${currentFilePath} -> ${relativePath}`, error.message);
+		return null;
 	}
 }
 
@@ -116,9 +152,10 @@ function scanDirectory(dirPath, parentId = null, isRoot = false) {
 		// 创建父子关系边
 		graphData.edges.push({
 			data: {
-				id: `${parentId}-${dirId}`,
+				id: `hierarchy-${parentId}-${dirId}`,
 				source: parentId,
 				target: dirId,
+				type: "hierarchy",
 			},
 		});
 	}
@@ -157,11 +194,21 @@ function scanDirectory(dirPath, parentId = null, isRoot = false) {
 				// 创建父子关系边
 				graphData.edges.push({
 					data: {
-						id: `${dirId}-${fileId}`,
+						id: `hierarchy-${dirId}-${fileId}`,
 						source: dirId,
 						target: fileId,
+						type: "hierarchy",
 					},
 				});
+
+				// 收集文件依赖关系（稍后处理）
+				if (fileInfo.dependencyFiles && fileInfo.dependencyFiles.length > 0) {
+					fileDependencies.push({
+						sourceFile: fileRelativePath,
+						sourceId: fileId,
+						dependencies: fileInfo.dependencyFiles,
+					});
+				}
 			}
 		}
 	}
@@ -199,6 +246,53 @@ function main() {
 		}
 	});
 
+	// 生成依赖关系边
+	console.log(`\n处理文件依赖关系...`);
+	let dependencyEdgeCount = 0;
+	let skippedDependencies = 0;
+
+	fileDependencies.forEach((dep) => {
+		dep.dependencies.forEach((relativePath) => {
+			// 解析相对路径为项目内的绝对路径
+			const resolvedPath = resolveFileDependency(dep.sourceFile, relativePath);
+			if (!resolvedPath) {
+				skippedDependencies++;
+				return;
+			}
+
+			// 生成目标文件的 ID
+			const targetId = generateId(resolvedPath);
+
+			// 检查目标节点是否存在
+			const targetExists = graphData.nodes.some((node) => node.data.id === targetId);
+			if (!targetExists) {
+				console.warn(`  ⚠️  依赖目标不存在: ${dep.sourceFile} -> ${resolvedPath}`);
+				skippedDependencies++;
+				return;
+			}
+
+			// 创建依赖关系边
+			const edgeId = `dependency-${dep.sourceId}-${targetId}`;
+			// 避免重复边
+			if (!graphData.edges.some((edge) => edge.data.id === edgeId)) {
+				graphData.edges.push({
+					data: {
+						id: edgeId,
+						source: dep.sourceId,
+						target: targetId,
+						type: "dependency",
+					},
+				});
+				dependencyEdgeCount++;
+			}
+		});
+	});
+
+	console.log(`  ✓ 生成依赖边: ${dependencyEdgeCount} 条`);
+	if (skippedDependencies > 0) {
+		console.log(`  ⚠️  跳过无效依赖: ${skippedDependencies} 个`);
+	}
+
 	// 确保输出目录存在
 	const outputDir = path.dirname(CONFIG.outputPath);
 	if (!fs.existsSync(outputDir)) {
@@ -216,4 +310,3 @@ function main() {
 
 // 运行生成
 main();
-
