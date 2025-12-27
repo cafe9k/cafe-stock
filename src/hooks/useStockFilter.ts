@@ -1,6 +1,6 @@
 /**
  * 依赖: dayjs(日期库), types(类型定义)
- * 输出: useStockFilter Hook - 提供股票筛选条件的状态管理（市场、关键词、日期范围等）
+ * 输出: useStockFilter Hook - 提供股票筛选条件的状态管理（市场、关键词、日期范围、市值、分类等）
  * 职责: 渲染进程业务逻辑Hook，封装股票筛选的状态管理和逻辑处理
  *
  * ⚠️ 更新提醒：修改此文件后，请同步更新：
@@ -11,7 +11,7 @@
 
 import { useState, useCallback } from "react";
 import dayjs, { Dayjs } from "dayjs";
-import type { StockFilter } from "../types/stock";
+import type { StockFilter, MarketCapRange } from "../types/stock";
 
 /**
  * 日期范围类型
@@ -22,6 +22,11 @@ export type DateRange = [Dayjs, Dayjs] | [Dayjs | null, Dayjs | null] | null;
  * 快速日期选择选项
  */
 export type QuickDateOption = "today" | "tomorrow" | "yesterday" | "week" | "month" | "quarter";
+
+/**
+ * 市值筛选预设选项
+ */
+export type MarketCapFilterOption = "all" | "< 30" | "< 50" | "< 100" | "custom";
 
 /**
  * 股票筛选 Hook
@@ -45,6 +50,27 @@ export function useStockFilter(initialFilter?: Partial<StockFilter>) {
 
 	// 快速日期选择
 	const [quickSelectValue, setQuickSelectValue] = useState<QuickDateOption>("week");
+
+	// 市值筛选
+	const [marketCapFilter, setMarketCapFilter] = useState<MarketCapFilterOption>(
+		initialFilter?.marketCapRange ? "custom" : "all"
+	);
+	const [customMarketCapMin, setCustomMarketCapMin] = useState<number | null>(
+		initialFilter?.marketCapRange?.min ?? null
+	);
+	const [customMarketCapMax, setCustomMarketCapMax] = useState<number | null>(
+		initialFilter?.marketCapRange?.max ?? null
+	);
+
+	// 分类筛选
+	const [selectedCategories, setSelectedCategories] = useState<string[]>(
+		initialFilter?.categories || []
+	);
+
+	// 关注筛选
+	const [showFavoriteOnly, setShowFavoriteOnly] = useState<boolean>(
+		initialFilter?.showFavoriteOnly || false
+	);
 
 	// 日期格式化辅助函数：Dayjs -> YYYYMMDD
 	const formatDateToString = (date: Dayjs): string => {
@@ -131,14 +157,34 @@ export function useStockFilter(initialFilter?: Partial<StockFilter>) {
 		}
 	}, []);
 
+	// 构建市值筛选范围
+	const getMarketCapRange = useCallback((): MarketCapRange | undefined => {
+		if (marketCapFilter === "< 30") {
+			return { max: 30 };
+		} else if (marketCapFilter === "< 50") {
+			return { max: 50 };
+		} else if (marketCapFilter === "< 100") {
+			return { max: 100 };
+		} else if (marketCapFilter === "custom" && (customMarketCapMin !== null || customMarketCapMax !== null)) {
+			return {
+				min: customMarketCapMin ?? undefined,
+				max: customMarketCapMax ?? undefined,
+			};
+		}
+		return undefined;
+	}, [marketCapFilter, customMarketCapMin, customMarketCapMax]);
+
 	// 获取当前筛选条件
 	const getFilter = useCallback((): StockFilter => {
 		return {
 			market: selectedMarket === "all" ? undefined : selectedMarket,
 			searchKeyword: searchKeyword.trim() || undefined,
 			dateRange,
+			showFavoriteOnly: showFavoriteOnly || undefined,
+			marketCapRange: getMarketCapRange(),
+			categories: selectedCategories.length > 0 ? selectedCategories : undefined,
 		};
-	}, [selectedMarket, searchKeyword, dateRange]);
+	}, [selectedMarket, searchKeyword, dateRange, showFavoriteOnly, selectedCategories, getMarketCapRange]);
 
 	// 重置筛选条件
 	const resetFilter = useCallback(() => {
@@ -148,24 +194,66 @@ export function useStockFilter(initialFilter?: Partial<StockFilter>) {
 		setDateRange(defaultRange);
 		setDateRangeDisplay([dayjs().subtract(7, "day"), dayjs()]);
 		setQuickSelectValue("week");
+		setMarketCapFilter("all");
+		setCustomMarketCapMin(null);
+		setCustomMarketCapMax(null);
+		setSelectedCategories([]);
+		setShowFavoriteOnly(false);
+	}, []);
+
+	// 切换分类选择
+	const toggleCategory = useCallback((category: string) => {
+		setSelectedCategories((prev) =>
+			prev.includes(category) ? prev.filter((c) => c !== category) : [...prev, category]
+		);
+	}, []);
+
+	// 设置分类（支持批量设置）
+	const setCategories = useCallback((categories: string[]) => {
+		setSelectedCategories(categories);
+	}, []);
+
+	// 切换关注筛选
+	const toggleFavoriteFilter = useCallback(() => {
+		setShowFavoriteOnly((prev) => !prev);
 	}, []);
 
 	return {
-		// 状态
+		// 基础筛选状态
 		selectedMarket,
 		searchKeyword,
 		dateRange,
 		dateRangeDisplay,
 		quickSelectValue,
-		// 设置方法
+		// 市值筛选状态
+		marketCapFilter,
+		customMarketCapMin,
+		customMarketCapMax,
+		// 分类筛选状态
+		selectedCategories,
+		// 关注筛选状态
+		showFavoriteOnly,
+		// 基础筛选设置方法
 		setSelectedMarket,
 		setSearchKeyword,
 		setDateRange,
 		setDateRangeDisplay,
+		// 市值筛选设置方法
+		setMarketCapFilter,
+		setCustomMarketCapMin,
+		setCustomMarketCapMax,
+		// 分类筛选设置方法
+		setSelectedCategories: setCategories,
+		toggleCategory,
+		// 关注筛选设置方法
+		setShowFavoriteOnly,
+		toggleFavoriteFilter,
 		// 操作方法
 		handleQuickSelect,
 		handleDateRangeChange,
 		getFilter,
 		resetFilter,
+		// 辅助方法
+		getMarketCapRange,
 	};
 }

@@ -51,16 +51,80 @@ graph TB
 
 ### useStockFilter.ts
 
--   **地位**：股票筛选Hook
--   **功能**：封装股票筛选相关的状态和逻辑
+-   **地位**：股票筛选Hook（基础筛选）
+-   **功能**：封装股票筛选相关的状态和逻辑，包括市场、日期范围、市值、分类、关注等筛选
 -   **关键依赖**：dayjs, types
 -   **返回值**：
-    -   `filter` - 筛选条件对象
-    -   `setMarket()` - 设置市场筛选
-    -   `setSearchKeyword()` - 设置搜索关键词
-    -   `setDateRange()` - 设置日期范围
-    -   `setQuickDate()` - 设置快速日期选择
-    -   `resetFilter()` - 重置筛选条件
+    -   **基础筛选状态**：
+        -   `selectedMarket` - 选中的市场
+        -   `searchKeyword` - 搜索关键词
+        -   `dateRange` - 日期范围 (YYYYMMDD格式)
+        -   `dateRangeDisplay` - 显示用的日期对象
+        -   `quickSelectValue` - 快速日期选择值
+    -   **市值筛选状态**：
+        -   `marketCapFilter` - 市值筛选选项 (all | < 30 | < 50 | < 100 | custom)
+        -   `customMarketCapMin` - 自定义最小市值
+        -   `customMarketCapMax` - 自定义最大市值
+    -   **分类筛选状态**：
+        -   `selectedCategories` - 选中的分类数组
+    -   **关注筛选状态**：
+        -   `showFavoriteOnly` - 是否仅显示关注的股票
+    -   **设置方法**：
+        -   `setSelectedMarket()` - 设置市场
+        -   `setSearchKeyword()` - 设置搜索关键词
+        -   `setMarketCapFilter()` - 设置市值筛选
+        -   `setCustomMarketCapMin()` - 设置自定义最小市值
+        -   `setCustomMarketCapMax()` - 设置自定义最大市值
+        -   `setSelectedCategories()` - 设置分类（批量）
+        -   `toggleCategory()` - 切换单个分类
+        -   `setShowFavoriteOnly()` - 设置关注筛选
+        -   `toggleFavoriteFilter()` - 切换关注筛选
+    -   **操作方法**：
+        -   `handleQuickSelect()` - 快速日期选择
+        -   `handleDateRangeChange()` - 日期范围变化
+        -   `getFilter()` - 获取完整筛选条件对象
+        -   `resetFilter()` - 重置所有筛选条件
+        -   `getMarketCapRange()` - 获取市值范围对象
+
+### useAnnouncementFilter.ts
+
+-   **地位**：公告筛选Hook（统一筛选管理）
+-   **功能**：整合所有筛选条件，包括防抖搜索、市值筛选、分类筛选等，提供统一的筛选接口
+-   **关键依赖**：useStockFilter, types
+-   **返回值**：
+    -   **继承自 useStockFilter 的所有返回值**
+    -   **搜索关键词状态**：
+        -   `searchKeyword` - 用户输入的搜索关键词
+        -   `debouncedSearchKeyword` - 防抖后的搜索关键词（用于实际触发搜索）
+    -   **搜索关键词方法**：
+        -   `setSearchKeyword()` - 设置搜索关键词（带防抖）
+        -   `setSearchKeywordImmediate()` - 立即设置搜索关键词（跳过防抖）
+        -   `clearSearchKeyword()` - 清空搜索关键词
+    -   **完整筛选条件**：
+        -   `currentFilter` - 包含所有筛选条件的完整对象
+    -   **重置方法**：
+        -   `resetAllFilters()` - 重置所有筛选条件（包括搜索关键词）
+
+### useExpandedRows.ts
+
+-   **地位**：展开行管理Hook
+-   **功能**：封装表格展开行的状态管理、数据加载和分页逻辑
+-   **关键依赖**：window.electronAPI, Ant Design App
+-   **返回值**：
+    -   **状态**：
+        -   `expandedRowKeys` - 展开的行键列表
+        -   `pageSize` - 每页显示数量
+    -   **查询方法**：
+        -   `isExpanded()` - 检查是否已展开
+        -   `getExpandedData()` - 获取展开行的数据、加载状态和当前页
+    -   **操作方法**：
+        -   `toggleExpanded()` - 切换展开状态
+        -   `setExpanded()` - 设置展开的行键列表
+        -   `loadExpandedData()` - 加载展开行数据
+        -   `setExpandedPage()` - 设置展开行的当前页
+        -   `clearAllExpanded()` - 清空所有展开行数据
+        -   `clearExpandedData()` - 清空指定行的数据
+        -   `resetAllPages()` - 重置所有展开行的分页到第一页
 
 ---
 
@@ -133,24 +197,80 @@ import { useStockFilter } from "../hooks/useStockFilter";
 
 function FilterPanel() {
   const {
-    filter,
-    setMarket,
-    setSearchKeyword,
-    setDateRange,
+    selectedMarket,
+    setSelectedMarket,
+    marketCapFilter,
+    setMarketCapFilter,
+    selectedCategories,
+    toggleCategory,
+    showFavoriteOnly,
+    toggleFavoriteFilter,
+    getFilter,
     resetFilter
   } = useStockFilter();
 
   return (
     <div>
-      <Select value={filter.market} onChange={setMarket}>
+      <Select value={selectedMarket} onChange={setSelectedMarket}>
         <Option value="all">全部</Option>
         <Option value="主板">主板</Option>
       </Select>
-      <Input
-        value={filter.searchKeyword}
-        onChange={(e) => setSearchKeyword(e.target.value)}
-      />
+      <Select value={marketCapFilter} onChange={setMarketCapFilter}>
+        <Option value="all">全部市值</Option>
+        <Option value="< 30">< 30亿</Option>
+      </Select>
+      <Button onClick={toggleFavoriteFilter}>
+        {showFavoriteOnly ? "仅关注" : "关注"}
+      </Button>
     </div>
+  );
+}
+```
+
+### useExpandedRows
+
+```tsx
+import { useExpandedRows } from "../hooks/useExpandedRows";
+
+function DataTable() {
+  const expandedRows = useExpandedRows({
+    pageSize: 10,
+    loadDataFn: async (key: string) => {
+      return await window.electronAPI.getDetails(key);
+    },
+    errorMessage: "加载详情失败",
+  });
+
+  return (
+    <Table
+      dataSource={data}
+      expandable={{
+        expandedRowKeys: expandedRows.expandedRowKeys,
+        onExpandedRowsChange: (keys) => expandedRows.setExpanded(keys as string[]),
+        expandedRowRender: (record) => {
+          const { data, loading, currentPage } = expandedRows.getExpandedData(record.key);
+          return (
+            <Table
+              loading={loading}
+              dataSource={data}
+              pagination={{
+                current: currentPage,
+                pageSize: expandedRows.pageSize,
+                onChange: (page) => expandedRows.setExpandedPage(record.key, page),
+              }}
+            />
+          );
+        },
+      }}
+      onRow={(record) => ({
+        onClick: () => {
+          expandedRows.toggleExpanded(record.key);
+          if (!expandedRows.isExpanded(record.key)) {
+            expandedRows.loadExpandedData(record.key);
+          }
+        },
+      })}
+    />
   );
 }
 ```
@@ -182,5 +302,28 @@ function FilterPanel() {
 
 ---
 
-**最后更新**：2025-12-26
+---
+
+## Hook 层级关系
+
+```mermaid
+graph TB
+    A[useAnnouncementFilter] --> B[useStockFilter]
+    B --> C[基础筛选逻辑]
+    A --> D[防抖搜索逻辑]
+    E[useStockList] --> F[stockService]
+    E --> A
+    G[useFavoriteStocks] --> H[electronAPI]
+    I[useExpandedRows] --> J[数据加载函数]
+```
+
+- **useAnnouncementFilter**: 顶层筛选 Hook，整合所有筛选功能
+- **useStockFilter**: 基础筛选 Hook，提供市场、日期、市值、分类等筛选
+- **useStockList**: 数据加载 Hook，依赖筛选条件获取数据
+- **useFavoriteStocks**: 收藏管理 Hook，独立功能
+- **useExpandedRows**: 展开行管理 Hook，通用展开行状态管理和数据加载
+
+---
+
+**最后更新**：2025-12-27（展开行状态管理重构）
 
