@@ -84,10 +84,10 @@ npm run viz
 
 ### 规则说明
 
-- **外部依赖**：仅作描述，如 `Ant Design(UI组件)`
-- **项目内依赖**：用方括号列出，使用相对路径
-- **相对路径**：从当前文件出发，指向被依赖的文件
-- **路径格式**：`[../types/stock.ts, ./helper.ts]`（用逗号分隔）
+-   **外部依赖**：仅作描述，如 `Ant Design(UI组件)`
+-   **项目内依赖**：用方括号列出，使用相对路径
+-   **相对路径**：从当前文件出发，指向被依赖的文件
+-   **路径格式**：`[../types/stock.ts, ./helper.ts]`（用逗号分隔）
 
 ## 📊 输出说明
 
@@ -124,25 +124,27 @@ npm run viz
 
 ### 节点类型
 
-- **根节点**（橙色）：electron / src
-- **目录**（绿色）：各级目录
-- **文件**（蓝色）：TS/TSX 文件
+-   **根节点**（橙色）：electron / src
+-   **目录**（绿色）：各级目录
+-   **文件**（蓝色）：TS/TSX 文件
 
 ### 边类型
 
-- **实线箭头**（灰色）：父子包含关系
-- **虚线箭头**（蓝色）：文件间依赖关系
+-   **实线箭头**（灰色）：父子包含关系
+-   **虚线箭头**（蓝色）：文件间依赖关系
 
 ## 🛠️ 故障排查
 
 ### 问题：依赖边没有生成
 
 **可能原因**：
+
 1. 文件头部注释格式不正确
 2. 依赖路径写错
 3. 依赖的目标文件不存在
 
 **解决方法**：
+
 ```bash
 # 运行更新命令查看警告信息
 npm run viz
@@ -154,6 +156,7 @@ npm run viz
 ### 问题：页面没有自动刷新
 
 **解决方法**：
+
 ```bash
 # 手动刷新浏览器
 # 或者重启开发服务器
@@ -162,11 +165,11 @@ npm run dev
 
 ## 📚 相关文件
 
-- **生成脚本**：`scripts/generate-cytoscape-data.cjs`
-- **更新脚本**：`scripts/update-architecture-viz.sh`
-- **数据文件**：`src/assets/cytoscape-data.json`
-- **可视化页面**：`src/pages/ArchitectureVisualization.tsx`
-- **规范文档**：`.cursor/rules/react-typescript.mdc`
+-   **生成脚本**：`scripts/generate-cytoscape-data.cjs`
+-   **更新脚本**：`scripts/update-architecture-viz.sh`
+-   **数据文件**：`src/assets/cytoscape-data.json`
+-   **可视化页面**：`src/pages/ArchitectureVisualization.tsx`
+-   **规范文档**：`.cursor/rules/react-typescript.mdc`
 
 ## 💡 最佳实践
 
